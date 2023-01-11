@@ -1,0 +1,24 @@
+#pragma once
+
+#include "ogmacam.h"
+
+extern HOgmacam g_hcam;
+extern OgmacamDeviceV2 g_cam[OGMACAM_MAX];
+extern int g_cameraCnt;
+extern int g_snapCount;
+extern int g_ROITestCount;
+extern bool g_bSnapFinish;
+extern bool g_bSnapTest;
+extern bool g_bImageSnap;
+extern bool g_bROITest;
+extern bool g_bROITest_SnapFinish;
+extern bool g_bROITest_SnapStart;
+extern bool g_bTriggerTest;
+extern bool g_bEnableCheckBlack;
+extern bool g_bCheckBlack;
+extern bool g_bBlack;
+extern bool g_bReplug;
+extern bool g_bHeartbeat;
+extern CString g_snapDir;
+
+CString GetAppTimeDir(const TCHAR* header);
