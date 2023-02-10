@@ -150,7 +150,6 @@
     <ClInclude Include="..\CExposureGainPropertyPage.h" />
     <ClInclude Include="..\CFrameRatePropertyPage.h" />
     <ClInclude Include="..\COpenCloseTestPropertyPage.h" />
-    <ClInclude Include="..\CPacketTimeoutPropertyPage.h" />
     <ClInclude Include="..\CPreviewSnapPropertyPage.h" />
     <ClInclude Include="..\CResTestPropertyPage.h" />
     <ClInclude Include="..\CROITestPropertyPage.h" />
@@ -174,7 +173,6 @@
     <ClCompile Include="..\CExposureGainPropertyPage.cpp" />
     <ClCompile Include="..\CFrameRatePropertyPage.cpp" />
     <ClCompile Include="..\COpenCloseTestPropertyPage.cpp" />
-    <ClCompile Include="..\CPacketTimeoutPropertyPage.cpp" />
     <ClCompile Include="..\CPreviewSnapPropertyPage.cpp" />
     <ClCompile Include="..\CResTestPropertyPage.cpp" />
     <ClCompile Include="..\CROITestPropertyPage.cpp" />

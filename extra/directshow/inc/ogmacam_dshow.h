@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 53.21959.20230104 */
+/* Version: 53.22081.20230207 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -114,7 +114,7 @@ typedef struct {
         /* obsolete, please use get_VignetMidPointInt */
         STDMETHOD(get_VignetMidPoint) (THIS_ double* dMidPoint) PURE;
        
-        STDMETHOD(put_WhiteBalanceGain) (THIS_ int aGain[3]) PURE; /* White Balance, RGB Gain mode */        
+        STDMETHOD(put_WhiteBalanceGain) (THIS_ int aGain[3]) PURE; /* White Balance, RGB Gain mode */
         STDMETHOD(get_WhiteBalanceGain) (THIS_ int aGain[3]) PURE; /* White Balance, RGB Gain mode */
         
         STDMETHOD(put_Hue) (THIS_ int Hue) PURE;
@@ -148,7 +148,7 @@ typedef struct {
         STDMETHOD(get_Speed) (THIS_ unsigned short* pSpeed) PURE;
         STDMETHOD(get_MaxSpeed) (THIS_) PURE; /* get the maximum frame speed, see Misc page, "Frame Speed Level", speed range = [0, max] */
         
-        /* power supply: 
+        /* power supply:
                 0 -> 60HZ AC
                 1 -> 50Hz AC
                 2 -> DC
@@ -230,7 +230,7 @@ typedef struct {
         /*
             set the thermoelectric cooler status: on or off.
             return E_NOTIMPL if not supported
-        */ 
+        */
         STDMETHOD(put_TEC) (THIS_ int bTEC) PURE;
         STDMETHOD(get_ResolutionRatio) (THIS_ unsigned nResolutionIndex, int* pNumerator, int* pDenominator) PURE;
         

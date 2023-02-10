@@ -99,12 +99,18 @@ CAutoTestDlg::CAutoTestDlg(CWnd* pParent /*=nullptr*/)
 	m_header.biSize = sizeof(m_header);
 	m_header.biPlanes = 1;
 	m_header.biBitCount = 24;
+
+	g_NopacketTimeout = theApp.GetProfileInt(_T("Options"), _T("NopacketTimeout"), g_NopacketTimeout);
+	g_NoframeTimeout = theApp.GetProfileInt(_T("Options"), _T("NoframeTimeout"), g_NoframeTimeout);
+	g_HeartbeatTimeout = theApp.GetProfileInt(_T("Options"), _T("HeartbeatTimeout"), g_HeartbeatTimeout);
+	g_bReplug = theApp.GetProfileInt(_T("Options"), _T("Replug"), g_bReplug ? 1 : 0);
+	g_bEnableCheckBlack = theApp.GetProfileInt(_T("Options"), _T("CheckBlack"), g_bEnableCheckBlack ? 1 : 0);
 }
 
 void CAutoTestDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_COMBO_CAMERA_LIST, m_cameraList);
+	DDX_Control(pDX, IDC_COMBO_CAMERA_LIST, m_camList);
 }
 
 BEGIN_MESSAGE_MAP(CAutoTestDlg, CDialog)
@@ -137,7 +143,7 @@ BOOL CAutoTestDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData)
 		EnumCamera();
 		if (g_bReplug && (nullptr == g_hcam) && (g_cameraCnt > 0))
 		{
-			Sleep(1500);
+			Sleep(500);
 			OnBnClickedButtonStart();
 		}
 	}
@@ -180,8 +186,7 @@ void CAutoTestDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	if (1 == nIDEvent)
 	{
-		/* heartbeat timeout: 3 seconds */
-		if (m_dwHeartbeat && (GetTickCount() - m_dwHeartbeat > 3000))
+		if (g_HeartbeatTimeout && (GetTickCount() - m_dwHeartbeat > g_HeartbeatTimeout))
 			OnEventError();
 	}
 }
@@ -219,17 +224,17 @@ LRESULT CAutoTestDlg::OnCloseOpen(WPARAM wp, LPARAM lp)
 void CAutoTestDlg::EnumCamera()
 {
 	g_cameraCnt = Ogmacam_EnumV2(g_cam);
-	m_cameraList.ResetContent();
+	m_camList.ResetContent();
 	int index = 0;
 	for (int i = 0; i < g_cameraCnt; ++i)
 	{
-		m_cameraList.AddString(g_cam[i].displayname);
-		if (0 == m_cameraID.Compare(g_cam[i].id))
+		m_camList.AddString(g_cam[i].displayname);
+		if (0 == m_camID.Compare(g_cam[i].id))
 			index = i;
 	}
 
 	if (g_cameraCnt > 0)
-		m_cameraList.SetCurSel(index);
+		m_camList.SetCurSel(index);
 
 	UpdateButtonsState();
 }
@@ -253,20 +258,22 @@ void CAutoTestDlg::OnBnClickedButtonStart()
 		if (g_cameraCnt <= 0)
 			return;
 
-		m_cameraID = g_cam[m_cameraList.GetCurSel()].id;
-		m_cameraName = g_cam[m_cameraList.GetCurSel()].displayname;
-		g_hcam = Ogmacam_Open(m_cameraID);
+		m_camID = g_cam[m_camList.GetCurSel()].id;
+		m_camName = g_cam[m_camList.GetCurSel()].displayname;
+		g_hcam = Ogmacam_Open(m_camID);
 		if (nullptr == g_hcam)
 			return;
 
 		m_dwHeartbeat = 0;
-		if (g_bHeartbeat && (g_cam[m_cameraList.GetCurSel()].model->flag & OGMACAM_FLAG_EVENT_HARDWARE))
+		if (g_HeartbeatTimeout && (g_cam[m_camList.GetCurSel()].model->flag & OGMACAM_FLAG_EVENT_HARDWARE))
 		{
 			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_EVENT_HARDWARE, 1);
 			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_EVENT_HARDWARE | OGMACAM_EVENT_HEARTBEAT, 1);
 
 			SetTimer(1, 1000, nullptr);
 		}
+		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOPACKET_TIMEOUT, g_NopacketTimeout);
+		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOFRAME_TIMEOUT, g_NoframeTimeout);
 
 		StartCamera();
 
@@ -335,7 +342,7 @@ void CAutoTestDlg::OnEventImage()
 	{
 		if (g_bROITest && g_bROITest_SnapStart)
 		{
-			unsigned offsetX = 0, offsetY = 0,  width = 0, height = 0;
+			unsigned offsetX = 0, offsetY = 0, width = 0, height = 0;
 			Ogmacam_get_Roi(g_hcam, &offsetX, &offsetY, &width, &height);
 			if (width == info.width && height == info.height)
 			{
@@ -516,7 +523,7 @@ void CAutoTestDlg::OnBnClickedButton1()
 		AfxMessageBox(L"Camera cannot be replug when it is running.", MB_OK | MB_ICONWARNING);
 		return;
 	}
-	Ogmacam_Replug(g_cam[m_cameraList.GetCurSel()].id);
+	Ogmacam_Replug(g_cam[m_camList.GetCurSel()].id);
 }
 
 class COptionsDlg : public CDialog
@@ -559,16 +566,33 @@ BOOL COptionsDlg::OnInitDialog()
 
 	CheckDlgButton(IDC_CHECK1, g_bReplug ? 1 : 0);
 	CheckDlgButton(IDC_CHECK2, g_bEnableCheckBlack ? 1 : 0);
-	CheckDlgButton(IDC_CHECK3, g_bHeartbeat ? 1 : 0);
+	SetDlgItemInt(IDC_EDIT1, g_NopacketTimeout);
+	SetDlgItemInt(IDC_EDIT3, g_NoframeTimeout);
+	SetDlgItemInt(IDC_EDIT2, g_HeartbeatTimeout);
 
 	return TRUE;
 }
 
 void COptionsDlg::OnOK()
 {
+	g_NopacketTimeout = GetDlgItemInt(IDC_EDIT1);
+	if (g_NopacketTimeout && (g_NopacketTimeout < OGMACAM_NOPACKET_TIMEOUT_MIN))
+	{
+		GotoDlgCtrl(GetDlgItem(IDC_EDIT1));
+		AfxMessageBox(_T("Value to small."));
+		return;
+	}
+	g_NoframeTimeout = GetDlgItemInt(IDC_EDIT3);
+	if (g_NoframeTimeout && (g_NoframeTimeout < OGMACAM_NOFRAME_TIMEOUT_MIN))
+	{
+		GotoDlgCtrl(GetDlgItem(IDC_EDIT3));
+		AfxMessageBox(_T("Value to small."));
+		return;
+	}
+	g_HeartbeatTimeout = GetDlgItemInt(IDC_EDIT2);
+
 	g_bReplug = IsDlgButtonChecked(IDC_CHECK1) ? true : false;
 	g_bEnableCheckBlack = IsDlgButtonChecked(IDC_CHECK2) ? true : false;
-	g_bHeartbeat = IsDlgButtonChecked(IDC_CHECK3) ? true : false;
 
 	CDialog::OnOK();
 }
@@ -576,5 +600,18 @@ void COptionsDlg::OnOK()
 void CAutoTestDlg::OnBnClickedOptions()
 {
 	COptionsDlg dlg;
-	dlg.DoModal();
+	if (IDOK == dlg.DoModal())
+	{
+		if (g_hcam)
+		{
+			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOPACKET_TIMEOUT, g_NopacketTimeout);
+			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOFRAME_TIMEOUT, g_NoframeTimeout);
+		}
+	
+		theApp.WriteProfileInt(_T("Options"), _T("NopacketTimeout"), g_NopacketTimeout);
+		theApp.WriteProfileInt(_T("Options"), _T("NoframeTimeout"), g_NoframeTimeout);
+		theApp.WriteProfileInt(_T("Options"), _T("HeartbeatTimeout"), g_HeartbeatTimeout);
+		theApp.WriteProfileInt(_T("Options"), _T("Replug"), g_bReplug ? 1 : 0);
+		theApp.WriteProfileInt(_T("Options"), _T("CheckBlack"), g_bEnableCheckBlack ? 1 : 0);
+	}
 }

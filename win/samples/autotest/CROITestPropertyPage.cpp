@@ -27,7 +27,7 @@ void CROITestPropertyPage::Stop()
 	Ogmacam_put_Roi(g_hcam, 0, 0, 0, 0);
 }
 
-void CROITestPropertyPage::OnTimer(UINT_PTR nIDEvent) 
+void CROITestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 {
 	if (!g_bROITest_SnapFinish && g_bROITest_SnapStart)
 		return;

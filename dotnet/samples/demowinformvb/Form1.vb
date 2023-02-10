@@ -52,7 +52,7 @@ Public Class Form1
 
     Private Sub OnEventStillImage()
         Dim info As New Ogmacam.FrameInfoV3
-        If cam_.PullImageV3(IntPtr.Zero, 1, 24, 0, info) Then ' peek the width and height 
+        If cam_.PullImageV3(IntPtr.Zero, 1, 24, 0, info) Then ' peek the width and height
             Dim sbmp As New Bitmap(CInt(info.width), CInt(info.height), PixelFormat.Format24bppRgb)
             Dim bOK As Boolean = False
             Try

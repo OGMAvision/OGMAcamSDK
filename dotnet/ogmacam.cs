@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 53.21959.20230104
+    Version: 53.22081.20230207
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -86,8 +86,8 @@ internal class Ogmacam : IDisposable
         EVENT_EXPOSURE           = 0x0001, /* exposure time or gain changed */
         EVENT_TEMPTINT           = 0x0002, /* white balance changed, Temp/Tint mode */
         EVENT_CHROME             = 0x0003, /* reversed, do not use it */
-        EVENT_IMAGE              = 0x0004, /* live image arrived, use Ogmacam_PullImage to get this image */
-        EVENT_STILLIMAGE         = 0x0005, /* snap (still) frame arrived, use Ogmacam_PullStillImage to get this frame */
+        EVENT_IMAGE              = 0x0004, /* live image arrived, use PullImage to get this image */
+        EVENT_STILLIMAGE         = 0x0005, /* snap (still) frame arrived, use PullStillImage to get this frame */
         EVENT_WBGAIN             = 0x0006, /* white balance changed, RGB Gain mode */
         EVENT_TRIGGERFAIL        = 0x0007, /* trigger failed */
         EVENT_BLACK              = 0x0008, /* black balance changed */
@@ -113,7 +113,7 @@ internal class Ogmacam : IDisposable
     
     public enum eOPTION : uint
     {
-        OPTION_NOFRAME_TIMEOUT        = 0x01,       /* no frame timeout: 0 => disable, positive value (>= 500) => timeout milliseconds. default: disable */
+        OPTION_NOFRAME_TIMEOUT        = 0x01,       /* no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable */
         OPTION_THREAD_PRIORITY        = 0x02,       /* set the priority of the internal thread which grab data from the usb device.
                                                          Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                          Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
@@ -209,7 +209,7 @@ internal class Ogmacam : IDisposable
                                                     */
         OPTION_AUTOEXP_THRESHOLD      = 0x29,       /* threshold of auto exposure, default value: 5, range = [2, 15] */
         OPTION_BYTEORDER              = 0x2a,       /* Byte order, BGR or RGB: 0 => RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android) */
-        OPTION_NOPACKET_TIMEOUT       = 0x2b,       /* no packet timeout: 0 = disable, positive value = timeout milliseconds. default: disable */
+        OPTION_NOPACKET_TIMEOUT       = 0x2b,       /* no packet timeout: 0 => disable, positive value (>= NOPACKET_TIMEOUT_MIN) => timeout milliseconds. default: disable */
         OPTION_MAX_PRECISE_FRAMERATE  = 0x2c,       /* get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported */
         OPTION_PRECISE_FRAMERATE      = 0x2d,       /* precise frame rate current value in 0.1 fps, range:[1~maximum] */
         OPTION_BANDWIDTH              = 0x2e,       /* bandwidth, [1-100]% */
@@ -280,7 +280,7 @@ internal class Ogmacam : IDisposable
                                                              high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
                                                              low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
                                                      */
-        OPTION_ENV_HT                 = 0x4d,        /* get environment humidity & temperature */        
+        OPTION_ENV_HT                 = 0x4d,        /* get environment humidity & temperature */
         OPTION_EXPOSURE_PRE_DELAY     = 0x4e,        /* exposure signal pre-delay, microsecond */
         OPTION_EXPOSURE_POST_DELAY    = 0x4f,        /* exposure signal post-delay, microsecond */
         OPTION_AUTOEXPO_CONV          = 0x50,        /* get auto exposure convergence status: 1(YES) or 0(NO), -1(NA) */
@@ -296,7 +296,7 @@ internal class Ogmacam : IDisposable
     
     /* HRESULT: error code */
     public const int S_OK = 0x00000000;                             /* Success */
-    public const int S_FALSE = 0x00000001;                          /* Success with noop */
+    public const int S_FALSE = 0x00000001;                          /* Yet another success */
     public const int E_UNEXPECTED = unchecked((int)0x8000ffff);     /* Catastrophic failure */
     public const int E_NOTIMPL = unchecked((int)0x80004001);        /* Not supported or not implemented */
     public const int E_NOINTERFACE = unchecked((int)0x80004002);
@@ -371,8 +371,8 @@ internal class Ogmacam : IDisposable
     public const int AE_PERCENT_MIN           = 0;        /* auto exposure percent, 0 => full roi average */
     public const int AE_PERCENT_MAX           = 100;
     public const int AE_PERCENT_DEF           = 10;
-    public const int NOPACKET_TIMEOUT_MIN     = 500;      /* 500ms */
-    public const int NOFRAME_TIMEOUT_MIN      = 500;      /* 500ms */
+    public const int NOPACKET_TIMEOUT_MIN     = 500;      /* no packet timeout minimum: 500ms */
+    public const int NOFRAME_TIMEOUT_MIN      = 500;      /* no frame timeout minimum: 500ms */
     
     public enum ePIXELFORMAT : uint
     {
@@ -598,7 +598,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
     
-    /* get the version of this dll/so, which is: 53.21959.20230104 */
+    /* get the version of this dll/so, which is: 53.22081.20230207 */
     public static string Version()
     {
         return Ogmacam_Version();
@@ -1084,7 +1084,7 @@ internal class Ogmacam : IDisposable
                | bits = 16          |      NA       | Convert to 16 |       NA      |       NA      |       16      | Convert to 16 |
                |--------------------|---------------|-----------|-------------------|---------------|---------------|---------------|
                | bits = 64          |      NA       | Convert to 64 |       NA      |       NA      | Convert to 64 |       64      |
-               |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|    
+               |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
        rowPitch: The distance from one row to the next row. rowPitch = 0 means using the default row pitch. rowPitch = -1 means zero padding, see below:
                ----------------------------------------------------------------------------------------------
                | format                             | 0 means default row pitch     | -1 means zero padding |
@@ -1474,7 +1474,7 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_RealTime(handle_, out val));
     }
     
-    /* Flush is obsolete, it's a synonyms for put_Option(OPTION_FLUSH, 3) */
+    /* Flush is obsolete, recommend using put_Option(OPTION_FLUSH, 3) */
     public bool Flush()
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -1844,7 +1844,7 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_Speed(handle_, out pSpeed));
     }
     
-    /* power supply: 
+    /* power supply:
             0 => 60HZ AC
             1 => 50Hz AC
             2 => DC
@@ -2107,14 +2107,50 @@ internal class Ogmacam : IDisposable
             return E_UNEXPECTED;
         return Ogmacam_write_EEPROM(handle_, addr, pBuffer, nBufferLen);
     }
-    
+
+    public int write_EEPROM(uint addr, byte[] pBuffer)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+            return E_UNEXPECTED;
+        return Ogmacam_write_EEPROM(handle_, addr, pBuffer, pBuffer.Length);
+    }
+
     public int read_EEPROM(uint addr, IntPtr pBuffer, uint nBufferLen)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return E_UNEXPECTED;
         return Ogmacam_read_EEPROM(handle_, addr, pBuffer, nBufferLen);
     }
-    
+
+    public int read_EEPROM(uint addr, byte[] pBuffer)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+            return E_UNEXPECTED;
+        return Ogmacam_read_EEPROM(handle_, addr, pBuffer, pBuffer.Length);
+    }
+
+    public const uint FLASH_SIZE    = 0x00;    /* query total size */
+    public const uint FLASH_EBLOCK  = 0x01;    /* query erase block size */
+    public const uint FLASH_RWBLOCK = 0x02;    /* query read/write block size */
+    public const uint FLASH_STATUS  = 0x03;    /* query status */
+    public const uint FLASH_READ    = 0x04;    /* read */
+    public const uint FLASH_WRITE   = 0x05;    /* write */
+    public const uint FLASH_ERASE   = 0x06;    /* erase */
+
+    public int rwc_Flash(uint action, uint addr, uint len, IntPtr pData)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+            return E_UNEXPECTED;
+        return Ogmacam_rwc_Flash(handle_, action, addr, len, pData);
+    }
+
+    public int rwc_Flash(uint action, uint addr, uint len, byte[] pData)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+            return E_UNEXPECTED;
+        return Ogmacam_rwc_Flash(handle_, action, addr, len, pData);
+    }
+
     public int write_Pipe(uint pipeId, IntPtr pBuffer, uint nBufferLen)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -2495,6 +2531,21 @@ internal class Ogmacam : IDisposable
     {
         return toModelV2(Ogmacam_get_Model(idVendor, idProduct));
     }
+
+    public static ModelV2[] allModel()
+    {
+        List<ModelV2> a = new List<ModelV2>();
+        IntPtr q, p = Ogmacam_all_Model();
+        do
+        {
+            q = Marshal.ReadIntPtr(p);
+            if (q == IntPtr.Zero)
+                break;
+            a.Add(toModelV2(q));
+            p = IncIntPtr(p, IntPtr.Size);
+        } while (true);
+        return a.ToArray();
+    }
     
     public static string HResult2String(int hResult)
     {
@@ -2503,7 +2554,7 @@ internal class Ogmacam : IDisposable
             case S_OK:
                 return "Success";
             case S_FALSE:
-                return "Success with noop";
+                return "Yet another success";
             case E_INVALIDARG:
                 return "One or more arguments are not valid";
             case E_NOTIMPL:
@@ -2757,7 +2808,7 @@ internal class Ogmacam : IDisposable
 #if !(NETFX_CORE || NETCOREAPP || WINDOWS_UWP)
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_StartPullModeWithWndMsg(SafeCamHandle h, IntPtr hWnd, uint nMsg);
-#endif  
+#endif
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_StartPullModeWithCallback(SafeCamHandle h, EVENT_CALLBACK funEvent, IntPtr ctxEvent);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -2993,7 +3044,7 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern uint Ogmacam_get_FanMaxSpeed(SafeCamHandle h);/* get the maximum fan speed, the fan speed range = [0, max], closed interval */
     
-    /* power supply: 
+    /* power supply:
             0 => 60HZ AC
             1 => 50Hz AC
             2 => DC
@@ -3127,8 +3178,16 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_write_EEPROM(SafeCamHandle h, uint addr, IntPtr pBuffer, uint nBufferLen);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_write_EEPROM(SafeCamHandle h, uint addr, byte[] pBuffer, int nBufferLen);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_read_EEPROM(SafeCamHandle h, uint addr, IntPtr pBuffer, uint nBufferLen);
-    
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_read_EEPROM(SafeCamHandle h, uint addr, byte[] pBuffer, int nBufferLen);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_rwc_Flash(SafeCamHandle h, uint action, uint addr, uint len, IntPtr pData);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_rwc_Flash(SafeCamHandle h, uint action, uint addr, uint len, byte[] pData);
+
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_write_Pipe(SafeCamHandle h, uint pipeId, IntPtr pBuffer, uint nBufferLen);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -3193,4 +3252,6 @@ internal class Ogmacam : IDisposable
     
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern IntPtr Ogmacam_get_Model(ushort idVendor, ushort idProduct);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern IntPtr Ogmacam_all_Model();
 }

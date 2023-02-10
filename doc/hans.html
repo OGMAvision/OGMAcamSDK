@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:53.21959.20230104</li></ul>
+<ul><li>版本:53.22081.20230207</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -21,7 +21,12 @@
         </ul>
       </li>
 	  <li><a href="https://learn.microsoft.com/en-us/windows/uwp" target="_blank">WinRT/UWP</a>: x64, x86, arm64, arm；Windows 10及以上版本</li>
-      <li>macOS: universal (x64 + x86)；macOS 10.10及以上版本</li>
+      <li>macOS:
+	  <ul>
+	  <li>x64+x86；macOS 10.10及以上版本</li>
+	  <li>x64+arm64: macOS 12及以上版本, 支持x64和<a href="https://en.wikipedia.org/wiki/Apple_silicon" target="_blank">Apple silicon</a>(如M1, M2等)</li>
+	  </ul>
+	  </li>
       <li>Linux: 内核2.6.27及以上
 		<ul>
 			<li>x64: GLIBC 2.14及以上</li>
@@ -31,7 +36,7 @@
 			<li>armel: GLIBC 2.8及以上；由arm-linux-gnueabi(版本5.4.0)编译</li>
 		</ul>
 	  </li>
-      <li>Android: __ANDROID_API__ >= 24 (Android 7.0); 由android-ndk-r18b编译; 请参阅<a href="https://developer.android.google.cn/ndk/guides/abis?hl=zh-cn" target="_blank">这里</a>
+      <li>Android: __ANDROID_API__ &gt;= 24 (Android 7.0); 由android-ndk-r18b编译; 请参阅<a href="https://developer.android.google.cn/ndk/guides/abis?hl=zh-cn" target="_blank">这里</a>
         <ul>
             <li>arm64: arm64-v8a</li>
             <li>arm: armeabi-v7a</li>
@@ -125,7 +130,7 @@
     </blockquote>
  	</li></ul>
 <ul><li>android: Android平台arm, arm64, x86, x64四种架构的libogmacam.so</li></ul>
-<ul><li>mac: macOS平台文件</li></ul>
+<ul><li>mac: macOS平台文件, dylib: x64+x86, x64+arm64</li></ul>
 <ul><li>python: ogmacam.py和示例代码</li></ul>
 <ul><li>java: ogmacam.java和示例代码</li></ul>
 <ul><li>doc: SDK使用文档, 简体中文, <a href="en.html" target="_blank">英文</a></li></ul>
@@ -158,7 +163,7 @@
  </tr>    
       <tr>
         <td>OGMACAM_EVENT_EXPOSURE</td>
-        <td rowspan="17">软件</td>
+        <td rowspan="18">软件</td>
         <td>曝光时间发生改变</td>
       </tr>
       <tr>
@@ -171,11 +176,11 @@
       </tr>
       <tr>
         <td>OGMACAM_EVENT_IMAGE</td>
-        <td>视频图像数据到达(视频). 使用Ogmacam_PullImageV3或Ogmacam_PullImage(V2)“拉”图像数据</td>
+        <td>视频图像数据到达(视频). 使用Ogmacam_PullImageXXXX“拉”图像数据</td>
       </tr>
       <tr>
         <td>OGMACAM_EVENT_STILLIMAGE</td>
-        <td>静态图片数据到达(Ogmacam_Snap或Ogmacam_SnapN引发). 使用Ogmacam_PullImageV3或Ogmacam_PullStillImage(V2)“拉”图像数据</td>
+        <td>静态图片数据到达(Ogmacam_Snap或Ogmacam_SnapN引发). 使用Ogmacam_PullImageXXXX“拉”图像数据</td>
       </tr>
       <tr>
         <td>OGMACAM_EVENT_ERROR</td>
@@ -352,7 +357,7 @@
 	  </tr>
 	  <tr>
         <td>S_FALSE</td>
-        <td><strong>Success (成功, 但和S_OK有区别, 比如内部值和用户设置的值已经一致, 相当于空操作)</strong></td>
+        <td><strong>Yet another Success (成功, 但和S_OK有所区别, 比如内部值和用户设置的值已经一致, 相当于空操作)</strong></td>
 		<td>0x00000001</td>
 	  </tr>
 	  <tr>
@@ -939,7 +944,7 @@ typedef struct {
     <p><strong>参数：</strong></p>
     	<blockquote>
     		<p>HOgmacam h: 相机实例句柄</p>
-			<p>int bPause: 1 => 暂停, 0 => 继续</p>
+			<p>int bPause: 1 =&gt; 暂停, 0 =&gt; 继续</p>
     	</blockquote>	
     <p><strong>说明：</strong>暂停或者继续视频流</p>
 </li></ul>
@@ -1124,11 +1129,11 @@ typedef struct {
       <tr>
       	<td><a id="rgb">OGMACAM_OPTION_RGB</a></td>
       	<td>0 = 使用RGB24<br/>
-				1 = 在位深度>8时, 启用RGB48格式<br/>
+				1 = 在位深度&gt;8时, 启用RGB48格式<br/>
 				2 = 使用RGB32<br/>
 				3 = 8位灰度(只对黑白相机有效)<br/>
-				4 = 16位灰度(只对黑白相机并且位深度>8时有效)<br/>
-                5 = 在位深度>8时, 启用RGB64格式</td>
+				4 = 16位灰度(只对黑白相机并且位深度&gt;8时有效)<br/>
+                5 = 在位深度&gt;8时, 启用RGB64格式</td>
       	<td>0</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr>
@@ -1361,16 +1366,16 @@ typedef struct {
 	  <tr>
         <td><a id="noframe">OGMACAM_OPTION_NOFRAME_TIMEOUT</a></td>
         <td>没有抓取到视频帧的超时时间. 当设定时间内没有获取到任何视频帧时, 触发事件<a href="#evnoframe">OGMACAM_EVENT_NOFRAMETIMEOUT</a><br/>
-          0 => 禁用<br/>
-          正整数(>=500ms) => 超时毫秒数</td>
+          0 =&gt; 禁用<br/>
+          正整数(&gt;=OGMACAM_NOFRAME_TIMEOUT_MIN) =&gt; 超时毫秒数</td>
 		<td>0</td>
 		<td>是</td>
       </tr>
 	  <tr>
         <td><a id="nopacket">OGMACAM_OPTION_NOPACKET_TIMEOUT</a></td>
         <td>没有抓取到视频包的超时时间. 当设定时间内没有获取到任何视频包时, 触发事件<a href="#evnopacket">OGMACAM_EVENT_NOPACKETTIMEOUT</a><br/>
-          0 = 禁用<br/>
-          正整数 = 超时毫秒数</td>
+          0 =&gt; 禁用<br/>
+          正整数(&gt;=OGMACAM_NOPACKET_TIMEOUT_MIN) =&gt; 超时毫秒数</td>
 		<td>0</td>
 		<td>是</td>
       </tr>
@@ -1504,13 +1509,13 @@ typedef struct {
       </tr>
       <tr>
         <td><a id="lownoise">OGMACAM_OPTION_LOW_NOISE</a></td>
-        <td>低噪声模式(更高的信噪比,更低的帧率)<br/>1 => 启用</td>
+        <td>低噪声模式(更高的信噪比,更低的帧率)<br/>1 =&gt; 启用</td>
 		<td>型号特定</td>
 		<td>是</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_HIGH_FULLWELL</td>
-        <td>高满阱模式:<br/>0 => 禁用, 1 => 启用</td>
+        <td>高满阱模式:<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>型号特定</td>
 		<td>是</td>
       </tr>
@@ -1524,13 +1529,13 @@ typedef struct {
       </tr>
       <tr>
         <td>OGMACAM_OPTION_DEFECT_PIXEL</td>
-        <td>坏点校正<br/>0 => 禁用, 1 => 启用</td>
+        <td>坏点校正<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>启用(1)</td>
 		<td>是</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_ANTI_SHUTTER_EFFECT</td>
-        <td>anti shutter effect: 1 => 启用, 0 => 禁用</td>
+        <td>anti shutter effect: 1 =&gt; 启用, 0 =&gt; 禁用</td>
 		<td>启用(1)</td>
 		<td>是</td>
       </tr>
@@ -1699,7 +1704,7 @@ typedef struct {
 					设置(set):
                         <blockquote>-1: 校准<br/>
                         val &amp; 0xff: 位置<br/>
-						(val &gt;&gt; 8) &amp; 0x1: 方向, 0=>顺时钟, 1=>自动方向</blockquote>                   
+						(val &gt;&gt; 8) &amp; 0x1: 方向, 0=&gt;顺时钟, 1=&gt;自动方向</blockquote>                   
                     获取(get):
                         <blockquote>-1: 动作中<br/>
                         val: 目标到达</blockquote>
@@ -2166,7 +2171,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_GET_EXPO_ACTIVE_MODE</td>
-   <td>曝光时间信号(exposure time signal):<br/>0 => 指定行(specified line)<br/>1 => common exposure time</td>
+   <td>曝光时间信号(exposure time signal):<br/>0 =&gt; 指定行(specified line)<br/>1 =&gt; common exposure time</td>
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_SET_EXPO_ACTIVE_MODE</td>
@@ -2174,7 +2179,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE</td>
-   <td>曝光事件(exposure event):<br/>0 => 指定行(specified line)<br/>1 => common exposure time</td>
+   <td>曝光事件(exposure event):<br/>0 =&gt; 指定行(specified line)<br/>1 =&gt; common exposure time</td>
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE</td>
@@ -2689,7 +2694,7 @@ public bool Snap(uint nResolutionIndex)
 <p>v10: Demosaic算法, 请参阅<a href="#demosaic">这里</a></p>
 <p>v9: 直方图数据类型从double改成float</p>
 <p>v8: 支持模拟触发模式, 请参阅<a href="#trigger">这里</a></p>
-<p>v7: 位深度>8时支持RGB48输出, 请参阅<a href="#rgb">这里</a></p>
+<p>v7: 位深度&gt;8时支持RGB48输出, 请参阅<a href="#rgb">这里</a></p>
 <p>v6: 支持触发(Trigger)模式, 请参阅<a href="#trigger">这里</a></p>
 <p>v5: 白平衡的两种模式: Temp/Tint模式 vs RGB Gain模式, 请参阅<a href="#wb">这里</a></p>
 <p>v4: 支持ROI (Region Of Interest), 请参阅<a href="#roi">这里</a></p>

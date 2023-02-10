@@ -1106,8 +1106,8 @@ public:
 
 		CComPtr<IWMStreamConfig> spIWMStreamConfig;
         //
-        // Search from the last codec because the last codec usually 
-        // is the newest codec. 
+        // Search from the last codec because the last codec usually
+        // is the newest codec.
         //
         for (int i = cCodecs - 1; i >= 0; i--)
         {
@@ -1309,10 +1309,10 @@ private:
 		// Stride = (width * bytes/pixel), rounded to the next DWORD boundary.
 		LONG lStride = (m_lFrameWidth * (pbmi->biBitCount / 8) + 3) & ~3;
 
-		// Image size = stride * height. 
+		// Image size = stride * height.
 		pbmi->biSizeImage = m_lFrameHeight * lStride;
 
-		// Apply the adjusted type to the video input. 
+		// Apply the adjusted type to the video input.
 		hr = spIWMVideoMediaProps->SetMediaType(pType);
 		if (FAILED(hr))
 			return hr;

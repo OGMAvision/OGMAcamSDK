@@ -84,9 +84,6 @@
     <ClInclude Include="..\CFrameRatePropertyPage.h">
       <Filter>Setting</Filter>
     </ClInclude>
-    <ClInclude Include="..\CPacketTimeoutPropertyPage.h">
-      <Filter>Setting</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\AutoTest.cpp">
@@ -144,9 +141,6 @@
       <Filter>Test</Filter>
     </ClCompile>
     <ClCompile Include="..\CFrameRatePropertyPage.cpp">
-      <Filter>Setting</Filter>
-    </ClCompile>
-    <ClCompile Include="..\CPacketTimeoutPropertyPage.cpp">
       <Filter>Setting</Filter>
     </ClCompile>
   </ItemGroup>

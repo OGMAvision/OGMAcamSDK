@@ -449,7 +449,7 @@ void TDshowContext::MakeMenuOption(BOOL bAdd, HMENU hMenuSub1, UINT pos, UINT ti
     // New WDM devices support new UI and new interfaces.
     // Your app can use some default property
     // pages for UI if you'd like (like we do here) or if you don't like our
-    // dialog boxes, feel free to make your own and programmatically set 
+    // dialog boxes, feel free to make your own and programmatically set
     // the capture options through interfaces like IAMCrossbar, IAMCameraControl
     // etc.
 
@@ -819,7 +819,7 @@ HRESULT TDshowContext::BuildPreviewGraph()
     }
     // Get the start window to be a child of our app's window.
 
-    // This will find the IVideoWindow interface on the renderer. It is 
+    // This will find the IVideoWindow interface on the renderer. It is
     // important to ask the filtergraph for this interface... do NOT use
     // ICaptureGraphBuilder2::FindInterface, because the filtergraph needs to
     // know we own the window so it can give us display changed messages, etc.
@@ -952,7 +952,7 @@ BOOL TDshowContext::BuildCaptureGraph()
          goto SetupCaptureFail;
     }
 
-    // This will find the IVideoWindow interface on the renderer.  It is 
+    // This will find the IVideoWindow interface on the renderer.  It is
     // important to ask the filtergraph for this interface... do NOT use
     // ICaptureGraphBuilder2::FindInterface, because the filtergraph needs to
     // know we own the window so it can give us display changed messages, etc.
@@ -1350,8 +1350,8 @@ void TDshowContext::on_dialog(int id)
 		if (m_pBuilder)
 		{
 			// You can change this pin's output format in these dialogs.
-			// If the capture pin is already connected to somebody who's 
-			// fussy about the connection type, that may prevent using 
+			// If the capture pin is already connected to somebody who's
+			// fussy about the connection type, that may prevent using
 			// this dialog(!) because the filter it's connected to might not
 			// allow reconnecting to a new format. (EG: you switch from RGB
 			// to some compressed type, and need to pull in a decoder)
@@ -1471,7 +1471,7 @@ BOOL TDshowContext::Snapshot(IBaseFilter* pSampleGrabber, const wchar_t* filenam
 
 	BOOL bRet = FALSE;
 	// Examine the format block.
-	if ((mt.formattype == FORMAT_VideoInfo) && 
+	if ((mt.formattype == FORMAT_VideoInfo) &&
 		(mt.cbFormat >= sizeof(VIDEOINFOHEADER)) &&
 		mt.pbFormat)
 	{

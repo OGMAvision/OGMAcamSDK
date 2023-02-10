@@ -42,72 +42,72 @@ MIDL_INTERFACE("93E5A4E0-2D50-11d2-ABFA-00A0C9C6E38D")
 ICaptureGraphBuilder2 : public IUnknown
 {
 public:
-    virtual HRESULT STDMETHODCALLTYPE SetFiltergraph( 
+    virtual HRESULT STDMETHODCALLTYPE SetFiltergraph(
         /* [in] */ IGraphBuilder *pfg) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE GetFiltergraph( 
-        /* [out] */ 
+    virtual HRESULT STDMETHODCALLTYPE GetFiltergraph(
+        /* [out] */
         __out  IGraphBuilder **ppfg) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE SetOutputFileName( 
+    virtual HRESULT STDMETHODCALLTYPE SetOutputFileName(
         /* [in] */ const GUID *pType,
         /* [in] */ LPCOLESTR lpstrFile,
-        /* [out] */ 
+        /* [out] */
         __out  IBaseFilter **ppf,
-        /* [out] */ 
+        /* [out] */
         __out  IFileSinkFilter **ppSink) = 0;
     
-    virtual /* [local] */ HRESULT STDMETHODCALLTYPE FindInterface( 
-        /* [in] */ 
+    virtual /* [local] */ HRESULT STDMETHODCALLTYPE FindInterface(
+        /* [in] */
         __in_opt  const GUID *pCategory,
-        /* [in] */ 
+        /* [in] */
         __in_opt  const GUID *pType,
         /* [in] */ IBaseFilter *pf,
         /* [in] */ REFIID riid,
-        /* [out] */ 
+        /* [out] */
         __out  void **ppint) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE RenderStream( 
-        /* [in] */ 
+    virtual HRESULT STDMETHODCALLTYPE RenderStream(
+        /* [in] */
         __in_opt  const GUID *pCategory,
         /* [in] */ const GUID *pType,
         /* [in] */ IUnknown *pSource,
         /* [in] */ IBaseFilter *pfCompressor,
         /* [in] */ IBaseFilter *pfRenderer) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE ControlStream( 
+    virtual HRESULT STDMETHODCALLTYPE ControlStream(
         /* [in] */ const GUID *pCategory,
         /* [in] */ const GUID *pType,
         /* [in] */ IBaseFilter *pFilter,
-        /* [in] */ 
+        /* [in] */
         __in_opt  REFERENCE_TIME *pstart,
-        /* [in] */ 
+        /* [in] */
         __in_opt  REFERENCE_TIME *pstop,
         /* [in] */ WORD wStartCookie,
         /* [in] */ WORD wStopCookie) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE AllocCapFile( 
+    virtual HRESULT STDMETHODCALLTYPE AllocCapFile(
         /* [in] */ LPCOLESTR lpstr,
         /* [in] */ DWORDLONG dwlSize) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE CopyCaptureFile( 
-        /* [in] */ 
+    virtual HRESULT STDMETHODCALLTYPE CopyCaptureFile(
+        /* [in] */
         __in  LPOLESTR lpwstrOld,
-        /* [in] */ 
+        /* [in] */
         __in  LPOLESTR lpwstrNew,
         /* [in] */ int fAllowEscAbort,
         /* [in] */ IAMCopyCaptureFileProgress *pCallback) = 0;
     
-    virtual HRESULT STDMETHODCALLTYPE FindPin( 
+    virtual HRESULT STDMETHODCALLTYPE FindPin(
         /* [in] */ IUnknown *pSource,
         /* [in] */ PIN_DIRECTION pindir,
-        /* [in] */ 
+        /* [in] */
         __in_opt  const GUID *pCategory,
-        /* [in] */ 
+        /* [in] */
         __in_opt  const GUID *pType,
         /* [in] */ BOOL fUnconnected,
         /* [in] */ int num,
-        /* [out] */ 
+        /* [out] */
         __out  IPin **ppPin) = 0;
 };
 #endif

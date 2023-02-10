@@ -30,7 +30,7 @@ void CSnapResTestPropertyPage::OnEnChangeEditSnapCount()
 	GetDlgItem(IDC_BUTTON_START)->EnableWindow(m_totalCount > 0);
 }
 
-void CSnapResTestPropertyPage::OnTimer(UINT_PTR nIDEvent) 
+void CSnapResTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 {
 	if (!g_bSnapFinish)
 		return;

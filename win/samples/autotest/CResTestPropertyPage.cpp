@@ -40,7 +40,7 @@ void CResTestPropertyPage::OnEnChangeEditResolutionTestCount()
 	GetDlgItem(IDC_BUTTON_RESOLUTION_TEST_START)->EnableWindow(m_totalCount > 0);
 }
 
-void CResTestPropertyPage::Stop() 
+void CResTestPropertyPage::Stop()
 {
 	KillTimer(1);
 	m_bStart = false;

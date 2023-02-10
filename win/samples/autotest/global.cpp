@@ -15,9 +15,11 @@ bool g_bTriggerTest = false;
 bool g_bEnableCheckBlack = true;
 bool g_bCheckBlack = false;
 bool g_bBlack = false;
-bool g_bHeartbeat = false;
 bool g_bReplug = false;
 bool g_bSnapTest = false;
+unsigned g_HeartbeatTimeout = 0;
+unsigned g_NopacketTimeout = 0;
+unsigned g_NoframeTimeout = 0;
 CString g_snapDir;
 
 CString GetAppTimeDir(const TCHAR* header)

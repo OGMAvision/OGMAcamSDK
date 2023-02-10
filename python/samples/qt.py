@@ -243,7 +243,7 @@ class MainWindow(QMainWindow):
                 for i in range(0, self.cur.model.preview):
                     self.cmb_res.addItem("{}*{}".format(self.cur.model.res[i].width, self.cur.model.res[i].height))
                 self.cmb_res.setCurrentIndex(self.res)
-                self.cmb_res.setEnabled(True)                     
+                self.cmb_res.setEnabled(True)
             self.hcam.put_Option(ogmacam.OGMACAM_OPTION_BYTEORDER, 0) #Qimage use RGB byte order
             self.hcam.put_AutoExpoEnable(1)
             self.startCamera()

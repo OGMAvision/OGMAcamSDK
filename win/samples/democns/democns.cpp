@@ -1426,7 +1426,7 @@ public:
 						
 						int n = v[0].y.size();
 						fwrite(&n, 1, sizeof(n), fp);
-						for (size_t j = 0; j < m_vecPt.size(); ++j)			
+						for (size_t j = 0; j < m_vecPt.size(); ++j)
 							fwrite(&v[j].y[0], 1, sizeof(int) * v[j].y.size(), fp);
 					}
 

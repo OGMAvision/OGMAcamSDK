@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 53.21959.20230104
+'    Version: 53.22081.20230207
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -75,8 +75,8 @@ Friend Class Ogmacam
         EVENT_EXPOSURE = &H1                      ' exposure time or gain changed
         EVENT_TEMPTINT = &H2                      ' white balance changed, Temp/Tint mode
         EVENT_CHROME = &H3                        ' reversed, do not use it
-        EVENT_IMAGE = &H4                         ' live image arrived, use Ogmacam_PullImage to get this image
-        EVENT_STILLIMAGE = &H5                    ' snap (still) frame arrived, use Ogmacam_PullStillImage to get this frame
+        EVENT_IMAGE = &H4                         ' live image arrived, use PullImage to get this image
+        EVENT_STILLIMAGE = &H5                    ' snap (still) frame arrived, use PullStillImage to get this frame
         EVENT_WBGAIN = &H6                        ' white balance changed, RGB Gain mode
         EVENT_TRIGGERFAIL = &H7                   ' trigger failed
         EVENT_BLACK = &H8                         ' black balance
@@ -101,7 +101,7 @@ Friend Class Ogmacam
     End Enum
 
     Public Enum eOPTION As UInteger
-        OPTION_NOFRAME_TIMEOUT = &H1               ' no frame timeout: 0 => disable, positive value (>= 500) => timeout milliseconds. default: disable
+        OPTION_NOFRAME_TIMEOUT = &H1               ' no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable
         OPTION_THREAD_PRIORITY = &H2               ' set the priority of the internal thread which grab data from the usb device.
                                                    '   Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                    '   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
@@ -197,7 +197,7 @@ Friend Class Ogmacam
                                                    '
         OPTION_AUTOEXP_THRESHOLD = &H29            ' threshold of auto exposure, default value: 5, range = [2, 15]
         OPTION_BYTEORDER = &H2A                    ' Byte order, BGR or RGB: 0 => RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android)
-        OPTION_NOPACKET_TIMEOUT = &H2B             ' no packet timeout: 0 = disable, positive value = timeout milliseconds. default: disable
+        OPTION_NOPACKET_TIMEOUT = &H2B             ' no packet timeout: 0 => disable, positive value (>= NOPACKET_TIMEOUT_MIN) => timeout milliseconds. default: disable
         OPTION_MAX_PRECISE_FRAMERATE = &H2C        ' get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported
         OPTION_PRECISE_FRAMERATE = &H2D            ' precise frame rate current value in 0.1 fps, range:[1~maximum]
         OPTION_BANDWIDTH = &H2E                    ' bandwidth, [1-100]%
@@ -283,7 +283,7 @@ Friend Class Ogmacam
 
     ' HRESULT: Error code
     Public Const S_OK = &H0                                     ' Success
-    Public Const S_FALSE = &H1                                  ' Success with noop
+    Public Const S_FALSE = &H1                                  ' Yet another success
     Public Const E_UNEXPECTED = CType(&H8000FFFF, Integer)      ' Catastrophic failure
     Public Const E_NOTIMPL = CType(&H80004001, Integer)         ' Not supported or not implemented
     Public Const E_NOINTERFACE = CType(&H80004002, Integer)
@@ -358,8 +358,8 @@ Friend Class Ogmacam
     Public Const AE_PERCENT_MIN           = 0        ' auto exposure percent, 0 => full roi average
     Public Const AE_PERCENT_MAX           = 100
     Public Const AE_PERCENT_DEF           = 10
-    Public Const NOPACKET_TIMEOUT_MIN     = 500      ' 500ms
-    Public Const NOFRAME_TIMEOUT_MIN      = 500      ' 500ms
+    Public Const NOPACKET_TIMEOUT_MIN     = 500      ' no packet timeout minimum: 500ms
+    Public Const NOFRAME_TIMEOUT_MIN      = 500      ' no frame timeout minimum: 500ms
 
     Public Enum ePIXELFORMAT As Integer
         PIXELFORMAT_RAW8    = &H0
@@ -387,7 +387,7 @@ Friend Class Ogmacam
     End Enum
 
     Public Enum eIoControType As Integer
-        IOCONTROLTYPE_GET_SUPPORTEDMODE = &H1          ' 1 = >Input, 2 => Output, (1 | 2) => support both Input and Output
+        IOCONTROLTYPE_GET_SUPPORTEDMODE = &H1          ' 1 => Input, 2 => Output, (1 | 2) => support both Input and Output
         IOCONTROLTYPE_GET_GPIODIR = &H3                ' 0x00 => Input, 0x01 => Output
         IOCONTROLTYPE_SET_GPIODIR = &H4
         IOCONTROLTYPE_GET_FORMAT = &H5                 ' 0 => not connected
@@ -544,7 +544,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 53.21959.20230104
+    ' get the version of this dll, which is: 53.22081.20230207
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -1174,7 +1174,7 @@ Friend Class Ogmacam
     '      index 1:    1024,   768
     '      index 2:    680,    510
     '  so, we can use put_Size(h, 1024, 768) or put_eSize(h, 1). Both have the same effect.
-    ' 
+    '
     Public Function put_Size(nWidth As Integer, nHeight As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1291,7 +1291,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_RealTime(handle_, val))
     End Function
 
-    ' Flush is obsolete, it's a synonyms for put_Option(OPTION_FLUSH, 3)
+    ' Flush is obsolete, recommend using put_Option(OPTION_FLUSH, 3)
     Public Function Flush() As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1415,7 +1415,7 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_ExpoAGain(ByRef Gain As UShort) As Boolean
-        ' percent, such as 300 
+        ' percent, such as 300
         Gain = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1424,7 +1424,7 @@ Friend Class Ogmacam
     End Function
 
     Public Function put_ExpoAGain(Gain As UShort) As Boolean
-        ' percent 
+        ' percent
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1572,7 +1572,7 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Chrome(ByRef bChrome As Boolean) As Boolean
-        ' monochromatic mode 
+        ' monochromatic mode
         bChrome = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1595,7 +1595,7 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_VFlip(ByRef bVFlip As Boolean) As Boolean
-        ' vertical flip 
+        ' vertical flip
         bVFlip = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1633,7 +1633,7 @@ Friend Class Ogmacam
     End Function
 
     Public Function put_HFlip(bHFlip As Boolean) As Boolean
-        ' horizontal flip 
+        ' horizontal flip
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1695,7 +1695,7 @@ Friend Class Ogmacam
     End Function
 
     Public Function put_Mode(bSkip As Boolean) As Boolean
-        ' skip or bin 
+        ' skip or bin
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1954,11 +1954,47 @@ Friend Class Ogmacam
         Return Ogmacam_write_EEPROM(handle_, addr, pBuffer, nBufferLen)
     End Function
 
+    Public Function write_EEPROM(addr As UInteger, pBuffer As Byte()) As Integer
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return E_UNEXPECTED
+        End If
+        Return Ogmacam_write_EEPROM(handle_, addr, pBuffer, pBuffer.Length)
+    End Function
+
     Public Function read_EEPROM(addr As UInteger, pBuffer As IntPtr, nBufferLen As UInteger) As Integer
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return E_UNEXPECTED
         End If
         Return Ogmacam_read_EEPROM(handle_, addr, pBuffer, nBufferLen)
+    End Function
+
+    Public Function read_EEPROM(addr As UInteger, pBuffer As Byte()) As Integer
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return E_UNEXPECTED
+        End If
+        Return Ogmacam_read_EEPROM(handle_, addr, pBuffer, pBuffer.Length)
+    End Function
+
+    Public Const FLASH_SIZE As UInteger = &H0    ' query total size
+    Public Const FLASH_EBLOCK As UInteger = &H1  ' query Erase block size
+    Public Const FLASH_RWBLOCK As UInteger = &H2 ' query read/write block size
+    Public Const FLASH_STATUS As UInteger = &H3  ' query status
+    Public Const FLASH_READ As UInteger = &H4    ' read
+    Public Const FLASH_WRITE As UInteger = &H5   ' write
+    Public Const FLASH_ERASE As UInteger = &H6   ' erase
+
+    Public Function rwc_Flash(action As UInteger, addr As UInteger, len As UInteger, pData As IntPtr) As Integer
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return E_UNEXPECTED
+        End If
+        Return Ogmacam_rwc_Flash(handle_, action, addr, len, pData)
+    End Function
+
+    Public Function rwc_Flash(action As UInteger, addr As UInteger, pData As Byte()) As Integer
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return E_UNEXPECTED
+        End If
+        Return Ogmacam_rwc_Flash(handle_, action, addr, pData.Length, pData)
     End Function
 
     Public Function write_Pipe(pipeId As UInteger, pBuffer As IntPtr, nBufferLen As UInteger) As Integer
@@ -2263,12 +2299,26 @@ Friend Class Ogmacam
         Return toModelV2(Ogmacam_get_Model(idVendor, idProduct))
     End Function
 
+    Public Shared Function allModel() As ModelV2()
+        Dim a As List(Of ModelV2) = New List(Of ModelV2)()
+        Dim p As IntPtr = Ogmacam_all_Model()
+        Do While True
+            Dim q As IntPtr = Marshal.ReadIntPtr(p)
+            If q = IntPtr.Zero Then
+                Exit Do
+            End If
+            a.Add(toModelV2(q))
+            p = IncIntPtr(p, IntPtr.Size)
+        Loop
+        Return a.ToArray()
+    End Function
+
     Public Shared Function HResult2String(ByVal hResult As Integer) As String
         Select Case (hResult)
             Case S_OK
                 Return "Success"
             Case S_FALSE
-                Return "Success with noop"
+                Return "Yet another success"
             Case E_INVALIDARG
                 Return "One or more arguments are not valid"
             Case E_NOTIMPL
@@ -2349,7 +2399,7 @@ Friend Class Ogmacam
 
     Private Sub DataCallbackV4(pData As IntPtr, pInfo As IntPtr, bSnap As Boolean)
         If pData = IntPtr.Zero OrElse pInfo = IntPtr.Zero Then
-            ' pData == 0 means that something error, we callback to tell the application 
+            ' pData == 0 means that something error, we callback to tell the application
             If funDataV4_ IsNot Nothing Then
                 Dim info As New FrameInfoV3()
                 funDataV4_(IntPtr.Zero, info, bSnap)
@@ -2366,7 +2416,7 @@ Friend Class Ogmacam
 
     Private Sub DataCallbackV3(pData As IntPtr, pInfo As IntPtr, bSnap As Boolean)
         If pData = IntPtr.Zero OrElse pInfo = IntPtr.Zero Then
-            ' pData == 0 means that something error, we callback to tell the application 
+            ' pData == 0 means that something error, we callback to tell the application
             If funDataV3_ IsNot Nothing Then
                 Dim info As New FrameInfoV2()
                 funDataV3_(IntPtr.Zero, info, bSnap)
@@ -2990,7 +3040,7 @@ Friend Class Ogmacam
 
     '
     ' get the sensor pixel size, such as: 2.4um x 2.4um
-    ' 
+    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_PixelSize(h As SafeCamHandle, nResolutionIndex As UInteger, ByRef x As Single, ByRef y As Single) As Integer
     End Function
@@ -3047,7 +3097,19 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_write_EEPROM(h As SafeCamHandle, addr As UInteger, pBuffer As IntPtr, nBufferLen As UInteger) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_write_EEPROM(h As SafeCamHandle, addr As UInteger, pBuffer As Byte(), nBufferLen As Integer) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_read_EEPROM(h As SafeCamHandle, addr As UInteger, pBuffer As IntPtr, nBufferLen As UInteger) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_read_EEPROM(h As SafeCamHandle, addr As UInteger, pBuffer As Byte(), nBufferLen As Integer) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_rwc_Flash(h As SafeCamHandle, action As UInteger, addr As UInteger, len As UInteger, pData As IntPtr) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_rwc_Flash(h As SafeCamHandle, action As UInteger, addr As UInteger, len As Integer, pData As Byte()) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -3144,5 +3206,8 @@ Friend Class Ogmacam
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Model(idVendor As UShort, idProduct As UShort) As IntPtr
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_all_Model() As IntPtr
     End Function
 End Class

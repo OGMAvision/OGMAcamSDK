@@ -7,7 +7,7 @@
 <body>
 <h1 align="center">Ogmacam API Manual</h1>
 <hr/><h1><font color="#0000FF">1. Version &amp; Platform</font></h1>
-<hr/><ul><li>Version: 53.21959.20230104</li></ul>
+<hr/><ul><li>Version: 53.22081.20230207</li></ul>
 <ul>
   <li>Platform
     <ul>
@@ -20,7 +20,12 @@
         </ul>
       </li>
 	  <li><a href="https://learn.microsoft.com/en-us/windows/uwp" target="_blank">WinRT/UWP</a>: x64, x86, arm64, arm; Windows10 or above</li>
-      <li>macOS: universal (x64 + x86); macOS 10.10 or above</li>
+      <li>macOS:
+	  <ul>
+	  <li>x64+x86: macOS 10.10 or above</li>
+	  <li>x64+arm64: macOS 12 or above, support x64 and <a href="https://en.wikipedia.org/wiki/Apple_silicon" target="_blank">Apple silicon</a> (such as M1, M2, etc)</li>
+	  </ul>
+	  </li>
       <li>Linux: kernel 2.6.27 or above
 	    <ul>
 		  <li>x64: GLIBC 2.14 or above</li>
@@ -30,7 +35,7 @@
 		  <li>armel: GLIBC 2.8 or above; built by arm-linux-gnueabi (version 5.4.0)</li>
 		</ul>
 	  </li>
-      <li>Android: __ANDROID_API__ >= 24 (Android 7.0); built by android-ndk-r18b; see <a href="https://developer.android.com/ndk/guides/abis" target="_blank">here</a>
+      <li>Android: __ANDROID_API__ &gt;= 24 (Android 7.0); built by android-ndk-r18b; see <a href="https://developer.android.com/ndk/guides/abis" target="_blank">here</a>
         <ul>
             <li>arm64: arm64-v8a</li>
             <li>arm: armeabi-v7a</li>
@@ -120,7 +125,7 @@ Another example, which can be seen to belong to x64:<table width="100%" border="
     </blockquote>
  	</li></ul>
  <ul><li>android: libogmacam.so for Android on arm, arm64, x86 and x64</li></ul>
- <ul><li>mac: For macOS</li></ul> 
+ <ul><li>mac: For macOS, universal dylib: x64+x86, x64+arm64</li></ul> 
  <ul><li>python: ogmacam.py and sample code</li></ul>
  <ul><li>java: ogmacam.java and sample code</li></ul>
  <ul><li>doc: User manuals in English and <a href="hans.html" target="_blank">Simplified Chinese</a></li></ul>
@@ -157,7 +162,7 @@ Another example, which can be seen to belong to x64:<table width="100%" border="
  </tr>
  <tr>
    <td>OGMACAM_EVENT_EXPOSURE</td>
-   <td rowspan="17">Software</td>
+   <td rowspan="18">Software</td>
    <td>exposure time changed</td>
  </tr>
  <tr>
@@ -170,11 +175,11 @@ Another example, which can be seen to belong to x64:<table width="100%" border="
  </tr>
  <tr>
    <td>OGMACAM_EVENT_IMAGE</td>
-   <td>Video image data arrives. Use Ogmacam_PullImage(V3/V2) to 'pull' the image data</td>
+   <td>Video image data arrives. Use Ogmacam_PullImageXXXX to 'pull' the image data</td>
  </tr>
  <tr>
    <td>OGMACAM_EVENT_STILLIMAGE</td>
-   <td>Still image which is triggered by function Ogmacam_Snap or Ogmacam_SnapN or Ogmacam_SnapR arrives. Use Ogmacam_PullImageV3 or Ogmacam_PullStillImage(V2) to 'pull' the image data</td>
+   <td>Still image which is triggered by function Ogmacam_Snap or Ogmacam_SnapN or Ogmacam_SnapR arrives. Use Ogmacam_PullImageXXXX to 'pull' the image data</td>
  </tr>
  <tr>
    <td>OGMACAM_EVENT_ERROR</td>
@@ -351,7 +356,7 @@ Another example, which can be seen to belong to x64:<table width="100%" border="
 	  </tr>
 	  <tr>
         <td>S_FALSE</td>
-        <td>Success, something special, such as noop</td>
+        <td>Yet another success (different from S_OK, such as internal values and user-set values have coincided, equivalent to noop)</td>
 		<td>0x00000001</td>
 	  </tr>
 	  <tr>
@@ -943,7 +948,7 @@ typedef struct {
     <p><strong>Parameters:</strong></p>
     	<blockquote>
     		<p>HOgmacam h: camera instance handle</p>
-			<p>int bPause: 1 => pause, 0 => continue</p>
+			<p>int bPause: 1 =&gt; pause, 0 =&gt; continue</p>
     	</blockquote>
     <p><strong>Remarks:</strong> temporarily pause the video stream</p>
 </li></ul>
@@ -1119,11 +1124,11 @@ typedef struct {
       <tr>
       	<td><a id="rgb">OGMACAM_OPTION_RGB</a></td>
       	<td>0 = RGB24<br/>
-			1 = RGB48 format when bitdepth > 8<br/>
+			1 = RGB48 format when bitdepth &gt; 8<br/>
 			2 = RGB32<br/>
 			3 = 8 bits grey (only for mono camera)<br/>
-			4 = 16 bits grey (only for mono camera and bitdepth > 8)<br/>
-            5 = RGB64 format when bitdepth > 8</td>
+			4 = 16 bits grey (only for mono camera and bitdepth &gt; 8)<br/>
+            5 = RGB64 format when bitdepth &gt; 8</td>
       	<td>0</td>
       	<td><b>No</b><br/>(The return value is E_UNEXPECTED when set this option while camera is running)</td>
       </tr>
@@ -1354,16 +1359,16 @@ typedef struct {
 	  <tr>
         <td><a id="noframe">TOGMACAM_OPTION_NOFRAME_TIMEOUT</a></td>
         <td>Timeout for grabbing no frame. Trigger an event when no frame is acquired within the set time, see <a href="#evnoframe">OGMACAM_EVENT_NOFRAMETIMEOUT</a><br/>
-          0 => disable<br/>
-          positive value (>=500) => timeout milliseconds</td>
+          0 =&gt; disable<br/>
+          positive value (&gt;=OGMACAM_NOFRAME_TIMEOUT_MIN) =&gt; timeout milliseconds</td>
         <td>0</td>
         <td>Yes</td>
       </tr>
 	  <tr>
         <td><a id="nopacket">OGMACAM_OPTION_NOPACKET_TIMEOUT</a></td>
         <td>Timeout for grabbing no packet. Trigger an event when no packet is acquired within the set time, see <a href="#evnopacket">OGMACAM_EVENT_NOPACKETTIMEOUT</a><br/>
-          0 = disable<br/>
-          positive value = timeout milliseconds</td>
+          0 =&gt; disable<br/>
+          positive value (&gt;=OGMACAM_NOPACKET_TIMEOUT_MIN) =&gt; timeout milliseconds</td>
         <td>0</td>
         <td>Yes</td>
       </tr>
@@ -1486,7 +1491,7 @@ typedef struct {
       </tr>
       <tr>
         <td><a id="hwoption">TOUCPAM_OPTION_EVENT_HARDWARE</a></td>
-        <td>enable or disable hardware event notify: 0 => disable, 1 => enable
+        <td>enable or disable hardware event notify: 0 =&gt; disable, 1 =&gt; enable
         <blockquote>(1) iOption = OGMACAM_OPTION_EVENT_HARDWARE, master switch for notification of all hardware events<br/>
         (2) iOption = OGMACAM_OPTION_EVENT_HARDWARE | <a href="#hwevent">(event type)</a>, a specific type of sub-switch</blockquote>
         Only if both the master switch and the sub-switch of a specific type remain on are actually enabled for that type of event notification.<br/>
@@ -1503,7 +1508,7 @@ typedef struct {
       </tr>
       <tr>
         <td>OGMACAM_OPTION_HIGH_FULLWELL</td>
-        <td>high fullwell capacity:<br/>0 => disable, 1 => enable</td>
+        <td>high fullwell capacity:<br/>0 =&gt; disable, 1 =&gt; enable</td>
 		<td>Model Specific</td>
 		<td>Yes</td>
       </tr>
@@ -1517,13 +1522,13 @@ typedef struct {
       </tr>
       <tr>
         <td>OGMACAM_OPTION_DEFECT_PIXEL</td>
-        <td>Defect Pixel Correction<br/>0 => disable, 1 => enable</td>
+        <td>Defect Pixel Correction<br/>0 =&gt; disable, 1 =&gt; enable</td>
 		<td>enable (1)</td>
 		<td>Yes</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_ANTI_SHUTTER_EFFECT</td>
-        <td>anti shutter effect: 1 => disable, 0 => disable</td>
+        <td>anti shutter effect: 1 =&gt; disable, 0 =&gt; disable</td>
 		<td>enable (1)</td>
 		<td>Yes</td>
       </tr>
@@ -1699,7 +1704,7 @@ typedef struct {
 					set:
                         <blockquote>-1: calibrate<br/>
                         val &amp; 0xff: position between 0 and N-1, where N is the number of filter slots<br/>
-						(val &gt;&gt; 8) &amp; 0x1: direction, 0 => clockwise spinning, 1 => auto direction spinning</blockquote>                   
+						(val &gt;&gt; 8) &amp; 0x1: direction, 0 =&gt; clockwise spinning, 1 =&gt; auto direction spinning</blockquote>                   
                     get:
                         <blockquote>-1: in motion<br/>
                         val: position arrived</blockquote>
@@ -2157,7 +2162,7 @@ Ogmacam_put_Brightness<br/>Ogmacam_get_Brightness<br/>Ogmacam_get_Contrast<br/>O
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_GET_EXPO_ACTIVE_MODE</td>
-   <td>exposure time signal:<br/>0 => specified line<br/>1 => common exposure time</td>
+   <td>exposure time signal:<br/>0 =&gt; specified line<br/>1 =&gt; common exposure time</td>
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_SET_EXPO_ACTIVE_MODE</td>
@@ -2165,7 +2170,7 @@ Ogmacam_put_Brightness<br/>Ogmacam_get_Brightness<br/>Ogmacam_get_Contrast<br/>O
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE</td>
-   <td>exposure event:<br/>0 => specified line<br/>1 => common exposure time</td>
+   <td>exposure event:<br/>0 =&gt; specified line<br/>1 =&gt; common exposure time</td>
  </tr>
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE</td>
@@ -2716,7 +2721,7 @@ public bool Snap(uint nResolutionIndex)
 <p>v10: demosaic method: please see <a href="#demosaic">here</a></p>
 <p>v9: change the histogram data type from double to float</p>
 <p>v8: support simulated trigger, please see <a href="#trigger">here</a></p>
-<p>v7: support RGB48 when bit depth > 8, please see <a href="#rgb">here</a></p>
+<p>v7: support RGB48 when bit depth &gt; 8, please see <a href="#rgb">here</a></p>
 <p>v6: support trigger mode, please see <a href="#trigger">here</a></p>
 <p>v5: White Balance: Temp/Tint Mode vs RGB Gain Mode, please see <a href="#wb">here</a></p>
 <p>v4: ROI (Region Of Interest) supported: please see <a href="#roi">here</a></p>

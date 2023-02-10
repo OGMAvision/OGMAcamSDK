@@ -9,7 +9,7 @@ class CMainFrame : public CFrameWnd
 {
 public:
 	CMainFrame();
-protected: 
+protected:
 	DECLARE_DYNAMIC(CMainFrame)
 public:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);

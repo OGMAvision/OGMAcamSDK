@@ -1,7 +1,7 @@
 #ifndef __ogmacam_h__
 #define __ogmacam_h__
 
-/* Version: 53.21959.20230104 */
+/* Version: 53.22081.20230207 */
 /*
    Platform & Architecture:
        (1) Win32:
@@ -10,7 +10,9 @@
               (c) arm64: Win10 or above
               (d) arm: Win10 or above
        (2) WinRT: x64, x86, arm64, arm; Win10 or above
-       (3) macOS: universal (x64 + x86); macOS 10.10 or above
+       (3) macOS:
+              (a) x64+x86: macOS 10.10 or above
+              (b) x64+arm64: macOS 12 or above, support x64 and Apple silicon (such as M1, M2, etc)
        (4) Linux: kernel 2.6.27 or above
               (a) x64: GLIBC 2.14 or above
               (b) x86: CPU supports SSE3 instruction set or above; GLIBC 2.8 or above
@@ -91,7 +93,7 @@ extern "C" {
 /********************************************************************************/
 #if defined(OGMACAM_HRESULT_ERRORCODE_NEEDED)
 #define S_OK                0x00000000 /* Success */
-#define S_FALSE             0x00000001 /* Success, something special, such as noop */
+#define S_FALSE             0x00000001 /* Yet another success */
 #define E_UNEXPECTED        0x8000ffff /* Catastrophic failure */
 #define E_NOTIMPL           0x80004001 /* Not supported or not implemented */
 #define E_NOINTERFACE       0x80004002
@@ -220,8 +222,8 @@ typedef struct Ogmacam_t { int unused; } *HOgmacam;
 #define OGMACAM_AE_PERCENT_MIN           0       /* auto exposure percent, 0 => full roi average */
 #define OGMACAM_AE_PERCENT_MAX           100
 #define OGMACAM_AE_PERCENT_DEF           10
-#define OGMACAM_NOPACKET_TIMEOUT_MIN     500     /* 500ms */
-#define OGMACAM_NOFRAME_TIMEOUT_MIN      500     /* 500ms */
+#define OGMACAM_NOPACKET_TIMEOUT_MIN     500     /* no packet timeout minimum: 500ms */
+#define OGMACAM_NOFRAME_TIMEOUT_MIN      500     /* no frame timeout minimum: 500ms */
 
 typedef struct {
     unsigned    width;
@@ -260,7 +262,7 @@ typedef struct {
 } OgmacamDeviceV2; /* camera instance for enumerating */
 
 /*
-    get the version of this dll/so/dylib, which is: 53.21959.20230104
+    get the version of this dll/so/dylib, which is: 53.22081.20230207
 */
 #if defined(_WIN32)
 OGMACAM_API(const wchar_t*)   Ogmacam_Version();
@@ -304,8 +306,8 @@ OGMACAM_API(void)     Ogmacam_Close(HOgmacam h);
 
 #define OGMACAM_EVENT_EXPOSURE          0x0001    /* exposure time or gain changed */
 #define OGMACAM_EVENT_TEMPTINT          0x0002    /* white balance changed, Temp/Tint mode */
-#define OGMACAM_EVENT_IMAGE             0x0004    /* live image arrived, use Ogmacam_PullImage to get this image */
-#define OGMACAM_EVENT_STILLIMAGE        0x0005    /* snap (still) frame arrived, use Ogmacam_PullStillImage to get this frame */
+#define OGMACAM_EVENT_IMAGE             0x0004    /* live image arrived, use Ogmacam_PullImageXXXX to get this image */
+#define OGMACAM_EVENT_STILLIMAGE        0x0005    /* snap (still) frame arrived, use Ogmacam_PullStillImageXXXX to get this frame */
 #define OGMACAM_EVENT_WBGAIN            0x0006    /* white balance changed, RGB Gain mode */
 #define OGMACAM_EVENT_TRIGGERFAIL       0x0007    /* trigger failed */
 #define OGMACAM_EVENT_BLACK             0x0008    /* black balance changed */
@@ -675,7 +677,7 @@ OGMACAM_API(HRESULT)  Ogmacam_get_RealTime(HOgmacam h, int* val);
 
 /* discard the current internal frame cache.
     If DDR present, also discard the frames in the DDR.
-    Ogmacam_Flush is obsolete, it's a synonyms for Ogmacam_put_Option(h, OGMACAM_OPTION_FLUSH, 3)
+    Ogmacam_Flush is obsolete, recommend using Ogmacam_put_Option(h, OGMACAM_OPTION_FLUSH, 3)
 */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_Flush(HOgmacam h);
@@ -757,7 +759,7 @@ OGMACAM_API(HRESULT)  Ogmacam_read_Pipe(HOgmacam h, unsigned pipeId, void* pBuff
 OGMACAM_API(HRESULT)  Ogmacam_write_Pipe(HOgmacam h, unsigned pipeId, const void* pBuffer, unsigned nBufferLen);
 OGMACAM_API(HRESULT)  Ogmacam_feed_Pipe(HOgmacam h, unsigned pipeId);
                                              
-#define OGMACAM_OPTION_NOFRAME_TIMEOUT        0x01       /* no frame timeout: 0 => disable, positive value (>= 500) => timeout milliseconds. default: disable */
+#define OGMACAM_OPTION_NOFRAME_TIMEOUT        0x01       /* no frame timeout: 0 => disable, positive value (>= OGMACAM_NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable */
 #define OGMACAM_OPTION_THREAD_PRIORITY        0x02       /* set the priority of the internal thread which grab data from the usb device.
                                                              Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                              Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
@@ -853,8 +855,8 @@ OGMACAM_API(HRESULT)  Ogmacam_feed_Pipe(HOgmacam h, unsigned pipeId);
                                                             9: chromatic diagonal stripes
                                                          */
 #define OGMACAM_OPTION_AUTOEXP_THRESHOLD      0x29       /* threshold of auto exposure, default value: 5, range = [2, 15] */
-#define OGMACAM_OPTION_BYTEORDER              0x2a       /* Byte order, BGR or RGB: 0 = >RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android) */
-#define OGMACAM_OPTION_NOPACKET_TIMEOUT       0x2b       /* no packet timeout: 0 = disable, positive value = timeout milliseconds. default: disable */
+#define OGMACAM_OPTION_BYTEORDER              0x2a       /* Byte order, BGR or RGB: 0 => RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android) */
+#define OGMACAM_OPTION_NOPACKET_TIMEOUT       0x2b       /* no packet timeout: 0 => disable, positive value (>= OGMACAM_NOPACKET_TIMEOUT_MIN) => timeout milliseconds. default: disable */
 #define OGMACAM_OPTION_MAX_PRECISE_FRAMERATE  0x2c       /* get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps */
 #define OGMACAM_OPTION_PRECISE_FRAMERATE      0x2d       /* precise frame rate current value in 0.1 fps */
 #define OGMACAM_OPTION_BANDWIDTH              0x2e       /* bandwidth, [1-100]% */
@@ -1043,7 +1045,7 @@ OGMACAM_API(HRESULT)  Ogmacam_get_AfParam(HOgmacam h, OgmacamAfParam* pAfParam);
 #define OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME         0x24
 #define OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION          0x25 /* Strobe duration time in microseconds, [0, 5000000] */
 #define OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION          0x26
-#define OGMACAM_IOCONTROLTYPE_GET_USERVALUE               0x27 /* 
+#define OGMACAM_IOCONTROLTYPE_GET_USERVALUE               0x27 /*
                                                                   bit0 => Opto-isolated output
                                                                   bit1 => GPIO0 output
                                                                   bit2 => GPIO1 output
@@ -1077,9 +1079,19 @@ OGMACAM_API(HRESULT)  Ogmacam_get_AfParam(HOgmacam h, OgmacamAfParam* pAfParam);
 */
 OGMACAM_API(HRESULT)  Ogmacam_IoControl(HOgmacam h, unsigned ioLineNumber, unsigned nType, int outVal, int* inVal);
 
+#define OGMACAM_FLASH_SIZE      0x00    /* query total size */
+#define OGMACAM_FLASH_EBLOCK    0x01    /* query erase block size */
+#define OGMACAM_FLASH_RWBLOCK   0x02    /* query read/write block size */
+#define OGMACAM_FLASH_STATUS    0x03    /* query status */
+#define OGMACAM_FLASH_READ      0x04    /* read */
+#define OGMACAM_FLASH_WRITE     0x05    /* write */
+#define OGMACAM_FLASH_ERASE     0x06    /* erase */
+OGMACAM_API(HRESULT)  Ogmacam_rwc_Flash(HOgmacam h, unsigned action, unsigned addr, unsigned len, void* pData);
+
 OGMACAM_API(HRESULT)  Ogmacam_write_UART(HOgmacam h, const unsigned char* pData, unsigned nDataLen);
 OGMACAM_API(HRESULT)  Ogmacam_read_UART(HOgmacam h, unsigned char* pBuffer, unsigned nBufferLen);
 
+OGMACAM_API(const OgmacamModelV2**) Ogmacam_all_Model(); /* return all supported USB model array */
 OGMACAM_API(const OgmacamModelV2*) Ogmacam_query_Model(HOgmacam h);
 OGMACAM_API(const OgmacamModelV2*) Ogmacam_get_Model(unsigned short idVendor, unsigned short idProduct);
 
@@ -1217,19 +1229,19 @@ OGMACAM_API(HRESULT)  Ogmacam_put_ExpoCallback(HOgmacam h, PIOGMACAM_EXPOSURE_CA
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_put_ChromeCallback(HOgmacam h, PIOGMACAM_CHROME_CALLBACK funChrome, void* ctxChrome);
 
-/* Ogmacam_FfcOnePush is obsolete, it's a synonyms for Ogmacam_FfcOnce. */
+/* Ogmacam_FfcOnePush is obsolete, recommend using Ogmacam_FfcOnce. */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_FfcOnePush(HOgmacam h);
 
-/* Ogmacam_DfcOnePush is obsolete, it's a synonyms for Ogmacam_DfcOnce. */
+/* Ogmacam_DfcOnePush is obsolete, recommend using Ogmacam_DfcOnce. */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_DfcOnePush(HOgmacam h);
 
-/* Ogmacam_AwbOnePush is obsolete, it's a synonyms for Ogmacam_AwbOnce. */
+/* Ogmacam_AwbOnePush is obsolete, recommend using Ogmacam_AwbOnce. */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_AwbOnePush(HOgmacam h, PIOGMACAM_TEMPTINT_CALLBACK funTT, void* ctxTT);
 
-/* Ogmacam_AbbOnePush is obsolete, it's a synonyms for Ogmacam_AbbOnce. */
+/* Ogmacam_AbbOnePush is obsolete, recommend using Ogmacam_AbbOnce. */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_AbbOnePush(HOgmacam h, PIOGMACAM_BLACKBALANCE_CALLBACK funBB, void* ctxBB);
 
@@ -1250,7 +1262,7 @@ OGMACAM_API(void)   Ogmacam_HotPlug(POGMACAM_HOTPLUG funHotPlug, void* ctxHotPlu
 #endif
 
 #if defined(_WIN32)
-/* Ogmacam_put_TempTintInit is obsolete, it's a synonyms for Ogmacam_AwbOnce. */
+/* Ogmacam_put_TempTintInit is obsolete, recommend using Ogmacam_AwbOnce. */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_put_TempTintInit(HOgmacam h, PIOGMACAM_TEMPTINT_CALLBACK funTT, void* ctxTT);
 
@@ -1266,7 +1278,7 @@ OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_get_ProcessMode(HOgmacam h, unsigned* pnProcessMode);
 #endif
 
-/* obsolete, please use Ogmacam_put_Roi and Ogmacam_get_Roi */
+/* obsolete, recommend using Ogmacam_put_Roi and Ogmacam_get_Roi */
 OGMACAM_DEPRECATED
 OGMACAM_API(HRESULT)  Ogmacam_put_RoiMode(HOgmacam h, int bRoiMode, int xOffset, int yOffset);
 OGMACAM_DEPRECATED

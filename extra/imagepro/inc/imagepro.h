@@ -74,7 +74,7 @@ enum eImageproStitchStatus {
     eImageproStitchS_NONE,
     eImageproStitchS_NORMAL,
     eImageproStitchS_AREPAIR, //auto repair
-    eImageproStitchS_MREPAIR, //manual repair 
+    eImageproStitchS_MREPAIR, //manual repair
     eImageproStitchS_RESET,
     eImageproStitchS_RESTART
 };
@@ -115,18 +115,18 @@ enum eImageproStitchEvent {
 };
 
 typedef void (__cdecl *IMAGEPRO_STITCH_CALLBACK)(void* ctx, void* outData, int stride, int outW, int outH, int curW, int curH, int curType,
-                                        int posX, int posY, eImageproStitchQuality quality, float sharpness, bool bUpdate, bool bSize);
+                                        int posX, int posY, eImageproStitchQuality quality, float sharpness, int bUpdate, int bSize);
 typedef void (__cdecl *IMAGEPRO_STITCH_ECALLBACK)(void* ctx, eImageproStitchEvent evt);
 
 #if defined(_WIN32)
 typedef struct { int unused; } *HImageproStitch;
-IMAGEPRO_API(HImageproStitch) imagepro_stitch_new(bool bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
-IMAGEPRO_API(HImageproStitch) imagepro_stitch_newV2(eImageproFormat format, bool bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
+IMAGEPRO_API(HImageproStitch) imagepro_stitch_new(int bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
+IMAGEPRO_API(HImageproStitch) imagepro_stitch_newV2(eImageproFormat format, int bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
 IMAGEPRO_API(void) imagepro_stitch_delete(HImageproStitch handle);
 IMAGEPRO_API(void) imagepro_stitch_start(HImageproStitch handle);
-IMAGEPRO_API(void*) imagepro_stitch_stop(HImageproStitch handle, bool normal, bool crop);
+IMAGEPRO_API(void*) imagepro_stitch_stop(HImageproStitch handle, int normal, int crop);
 IMAGEPRO_API(void) imagepro_stitch_readdata(HImageproStitch handle, void* data, int w, int h, int roix = 0, int roiy = 0, int roiw = 0, int roih = 0);
-IMAGEPRO_API(HRESULT) imagepro_stitch_pull(HImageproStitch handle, HOgmacam h, bool bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo);
+IMAGEPRO_API(HRESULT) imagepro_stitch_pull(HImageproStitch handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo);
 #endif
 
 enum eImageproEdfMethod {
@@ -157,7 +157,7 @@ IMAGEPRO_API(void) imagepro_edf_delete(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_start(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_stop(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_readdata(HImageproEdf handle, void* data, int stride);
-IMAGEPRO_API(HRESULT) imagepro_edf_pull(HImageproEdf handle, HOgmacam h, bool bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo);
+IMAGEPRO_API(HRESULT) imagepro_edf_pull(HImageproEdf handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo);
 #endif
 
 #define IMAGEPRO_LIVESTACK_NUM_MIN 1

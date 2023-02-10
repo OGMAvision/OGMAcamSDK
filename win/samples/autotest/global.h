@@ -18,7 +18,9 @@ extern bool g_bEnableCheckBlack;
 extern bool g_bCheckBlack;
 extern bool g_bBlack;
 extern bool g_bReplug;
-extern bool g_bHeartbeat;
+extern unsigned g_HeartbeatTimeout;
+extern unsigned g_NopacketTimeout;
+extern unsigned g_NoframeTimeout;
 extern CString g_snapDir;
 
 CString GetAppTimeDir(const TCHAR* header);

@@ -30,7 +30,7 @@ int main(int, char**)
 {
     OgmacamDeviceV2 arr[OGMACAM_MAX] = { 0 };
     unsigned cnt = Ogmacam_EnumV2(arr);
-    if (0 == cnt)        
+    if (0 == cnt)
     {
         printf("no camera found or open failed\n");
         return -1;

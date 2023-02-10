@@ -1,4 +1,4 @@
-"""Version: 53.21959.20230104
+"""Version: 53.22081.20230207
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -61,8 +61,8 @@ OGMACAM_FLAG_10GIGE              = 0x0000400000000000  # 10 Gige
 OGMACAM_EVENT_EXPOSURE           = 0x0001          # exposure time or gain changed
 OGMACAM_EVENT_TEMPTINT           = 0x0002          # white balance changed, Temp/Tint mode
 OGMACAM_EVENT_CHROME             = 0x0003          # reversed, do not use it
-OGMACAM_EVENT_IMAGE              = 0x0004          # live image arrived, use Ogmacam_PullImage to get this image
-OGMACAM_EVENT_STILLIMAGE         = 0x0005          # snap (still) frame arrived, use Ogmacam_PullStillImage to get this frame
+OGMACAM_EVENT_IMAGE              = 0x0004          # live image arrived, use PullImageXXXX to get this image
+OGMACAM_EVENT_STILLIMAGE         = 0x0005          # snap (still) frame arrived, use PullStillImageXXXX to get this frame
 OGMACAM_EVENT_WBGAIN             = 0x0006          # white balance changed, RGB Gain mode
 OGMACAM_EVENT_TRIGGERFAIL        = 0x0007          # trigger failed
 OGMACAM_EVENT_BLACK              = 0x0008          # black balance changed
@@ -85,7 +85,7 @@ OGMACAM_EVENT_HEARTBEAT          = 0x4003          # hardware event: heartbeat, 
 OGMACAM_EVENT_TRIGGER_IN         = 0x4004          # hardware event: trigger in
 OGMACAM_EVENT_FACTORY            = 0x8001          # restore factory settings
 
-OGMACAM_OPTION_NOFRAME_TIMEOUT        = 0x01       # no frame timeout: 0 => disable, positive value (>= 500) => timeout milliseconds. default: disable
+OGMACAM_OPTION_NOFRAME_TIMEOUT        = 0x01       # no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable
 OGMACAM_OPTION_THREAD_PRIORITY        = 0x02       # set the priority of the internal thread which grab data from the usb device.
                                                    #   Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                    #   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
@@ -181,7 +181,7 @@ OGMACAM_OPTION_TESTPATTERN            = 0x28       # test pattern:
                                                    #
 OGMACAM_OPTION_AUTOEXP_THRESHOLD      = 0x29       # threshold of auto exposure, default value: 5, range = [2, 15]
 OGMACAM_OPTION_BYTEORDER              = 0x2a       # Byte order, BGR or RGB: 0 => RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android)
-OGMACAM_OPTION_NOPACKET_TIMEOUT       = 0x2b       # no packet timeout: 0 = disable, positive value = timeout milliseconds. default: disable
+OGMACAM_OPTION_NOPACKET_TIMEOUT       = 0x2b       # no packet timeout: 0 => disable, positive value (>= NOPACKET_TIMEOUT_MIN) => timeout milliseconds. default: disable
 OGMACAM_OPTION_MAX_PRECISE_FRAMERATE  = 0x2c       # get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported
 OGMACAM_OPTION_PRECISE_FRAMERATE      = 0x2d       # precise frame rate current value in 0.1 fps, range:[1~maximum]
 OGMACAM_OPTION_BANDWIDTH              = 0x2e       # bandwidth, [1-100]%
@@ -360,9 +360,18 @@ OGMACAM_LEVELRANGE_ONCE                         = 0x0001 # once
 OGMACAM_LEVELRANGE_CONTINUE                     = 0x0002 # continue
 OGMACAM_LEVELRANGE_ROI                          = 0xffff # update roi rect only
 
+# see rwc_Flash
+OGMACAM_FLASH_SIZE      = 0x00    # query total size
+OGMACAM_FLASH_EBLOCK    = 0x01    # query erase block size
+OGMACAM_FLASH_RWBLOCK   = 0x02    # query read/write block size
+OGMACAM_FLASH_STATUS    = 0x03    # query status
+OGMACAM_FLASH_READ      = 0x04    # read
+OGMACAM_FLASH_WRITE     = 0x05    # write
+OGMACAM_FLASH_ERASE     = 0x06    # erase
+
 # HRESULT: error code
 S_OK            = 0x00000000 # Success
-S_FALSE         = 0x00000001 # Success with noop
+S_FALSE         = 0x00000001 # Yet another success
 E_UNEXPECTED    = 0x8000ffff # Catastrophic failure
 E_NOTIMPL       = 0x80004001 # Not supported or not implemented
 E_ACCESSDENIED  = 0x80070005 # Permission denied
@@ -436,8 +445,8 @@ OGMACAM_HEARTBEAT_MAX            = 10000    # millisecond
 OGMACAM_AE_PERCENT_MIN           = 0        # auto exposure percent, 0 => full roi average
 OGMACAM_AE_PERCENT_MAX           = 100
 OGMACAM_AE_PERCENT_DEF           = 10
-OGMACAM_NOPACKET_TIMEOUT_MIN     = 500      # 500ms
-OGMACAM_NOFRAME_TIMEOUT_MIN      = 500      # 500ms
+OGMACAM_NOPACKET_TIMEOUT_MIN     = 500      # no packet timeout minimum: 500ms
+OGMACAM_NOFRAME_TIMEOUT_MIN      = 500      # no frame timeout minimum: 500ms
 
 def TDIBWIDTHBYTES(bits):
     return ((bits + 31) // 32 * 4)
@@ -621,7 +630,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 53.21959.20230104"""
+        """get the version of this dll, which is: 53.22081.20230207"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -1034,7 +1043,7 @@ class Ogmacam:
         return b.value
 
     def Flush():
-        """Flush is obsolete, it's a synonyms for put_Option(h, OGMACAM_OPTION_FLUSH, 3)"""
+        """Flush is obsolete, recommend using put_Option(h, OGMACAM_OPTION_FLUSH, 3)"""
         self.__lib.Ogmacam_Flush(self.__h)
 
     def get_AutoExpoEnable(self):
@@ -1365,6 +1374,9 @@ class Ogmacam:
     def read_EEPROM(self, addr, pBuffer):
         self.__lib.Ogmacam_read_EEPROM(self.__h, addr, pBuffer, ctypes.c_uint(len(pBuffer)))
 
+    def rwc_Flash(self, action, addr, pData):
+        self.__lib.Ogmacam_rwc_Flash(self.__h, action, addr, ctypes.c_uint(len(pData)), pData)
+
     def write_Pipe(self, pipeId, pBuffer):
         self.__lib.Ogmacam_write_Pipe(self.__h, pipeId, pBuffer, ctypes.c_uint(len(pBuffer)))
 
@@ -1619,7 +1631,7 @@ class Ogmacam:
             cls.__lib.Ogmacam_SnapN.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
             cls.__lib.Ogmacam_SnapR.restype = ctypes.c_int
             cls.__lib.Ogmacam_SnapR.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_SnapR.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]            
+            cls.__lib.Ogmacam_SnapR.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
             cls.__lib.Ogmacam_Trigger.restype = ctypes.c_int
             cls.__lib.Ogmacam_Trigger.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_Trigger.argtypes = [ctypes.c_void_p, ctypes.c_ushort]
@@ -1917,6 +1929,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_read_EEPROM.restype = ctypes.c_int
             cls.__lib.Ogmacam_read_EEPROM.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_read_EEPROM.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_uint]
+            cls.__lib.Ogmacam_rwc_Flash.restype = ctypes.c_int
+            cls.__lib.Ogmacam_rwc_Flash.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_rwc_Flash.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_char_p]
             cls.__lib.Ogmacam_read_Pipe.restype = ctypes.c_int
             cls.__lib.Ogmacam_read_Pipe.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_read_Pipe.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_uint]
