@@ -4,7 +4,7 @@
 #include "CROITestPropertyPage.h"
 
 CROITestPropertyPage::CROITestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_ROI_TEST)
+	: CTestPropertyPage(IDD_PROPERTY_ROI_TEST)
 	, m_invertal(0), m_xWidth(0), m_yHeight(0), m_conModel(false)
 {
 }
@@ -19,7 +19,7 @@ void CROITestPropertyPage::Stop()
 {
 	KillTimer(1);
 	g_ROITestCount = 0;
-	g_bROITest = g_bROITest_SnapStart = false;
+	g_bROITest = g_bROITest_SnapStart = g_bTesting = false;
 	
 	GetDlgItem(IDC_EDIT_INTERVAL)->EnableWindow(TRUE);
 	GetDlgItem(IDC_BUTTON_START)->SetWindowText(_T("Start"));
@@ -63,14 +63,14 @@ void CROITestPropertyPage::OnBnClickedButtonStart()
 {
 	if (g_bROITest)
 		Stop();
-	else
+	else if (OnStart())
 	{
 		g_snapDir = GetAppTimeDir(_T("ROITest"));
 		if (!PathIsDirectory((LPCTSTR)g_snapDir))
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
 
 		g_ROITestCount = 0;
-		g_bROITest = true;
+		g_bROITest = g_bTesting = true;
 		g_bROITest_SnapStart = m_conModel = false;
 		GetDlgItem(IDC_BUTTON_START)->SetWindowText(_T("Stop"));
 		GetDlgItem(IDC_EDIT_INTERVAL)->EnableWindow(FALSE);

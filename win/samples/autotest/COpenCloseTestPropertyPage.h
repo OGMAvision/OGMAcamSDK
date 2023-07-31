@@ -1,10 +1,9 @@
 #pragma once
 
-class COpenCloseTestPropertyPage : public CPropertyPage
+#include "CTestPropertyPage.h"
+
+class COpenCloseTestPropertyPage : public CTestPropertyPage
 {
-	bool m_bStart;
-	int m_totalCount;
-	int m_count;
 	bool m_conModel;
 	bool m_initFlag;
 public:

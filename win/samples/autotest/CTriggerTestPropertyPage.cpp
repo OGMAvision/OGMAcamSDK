@@ -5,8 +5,8 @@
 #include "AutoTestDlg.h"
 
 CTriggerTestPropertyPage::CTriggerTestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_TRIGGER_TEST)
-	, m_bStart(false), m_totalCount(0), m_count(0), m_interval(0)
+	: CTestPropertyPage(IDD_PROPERTY_TRIGGER_TEST)
+	, m_interval(1000)
 {
 }
 
@@ -29,7 +29,9 @@ BOOL CTriggerTestPropertyPage::OnInitDialog()
 	CPropertyPage::OnInitDialog();
 
 	UpdateHint();
-	GetDlgItem(IDC_BUTTON_TRIGGER_TEST_START)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BUTTON_TRIGGER_TEST_START)->EnableWindow(m_totalCount > 0 && m_interval >= 100);
+	SetDlgItemInt(IDC_EDIT_TRIGGER_TEST_TIMES, m_totalCount, FALSE);
+	SetDlgItemInt(IDC_EDIT_TRIGGER_TEST_INTERVAL, m_interval, FALSE);
 
 	return TRUE;
 }
@@ -63,7 +65,7 @@ void CTriggerTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 void CTriggerTestPropertyPage::Stop()
 {
 	KillTimer(1);
-	m_bStart = g_bTriggerTest = false;
+	m_bStart = g_bTriggerTest = g_bTesting = false;
 	SetDlgItemText(IDC_BUTTON_TRIGGER_TEST_START, _T("Start"));
 	GetDlgItem(IDC_EDIT_TRIGGER_TEST_TIMES)->EnableWindow(TRUE);
 	GetDlgItem(IDC_EDIT_TRIGGER_TEST_INTERVAL)->EnableWindow(TRUE);
@@ -74,14 +76,14 @@ void CTriggerTestPropertyPage::OnBnClickedButtonTriggerTestStart()
 {
 	if (m_bStart)
 		Stop();
-	else
+	else if (OnStart())
 	{
 		g_snapDir = GetAppTimeDir(_T("TriggerTest"));
 		if (!PathIsDirectory((LPCTSTR)g_snapDir))
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
 
 		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_TRIGGER, 1);
-		m_bStart = g_bTriggerTest = true;
+		m_bStart = g_bTriggerTest = g_bTesting = true;
 		m_count = 0;
 		SetDlgItemText(IDC_BUTTON_TRIGGER_TEST_START, _T("Stop"));
 		GetDlgItem(IDC_EDIT_TRIGGER_TEST_TIMES)->EnableWindow(FALSE);

@@ -6,6 +6,16 @@ HOgmacam g_hcam = NULL;
 void* g_pImageData = NULL;
 unsigned g_totalVideo = 0, g_totalStill = 0;
 
+static void SaveRaw(const char* filename, const void* pData, unsigned length)
+{
+    FILE* fp = fopen(filename, "wb");
+    if (fp)
+    {
+        fwrite(pData, 1, length, fp);
+        fclose(fp);
+    }
+}
+
 static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
 {
     if (OGMACAM_EVENT_IMAGE == nEvent)
@@ -36,7 +46,13 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
                 if (FAILED(hr))
                     printf("failed to pull still image, hr = %08x\n", hr);
                 else
-                    printf("pull still image ok, total = %u, res = %u x %u\n", ++g_totalStill, info.width, info.height);
+                {
+                    char filename[1024];
+                    g_totalStill += 1;
+                    sprintf(filename, "demostillraw_%ux%u_%u.raw", info.width, info.height, g_totalStill);
+                    SaveRaw(filename, pStillImage, info.width * info.height);
+                    printf("pull still image ok, total = %u, res = %u x %u, save: %s\n", g_totalStill, info.width, info.height, filename);
+                }
 
                 free(pStillImage);
             }

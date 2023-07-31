@@ -5,8 +5,8 @@
 #include "AutoTestDlg.h"
 
 COpenCloseTestPropertyPage::COpenCloseTestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_OPEN_CLOSE_TEST)
-	, m_bStart(false), m_initFlag(false), m_totalCount(0), m_count(0)
+	: CTestPropertyPage(IDD_PROPERTY_OPEN_CLOSE_TEST)
+	, m_initFlag(false)
 {
 }
 
@@ -45,7 +45,7 @@ void COpenCloseTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 	if (m_count >= m_totalCount || g_bBlack)
 	{
 		Stop();
-		AfxMessageBox(_T("Open/close test completed."));
+		AfxMessageBox((m_count >= m_totalCount) ? _T("Open/close test completed.") : _T("Image is completely black."));
 		return;
 	}
 	if (m_conModel)
@@ -69,7 +69,7 @@ void COpenCloseTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 void COpenCloseTestPropertyPage::Stop()
 {
 	KillTimer(1);
-	m_bStart = false;
+	m_bStart = g_bTesting = false;
 	SetDlgItemText(IDC_BUTTON_OPEN_CLOSE_TEST_START, _T("Start"));
 	GetDlgItem(IDC_EDIT_OPEN_CLOSE_CNT)->EnableWindow(TRUE);
 	m_count = 0;
@@ -80,18 +80,15 @@ void COpenCloseTestPropertyPage::OnBnClickedButtonOpenCloseTestStart()
 {
 	if (m_bStart)
 		Stop();
-	else
+	else if (OnStart())
 	{
 		g_snapDir = GetAppTimeDir(_T("OpenCloseTest"));
 		if (!PathIsDirectory((LPCTSTR)g_snapDir))
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
-		m_initFlag = false;
-		g_snapCount = 0;
-		m_bStart = true;
+		m_bStart = g_bTesting = true;
 		g_bCheckBlack = g_bEnableCheckBlack;
-		g_bBlack = false;
-		m_conModel = false;
-		m_count = 0;
+		m_initFlag = m_conModel = g_bBlack = false;
+		m_count = g_snapCount = 0;
 		SetDlgItemText(IDC_BUTTON_OPEN_CLOSE_TEST_START, _T("Stop"));
 		GetDlgItem(IDC_EDIT_OPEN_CLOSE_CNT)->EnableWindow(FALSE);
 		SetTimer(1, 2000, nullptr);

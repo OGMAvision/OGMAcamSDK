@@ -10,18 +10,21 @@ CExposureGainPropertyPage::CExposureGainPropertyPage()
 
 void CExposureGainPropertyPage::OnAutoExposure()
 {
-	if (GetDlgItem(IDC_SLIDER_EXPOSURE))
+	if (GetSafeHwnd())
 	{
-		unsigned time = 0;
-		Ogmacam_get_ExpoTime(g_hcam, &time);
-		SetExpoTimeValue(time);
-	}
+		if (GetDlgItem(IDC_SLIDER_EXPOSURE))
+		{
+			unsigned time = 0;
+			Ogmacam_get_ExpoTime(g_hcam, &time);
+			SetExpoTimeValue(time);
+		}
 
-	if (GetDlgItem(IDC_SLIDER_GAIN))
-	{
-		unsigned short gain = 0;
-		Ogmacam_get_ExpoAGain(g_hcam, &gain);
-		SetGainValue(gain);
+		if (GetDlgItem(IDC_SLIDER_GAIN))
+		{
+			unsigned short gain = 0;
+			Ogmacam_get_ExpoAGain(g_hcam, &gain);
+			SetGainValue(gain);
+		}
 	}
 }
 

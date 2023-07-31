@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 53.22081.20230207
+'    Version: 54.22913.20230709
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -66,9 +66,12 @@ Friend Class Ogmacam
         FLAG_LEVELRANGE_HARDWARE = &H20000000000  ' hardware level range, put(get)_LevelRangeV2
         FLAG_EVENT_HARDWARE = &H40000000000       ' hardware event, such as exposure start & stop
         FLAG_LIGHTSOURCE = &H80000000000          ' light source
-        FLAG_FILTERWHEEL = &H100000000000         ' filter wheel
-        FLAG_GIGE = &H200000000000                ' GigE
-        FLAG_10GIGE = &H400000000000              ' 10 Gige
+        FLAG_FILTERWHEEL = &H100000000000         ' astro filter wheel
+        FLAG_GIGE = &H200000000000                ' 1 Gigabit GigE
+        FLAG_10GIGE = &H400000000000              ' 10 Gigabit GigE
+        FLAG_5GIGE = &H800000000000               ' 5 Gigabit GigE
+        FLAG_25GIGE = &H1000000000000             ' 2.5 Gigabit GigE
+        FLAG_AUTOFOCUSER = &H2000000000000        ' astro auto focuser
     End Enum
 
     Public Enum eEVENT As UInteger
@@ -106,7 +109,7 @@ Friend Class Ogmacam
                                                    '   Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                    '   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
                                                    '
-        OPTION_RAW = &H4                           ' raw data mode, read the sensor "raw" data. This can be set only BEFORE Ogmacam_StartXXX(). 0 = rgb, 1 = raw, default value: 0
+        OPTION_RAW = &H4                           ' raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0
         OPTION_HISTOGRAM = &H5                     ' 0 = only one, 1 = continue mode
         OPTION_BITDEPTH = &H6                      ' 0 = 8 bits mode, 1 = 16 bits mode
         OPTION_FAN = &H7                           ' 0 = turn off the cooling fan, [1, max] = fan speed
@@ -189,7 +192,7 @@ Friend Class Ogmacam
         OPTION_AFZONE = &H26                       ' auto focus zone
         OPTION_AFFEEDBACK = &H27                   ' auto focus information feedback; 0:unknown; 1:focused; 2:focusing; 3:defocus; 4:up; 5:down
         OPTION_TESTPATTERN = &H28                  ' test pattern:
-                                                   '    0: TestPattern Off
+                                                   '    0: off
                                                    '    3: monochrome diagonal stripes
                                                    '    5: monochrome vertical stripes
                                                    '    7: monochrome horizontal stripes
@@ -221,7 +224,7 @@ Friend Class Ogmacam
         OPTION_LOW_NOISE = &H38                    ' low noise mode (Higher signal noise ratio, lower frame rate): 1 => enable
         OPTION_POWER = &H39                        ' get power consumption, unit: milliwatt
         OPTION_GLOBAL_RESET_MODE = &H3A            ' global reset mode
-        OPTION_OPEN_USB_ERRORCODE = &H3B           ' get the open usb error code
+        OPTION_OPEN_ERRORCODE = &H3B               ' get the open camera error code
         OPTION_FLUSH = &H3D                        ' 1 = hard flush, discard frames cached by camera DDR (if any)
                                                    ' 2 = soft flush, discard frames cached by ogmacam.dll (if any)
                                                    ' 3 = both flush
@@ -278,7 +281,29 @@ Friend Class Ogmacam
         OPTION_TEC_VOLTAGE_MAX_RANGE = &H54        ' get the tec maximum voltage range:
                                                    '         high 16 bits: max
                                                    '         low 16 bits: min
-        OGMACAM_OPTION_HIGH_FULLWELL = &H55        ' high fullwell capacity: 0 => disable, 1 => enable
+        OPTION_HIGH_FULLWELL = &H55                ' high fullwell capacity: 0 => disable, 1 => enable
+        OPTION_DYNAMIC_DEFECT = &H56               ' dynamic defect pixel correction:
+                                                   ' threshold:
+                                                   '         t1 (high 16 bits): [1, 100]
+                                                   '         t2 (low 16 bits): [0, 100]
+        OPTION_HDR_KB = &H57                       ' HDR synthesize
+                                                   '         K (high 16 bits): [1, 25500]
+                                                   '         B (low 16 bits): [0, 65535]
+                                                   '         0xffffffff => set to default
+        OPTION_HDR_THRESHOLD = &H58                ' HDR synthesize
+                                                   '         threshold: [1, 4095]
+                                                   '         0xffffffff => set to default
+        OPTION_GIGETIMEOUT = &H5A                  ' For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
+                                                   ' If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
+                                                   ' When the application is stopped by the debugger, the application cannot create the heartbeat signals
+                                                   '         0 => auto: when the camera is opened, disable if debugger is present or enable if no debugger is present
+                                                   '         1 => enable
+                                                   '         2 => disable
+                                                   '         default: auto
+        OPTION_EEPROM_SIZE = &H5B                  ' get EEPROM size
+        OPTION_OVERCLOCK_MAX = &H5C                ' get overclock range: [0, max]
+        OPTION_OVERCLOCK = &H5D                    ' overclock, default: 0
+        OPTION_RESET_SENSOR = &H5E                 ' reset sensor
     End Enum
 
     ' HRESULT: Error code
@@ -294,6 +319,7 @@ Friend Class Ogmacam
     Public Const E_FAIL = CType(&H80004005, Integer)            ' Generic failure
     Public Const E_WRONG_THREAD = CType(&H8001010E, Integer)    ' Call function in the wrong thread
     Public Const E_GEN_FAILURE = CType(&H8007001F, Integer)     ' Device not functioning
+    Public Const E_BUSY = CType(&H800700aa, Integer)            ' The requested resource is in use
     Public Const E_PENDING = CType(&H8000000A, Integer)         ' The data necessary to complete this operation is not yet available
     Public Const E_TIMEOUT = CType(&H8001011f, Integer)         ' This operation returned because the timeout period expired
 
@@ -350,7 +376,7 @@ Friend Class Ogmacam
     Public Const DENOISE_DEF              = 0        ' denoise
     Public Const DENOISE_MIN              = 0        ' denoise
     Public Const DENOISE_MAX              = 100      ' denoise
-    Public Const TEC_TARGET_MIN           = -300     ' TEC target: -30.0 degrees Celsius
+    Public Const TEC_TARGET_MIN           = -500     ' TEC target: -50.0 degrees Celsius
     Public Const TEC_TARGET_DEF           = 0        ' 0.0 degrees Celsius
     Public Const TEC_TARGET_MAX           = 400      ' TEC target: 40.0 degrees Celsius
     Public Const HEARTBEAT_MIN            = 100      ' millisecond
@@ -360,6 +386,18 @@ Friend Class Ogmacam
     Public Const AE_PERCENT_DEF           = 10
     Public Const NOPACKET_TIMEOUT_MIN     = 500      ' no packet timeout minimum: 500ms
     Public Const NOFRAME_TIMEOUT_MIN      = 500      ' no frame timeout minimum: 500ms
+    Public Const DYNAMIC_DEFECT_T1_MIN    = 10       ' dynamic defect pixel correction
+    Public Const DYNAMIC_DEFECT_T1_MAX    = 100
+    Public Const DYNAMIC_DEFECT_T1_DEF    = 13
+    Public Const DYNAMIC_DEFECT_T2_MIN    = 0
+    Public Const DYNAMIC_DEFECT_T2_MAX    = 100
+    Public Const DYNAMIC_DEFECT_T2_DEF    = 100
+    Public Const HDR_K_MIN                = 1        ' HDR synthesize
+    Public Const HDR_K_MAX                = 25500
+    Public Const HDR_B_MIN                = 0
+    Public Const HDR_B_MAX                = 65535
+    Public Const HDR_THRESHOLD_MIN        = 0
+    Public Const HDR_THRESHOLD_MAX        = 4094
 
     Public Enum ePIXELFORMAT As Integer
         PIXELFORMAT_RAW8    = &H0
@@ -395,13 +433,13 @@ Friend Class Ogmacam
                                                        ' 2 => TTL: TTL level signals
                                                        ' 3 => LVDS: LVDS level signals
                                                        ' 4 => RS422: RS422 level signals
-                                                       ' 5 => Opto-coupled'
+                                                       ' 5 => Opto-coupled
         IOCONTROLTYPE_SET_FORMAT = &H6
         IOCONTROLTYPE_GET_OUTPUTINVERTER = &H7         ' boolean, only support output signal
         IOCONTROLTYPE_SET_OUTPUTINVERTER = &H8
-        IOCONTROLTYPE_GET_INPUTACTIVATION = &H9        ' 0x00 => Positive, 0x01 => Negative
+        IOCONTROLTYPE_GET_INPUTACTIVATION = &H9        ' 0x00 => Rising edge, 0x01 => Falling edge, 0x02 => Level high, 0x03 => Level low
         IOCONTROLTYPE_SET_INPUTACTIVATION = &HA
-        IOCONTROLTYPE_GET_DEBOUNCERTIME = &HB          ' debouncer time in microseconds, [0, 20000]
+        IOCONTROLTYPE_GET_DEBOUNCERTIME = &HB          ' debouncer time in microseconds, range: [0, 20000]
         IOCONTROLTYPE_SET_DEBOUNCERTIME = &HC
         IOCONTROLTYPE_GET_TRIGGERSOURCE = &HD          ' 0 => Opto-isolated input
                                                        ' 1 => GPIO0
@@ -410,7 +448,7 @@ Friend Class Ogmacam
                                                        ' 4 => PWM
                                                        ' 5 => Software
         IOCONTROLTYPE_SET_TRIGGERSOURCE = &HE
-        IOCONTROLTYPE_GET_TRIGGERDELAY = &HF           ' Trigger delay time in microseconds, [0, 5000000]
+        IOCONTROLTYPE_GET_TRIGGERDELAY = &HF           ' Trigger delay time in microseconds, range: [0, 5000000]
         IOCONTROLTYPE_SET_TRIGGERDELAY = &H10
         IOCONTROLTYPE_GET_BURSTCOUNTER = &H11          ' Burst Counter, range: [1 ~ 65535]
         IOCONTROLTYPE_SET_BURSTCOUNTER = &H12
@@ -429,12 +467,14 @@ Friend Class Ogmacam
                                                        ' 1 => Exposure Active
                                                        ' 2 => Strobe
                                                        ' 3 => User output
+                                                       ' 4 => Counter Output
+                                                       ' 5 => Timer Output                                                     
         IOCONTROLTYPE_SET_OUTPUTMODE = &H20
         IOCONTROLTYPE_GET_STROBEDELAYMODE = &H21       ' boolean, 1 => delay, 0 => pre-delay; compared to exposure active signal
         IOCONTROLTYPE_SET_STROBEDELAYMODE = &H22
-        IOCONTROLTYPE_GET_STROBEDELAYTIME = &H23       ' Strobe delay or pre-delay time in microseconds, [0, 5000000]
+        IOCONTROLTYPE_GET_STROBEDELAYTIME = &H23       ' Strobe delay or pre-delay time in microseconds, range: [0, 5000000]
         IOCONTROLTYPE_SET_STROBEDELAYTIME = &H24
-        IOCONTROLTYPE_GET_STROBEDURATION = &H25        ' Strobe duration time in microseconds, [0, 5000000]
+        IOCONTROLTYPE_GET_STROBEDURATION = &H25        ' Strobe duration time in microseconds, range: [0, 5000000]
         IOCONTROLTYPE_SET_STROBEDURATION = &H26
         IOCONTROLTYPE_GET_USERVALUE = &H27             ' bit0 => Opto-isolated output
                                                        ' bit1 => GPIO0 output
@@ -455,6 +495,36 @@ Friend Class Ogmacam
         IOCONTROLTYPE_SET_EXPO_END_LINE = &H34
         IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE = &H35     ' exposure event: 0 => specified line, 1 => common exposure time
         IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE = &H36
+        IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE = &H37    ' Output Counter Value, range: [0 ~ 65535]
+        IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE = &H38
+    End Enum
+
+    ' AAF: Astro Auto Focuser
+    Public Enum eAAF As Integer
+        AAF_SETPOSITION     = &H1
+        AAF_GETPOSITION     = &H2
+        AAF_SETZERO         = &H3
+        AAF_GETZERO         = &h4
+        AAF_SETDIRECTION    = &H5
+        AAF_SETMAXINCREMENT = &H7
+        AAF_GETMAXINCREMENT = &H8
+        AAF_SETFINE         = &H9
+        AAF_GETFINE         = &Ha
+        AAF_SETCOARSE       = &Hb
+        AAF_GETCOARSE       = &Hc
+        AAF_SETBUZZER       = &Hd
+        AAF_GETBUZZER       = &He
+        AAF_SETBACKLASH     = &Hf
+        AAF_GETBACKLASH     = &H10
+        AAF_GETAMBIENTTEMP  = &H12
+        AAF_GETTEMP         = &H14
+        AAF_ISMOVING        = &H16
+        AAF_HALT            = &H17
+        AAF_SETMAXSTEP      = &H1b
+        AAF_GETMAXSTEP      = &H1c
+        AAF_RANGEMIN        = &Hfd  ' Range: min value
+        AAF_RANGEMAX        = &Hfe  ' Range: max value
+        AAF_RANGEDEF        = &Hff  ' Range: default value
     End Enum
 
     ' hardware level range mode
@@ -527,7 +597,9 @@ Friend Class Ogmacam
     Public Delegate Sub DelegateDataCallbackV4(pData As IntPtr, ByRef info As FrameInfoV3, bSnap As Boolean)
     Public Delegate Sub DelegateDataCallbackV3(pData As IntPtr, ByRef info As FrameInfoV2, bSnap As Boolean)
     Public Delegate Sub DelegateHistogramCallback(aHistY As Single(), aHistR As Single(), aHistG As Single(), aHistB As Single())
+    Public Delegate Sub DelegateHistogramCallbackV2(aHist As Integer())
     Public Delegate Sub DelegateProgressCallback(percent As Integer)
+    Public Delegate Sub DelegateHotplugCallback()
 
     Public Shared Function TDIBWIDTHBYTES(ByVal bits As Integer) As Integer
         Return ((bits + 31) And (Not 31)) / 8
@@ -544,7 +616,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 53.22081.20230207
+    ' get the version of this dll, which is: 54.22913.20230709
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -554,11 +626,8 @@ Friend Class Ogmacam
         Return New IntPtr(p.ToInt64() + offset)
     End Function
 
-    ' enumerate Ogmacam cameras that are currently connected to computer
-    Public Shared Function EnumV2() As DeviceV2()
-        Dim p As IntPtr = Marshal.AllocHGlobal(512 * 128)
+    Private Shared Function Ptr2Device(p As IntPtr, cnt As UInteger) As DeviceV2()
         Dim ti As IntPtr = p
-        Dim cnt As UInteger = Ogmacam_EnumV2(p)
         Dim arr As DeviceV2() = New DeviceV2(cnt - 1) {}
         If cnt <> 0 Then
             For i As UInteger = 0 To cnt - 1
@@ -576,12 +645,31 @@ Friend Class Ogmacam
         Return arr
     End Function
 
+    ' enumerate Ogmacam cameras that are currently connected to computer
+    Public Shared Function EnumV2() As DeviceV2()
+        Dim p As IntPtr = Marshal.AllocHGlobal(512 * 128)
+        Return Ptr2Device(p, Ogmacam_EnumV2(p))
+    End Function
+
+    Public Shared Function EnumWithName() As DeviceV2()
+        Dim p As IntPtr = Marshal.AllocHGlobal(512 * 128)
+        Return Ptr2Device(p, Ogmacam_EnumWithName(p))
+    End Function
+
+    ' Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to null
+    Public Shared Function GigeEnable(funHotplug As DelegateHotplugCallback) As Integer
+        Dim pHotplug As HOTPLUG_CALLBACK = New HOTPLUG_CALLBACK(AddressOf HotplugCallback)
+        Dim id As IntPtr = New IntPtr(Interlocked.Increment(sid_))
+        map_.Add(id.ToInt32, funHotplug)
+        Return Ogmacam_GigeEnable(pHotplug, id)
+    End Function
+
     '
     ' the object of Ogmacam must be obtained by static mothod Open or OpenByIndex, it cannot be obtained by obj = New Ogmacam (The constructor is private on purpose)
     '
-    ' id: enumerated by EnumV2, Nothing means the first enumerated camera
-    Public Shared Function Open(id As String) As Ogmacam
-        Dim tmphandle As SafeCamHandle = Ogmacam_Open(id)
+    ' camId: enumerated by EnumV2, Nothing means the first enumerated camera
+    Public Shared Function Open(camId As String) As Ogmacam
+        Dim tmphandle As SafeCamHandle = Ogmacam_Open(camId)
         If tmphandle Is Nothing OrElse tmphandle.IsInvalid OrElse tmphandle.IsClosed Then
             Return Nothing
         End If
@@ -1166,6 +1254,38 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_Trigger(handle_, nNumber))
     End Function
 
+    '  trigger synchronously
+    '  nTimeout:    0:              by default, exposure * 102% + 4000 milliseconds
+    '               0xffffffff:     wait infinite
+    '               other:          milliseconds to wait
+    '
+    Public Function TriggerSync(nTimeout As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            zeroInfo(pInfo)
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_TriggerSync(handle_, nTimeout, pImageData, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function TriggerSync(nTimeout As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            zeroInfo(pInfo)
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_TriggerSync(handle_, nTimeout, pImageData, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function TriggerSync(nTimeout As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            zeroInfo(pInfo)
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_TriggerSync(handle_, nTimeout, pImageData, bits, rowPitch, pInfo))
+    End Function
+
     '
     '  put_Size, put_eSize, can be used to set the video output resolution BEFORE Start.
     '  put_Size use width and height parameters, put_eSize use the index parameter.
@@ -1357,27 +1477,27 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_put_AutoExpoTarget(handle_, Target))
     End Function
 
-    Public Function put_MaxAutoExpoTimeAGain(maxTime As UInteger, maxGain As UShort) As Boolean
+    Public Function put_AutoExpoRange(maxTime As UInteger, minTime As UInteger, maxGain As UShort, minGain As UShort) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_put_MaxAutoExpoTimeAGain(handle_, maxTime, maxGain))
+        Return CheckHResult(Ogmacam_put_AutoExpoRange(handle_, maxTime, minTime, maxGain, minGain))
     End Function
 
-    Public Function get_MinAutoExpoTimeAGain(ByRef minTime As UInteger, ByRef minGain As UShort) As Boolean
+    Public Function get_AutoExpoRange(ByRef maxTime As UInteger, ByRef minTime As UInteger, ByRef maxGain As UShort, ByRef minGain As UShort) As Boolean
         minTime = 0
         minGain = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_get_MinAutoExpoTimeAGain(handle_, minTime, minGain))
+        Return CheckHResult(Ogmacam_get_AutoExpoRange(handle_, maxTime, minTime, maxGain, minGain))
     End Function
 
-    Public Function put_MinAutoExpoTimeAGain(minTime As UInteger, minGain As UShort) As Boolean
+    Public Function put_MaxAutoExpoTimeAGain(maxTime As UInteger, maxGain As UShort) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_put_MinAutoExpoTimeAGain(handle_, minTime, minGain))
+        Return CheckHResult(Ogmacam_put_MaxAutoExpoTimeAGain(handle_, maxTime, maxGain))
     End Function
 
     Public Function get_MaxAutoExpoTimeAGain(ByRef maxTime As UInteger, ByRef maxGain As UShort) As Boolean
@@ -1387,6 +1507,22 @@ Friend Class Ogmacam
             Return False
         End If
         Return CheckHResult(Ogmacam_get_MaxAutoExpoTimeAGain(handle_, maxTime, maxGain))
+    End Function
+
+    Public Function put_MinAutoExpoTimeAGain(minTime As UInteger, minGain As UShort) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Return CheckHResult(Ogmacam_put_MinAutoExpoTimeAGain(handle_, minTime, minGain))
+    End Function
+
+    Public Function get_MinAutoExpoTimeAGain(ByRef minTime As UInteger, ByRef minGain As UShort) As Boolean
+        minTime = 0
+        minGain = 0
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Return CheckHResult(Ogmacam_get_MinAutoExpoTimeAGain(handle_, minTime, minGain))
     End Function
 
     Public Function get_ExpoTime(ByRef Time As UInteger) As Boolean
@@ -1982,7 +2118,10 @@ Friend Class Ogmacam
     Public Const FLASH_READ As UInteger = &H4    ' read
     Public Const FLASH_WRITE As UInteger = &H5   ' write
     Public Const FLASH_ERASE As UInteger = &H6   ' erase
-
+    ' Flash:
+    ' action = OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+    ' addr = address
+    ' see democpp
     Public Function rwc_Flash(action As UInteger, addr As UInteger, len As UInteger, pData As IntPtr) As Integer
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return E_UNEXPECTED
@@ -2197,6 +2336,29 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_IoControl(handle_, ioLineNumber, eType, inVal, outVal))
     End Function
 
+    Public Function IoControl(ioLineNumber As UInteger, eType As eIoControType, inVal As Integer) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Dim outVal As Integer = 0
+        Return CheckHResult(Ogmacam_IoControl(handle_, ioLineNumber, eType, inVal, outVal))
+    End Function
+
+    Public Function AAF(action As eAAF, inVal As Integer, ByRef outVal As UInteger) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Return CheckHResult(Ogmacam_AAF(handle_, action, inVal, outVal))
+    End Function
+
+    Public Function AAF(action As eAAF, inVal As Integer) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Dim outVal As Integer = 0
+        Return CheckHResult(Ogmacam_AAF(handle_, action, inVal, outVal))
+    End Function
+
     Public Function get_AfParam(ByRef pAfParam As AfParam) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -2204,13 +2366,22 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_AfParam(handle_, pAfParam))
     End Function
 
-    Public Function GetHistogram(funHistogram As DelegateHistogramCallback) As Boolean
+    Public Function GetHistogram(funHistogramV1 As DelegateHistogramCallback) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        funHistogram_ = funHistogram
-        pHistogram_ = New HISTOGRAM_CALLBACK(AddressOf HistogramCallback)
-        Return CheckHResult(Ogmacam_GetHistogram(handle_, pHistogram_, id_))
+        funHistogramV1_ = funHistogramV1
+        pHistogramV1_ = New HISTOGRAM_CALLBACKV1(AddressOf HistogramCallbackV1)
+        Return CheckHResult(Ogmacam_GetHistogram(handle_, pHistogramV1_, id_))
+    End Function
+
+    Public Function GetHistogramV2(funHistogramV2 As DelegateHistogramCallbackV2) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        funHistogramV2_ = funHistogramV2
+        pHistogramV2_ = New HISTOGRAM_CALLBACKV2(AddressOf HistogramCallbackV2)
+        Return CheckHResult(Ogmacam_GetHistogramV2(handle_, pHistogramV2_, id_))
     End Function
 
     '
@@ -2239,8 +2410,8 @@ Friend Class Ogmacam
     '   return E_ACCESSDENIED if without UAC Administrator privileges
     '   for each device found, it will take about 3 seconds
     '
-    Public Shared Function Replug(id As String) As Integer
-        Return Ogmacam_Replug(id)
+    Public Shared Function Replug(camId As String) As Integer
+        Return Ogmacam_Replug(camId)
     End Function
 
     ' firmware update
@@ -2255,6 +2426,7 @@ Friend Class Ogmacam
         Dim id As IntPtr = New IntPtr(Interlocked.Increment(sid_))
         map_.Add(id.ToInt32, funProgess)
         Dim ret As Integer = Ogmacam_Update(camId, filePath, pProgess, id)
+        map_.Remove(id)
         Return ret
     End Function
 
@@ -2337,6 +2509,10 @@ Friend Class Ogmacam
                 Return "Device not functioning"
             Case E_PENDING
                 Return "The data necessary to complete this operation is not yet available"
+            Case E_BUSY
+                Return "The requested resource is in use"
+            Case E_TIMEOUT
+                Return "This operation returned because the timeout period expired"
             Case Else
                 Return "Unspecified failure"
         End Select
@@ -2349,11 +2525,13 @@ Friend Class Ogmacam
     Private funDataV4_ As DelegateDataCallbackV4
     Private funDataV3_ As DelegateDataCallbackV3
     Private funEvent_ As DelegateEventCallback
-    Private funHistogram_ As DelegateHistogramCallback
+    Private funHistogramV1_ As DelegateHistogramCallback
+    Private funHistogramV2_ As DelegateHistogramCallbackV2
     Private pDataV4_ As DATA_CALLBACK_V4
     Private pDataV3_ As DATA_CALLBACK_V3
     Private pEvent_ As EVENT_CALLBACK
-    Private pHistogram_ As HISTOGRAM_CALLBACK
+    Private pHistogramV1_ As HISTOGRAM_CALLBACKV1
+    Private pHistogramV2_ As HISTOGRAM_CALLBACKV2
     Private hResult_ As Integer
 
     Protected Overrides Sub Finalize()
@@ -2431,14 +2609,6 @@ Friend Class Ogmacam
         End If
     End Sub
 
-    Private Sub HistogramCallback(aHistY As Single(), aHistR As Single(), aHistG As Single(), aHistB As Single())
-        If funHistogram_ IsNot Nothing Then
-            funHistogram_(aHistY, aHistR, aHistG, aHistB)
-            funHistogram_ = Nothing
-        End If
-        pHistogram_ = Nothing
-    End Sub
-
     Private Shared Sub DataCallbackV4(pData As IntPtr, pInfo As IntPtr, bSnap As Boolean, ctxData As IntPtr)
         Dim pthis As Ogmacam = Nothing
         map_.TryGetValue(ctxData.ToInt32(), pthis)
@@ -2463,19 +2633,50 @@ Friend Class Ogmacam
         End If
     End Sub
 
-    Private Shared Sub HistogramCallback(aHistY As IntPtr, aHistR As IntPtr, aHistG As IntPtr, aHistB As IntPtr, ctxHistogram As IntPtr)
+    Private Shared Sub HistogramCallbackV1(aHistY As IntPtr, aHistR As IntPtr, aHistG As IntPtr, aHistB As IntPtr, ctxHistogramV1 As IntPtr)
         Dim pthis As Ogmacam = Nothing
-        map_.TryGetValue(ctxHistogram.ToInt32(), pthis)
+        map_.TryGetValue(ctxHistogramV1.ToInt32(), pthis)
         If pthis IsNot Nothing Then
-            Dim arrHistY As Single() = New Single(255) {}
-            Dim arrHistR As Single() = New Single(255) {}
-            Dim arrHistG As Single() = New Single(255) {}
-            Dim arrHistB As Single() = New Single(255) {}
-            Marshal.Copy(aHistY, arrHistY, 0, 256)
-            Marshal.Copy(aHistR, arrHistR, 0, 256)
-            Marshal.Copy(aHistG, arrHistG, 0, 256)
-            Marshal.Copy(aHistB, arrHistB, 0, 256)
-            pthis.HistogramCallback(arrHistY, arrHistR, arrHistG, arrHistB)
+            If pthis.funHistogramV1_ IsNot Nothing Then
+                Dim arrHistY As Single() = New Single(255) {}
+                Dim arrHistR As Single() = New Single(255) {}
+                Dim arrHistG As Single() = New Single(255) {}
+                Dim arrHistB As Single() = New Single(255) {}
+                Marshal.Copy(aHistY, arrHistY, 0, 256)
+                Marshal.Copy(aHistR, arrHistR, 0, 256)
+                Marshal.Copy(aHistG, arrHistG, 0, 256)
+                Marshal.Copy(aHistB, arrHistB, 0, 256)
+
+                pthis.funHistogramV1_(arrHistY, arrHistR, arrHistG, arrHistB)
+                pthis.funHistogramV1_ = Nothing
+            End If
+            pthis.pHistogramV1_ = Nothing
+        End If
+    End Sub
+
+    Private Shared Sub HistogramCallbackV2(aHist As IntPtr, nFlag As UInteger, ctxHistogramV2 As IntPtr)
+        Dim pthis As Ogmacam = Nothing
+        map_.TryGetValue(ctxHistogramV2.ToInt32(), pthis)
+        If pthis IsNot Nothing Then
+            Dim arraySize As Integer = 1 << (nFlag And &HF)
+            If (nFlag And &H8000) = 0 Then
+                arraySize = arraySize * 3
+            End If
+            Dim arrHist As Integer() = New Integer(arraySize - 1) {}
+            Marshal.Copy(aHist, arrHist, 0, arraySize)
+
+            If pthis.funHistogramV2_ IsNot Nothing Then
+                pthis.funHistogramV2_(arrHist)
+            End If
+        End If
+    End Sub
+
+    Private Shared Sub HotplugCallback(ctxHotplug As IntPtr)
+        Dim obj As Object = Nothing
+        map_.TryGetValue(ctxHotplug.ToInt32(), obj)
+        Dim funHotplug As DelegateHotplugCallback = TryCast(obj, DelegateHotplugCallback)
+        If funHotplug IsNot Nothing Then
+            funHotplug()
         End If
     End Sub
 
@@ -2548,9 +2749,13 @@ Friend Class Ogmacam
     <UnmanagedFunctionPointerAttribute(CallingConvention.Winapi)>
     Private Delegate Sub DATA_CALLBACK_V3(pData As IntPtr, pInfo As IntPtr, bSnap As Boolean, pCtx As IntPtr)
     <UnmanagedFunctionPointerAttribute(CallingConvention.Winapi)>
-    Private Delegate Sub HISTOGRAM_CALLBACK(aHistY As IntPtr, aHistR As IntPtr, aHistG As IntPtr, aHistB As IntPtr, pCtx As IntPtr)
+    Private Delegate Sub HISTOGRAM_CALLBACKV1(aHistY As IntPtr, aHistR As IntPtr, aHistG As IntPtr, aHistB As IntPtr, pCtx As IntPtr)
+    <UnmanagedFunctionPointerAttribute(CallingConvention.Winapi)>
+    Private Delegate Sub HISTOGRAM_CALLBACKV2(aHist As IntPtr, nFlag As UInteger, pCtx As IntPtr)
     <UnmanagedFunctionPointerAttribute(CallingConvention.Winapi)>
     Private Delegate Sub PROGRESS_CALLBACK(percent As Integer, pCtx As IntPtr)
+    <UnmanagedFunctionPointerAttribute(CallingConvention.Winapi)>
+    Private Delegate Sub HOTPLUG_CALLBACK(pCtx As IntPtr)
 
     <StructLayout(LayoutKind.Sequential)>
     Private Structure RECT
@@ -2564,7 +2769,10 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_EnumV2(ti As IntPtr) As UInteger
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_Open(<MarshalAs(UnmanagedType.LPWStr)> id As String) As SafeCamHandle
+    Private Shared Function Ogmacam_EnumWithName(ti As IntPtr) As UInteger
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_Open(<MarshalAs(UnmanagedType.LPWStr)> camId As String) As SafeCamHandle
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_OpenByIndex(index As UInteger) As SafeCamHandle
@@ -2671,27 +2879,27 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_Pause(h As SafeCamHandle, bPause As Integer) As Integer
     End Function
 
-    ' for still image snap
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_Snap(h As SafeCamHandle, nResolutionIndex As UInteger) As Integer
     End Function
-    ' multiple still image snap
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_SnapN(h As SafeCamHandle, nResolutionIndex As UInteger, nNumber As UInteger) As Integer
     End Function
-    ' multiple still image snap
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_SnapR(h As SafeCamHandle, nResolutionIndex As UInteger, nNumber As UInteger) As Integer
     End Function
 
-    '
-    ' soft trigger:
-    ' nNumber:    0xffff:     trigger continuously
-    '             0:          cancel trigger
-    '             others:     number of images to be triggered
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_Trigger(h As SafeCamHandle, nNumber As UShort) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nTimeout As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nTimeout As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nTimeout As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -2736,7 +2944,6 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_Flush(h As SafeCamHandle) As Integer
     End Function
 
-    ' sensor Temperature
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Temperature(h As SafeCamHandle, ByRef pTemperature As Short) As Integer
     End Function
@@ -2744,7 +2951,6 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_put_Temperature(h As SafeCamHandle, nTemperature As Short) As Integer
     End Function
 
-    ' ROI
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Roi(h As SafeCamHandle, ByRef xOffsett As UInteger, ByRef yOffsett As UInteger, ByRef xWidtht As UInteger, ByRef yHeightt As UInteger) As Integer
     End Function
@@ -2782,6 +2988,12 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_put_AutoExpoTarget(h As SafeCamHandle, Target As UShort) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_put_AutoExpoRange(h As SafeCamHandle, maxTime As UInteger, minTime As UInteger, maxGain As UShort, minGain As UShort) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_get_AutoExpoRange(h As SafeCamHandle, ByRef maxTime As UInteger, ByRef minTime As UInteger, ByRef maxGain As UShort, ByRef minGain As UShort) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_MaxAutoExpoTimeAGain(h As SafeCamHandle, maxTime As UInteger, maxGain As UShort) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -2794,12 +3006,9 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_get_MinAutoExpoTimeAGain(h As SafeCamHandle, ByRef minTime As UInteger, ByRef minGain As UShort) As Integer
     End Function
 
-    ' in microseconds
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_ExpoTime(h As SafeCamHandle, ByRef Time As UInteger) As Integer
     End Function
-
-    ' inmicroseconds
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_ExpoTime(h As SafeCamHandle, Time As UInteger) As Integer
     End Function
@@ -2808,11 +3017,9 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_get_ExpTimeRange(h As SafeCamHandle, ByRef nMin As UInteger, ByRef nMax As UInteger, ByRef nDef As UInteger) As Integer
     End Function
 
-    ' percent, such as 300
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_ExpoAGain(h As SafeCamHandle, ByRef Gain As UShort) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_ExpoAGain(h As SafeCamHandle, Gain As UShort) As Integer
     End Function
@@ -2866,77 +3073,55 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_put_Gamma(h As SafeCamHandle, Gamma As Integer) As Integer
     End Function
 
-    ' monochromatic mode
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Chrome(h As SafeCamHandle, ByRef bChrome As Integer) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_Chrome(h As SafeCamHandle, bChrome As Integer) As Integer
     End Function
 
-    ' vertical flip
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_VFlip(h As SafeCamHandle, ByRef bVFlip As Integer) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_VFlip(h As SafeCamHandle, bVFlip As Integer) As Integer
     End Function
-
-    ' horizontal flip
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_HFlip(h As SafeCamHandle, ByRef bHFlip As Integer) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_HFlip(h As SafeCamHandle, bHFlip As Integer) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Negative(h As SafeCamHandle, ByRef bNegative As Integer) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_Negative(h As SafeCamHandle, bNegative As Integer) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_Speed(h As SafeCamHandle, nSpeed As UShort) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Speed(h As SafeCamHandle, ByRef pSpeed As UShort) As Integer
     End Function
-
-    ' get the maximum speed, "Frame Speed Level", speed range = [0, max]
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_MaxSpeed(h As SafeCamHandle) As UInteger
     End Function
-
-    ' get the max bit depth of this camera, such as 8, 10, 12, 14, 16
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_MaxBitDepth(h As SafeCamHandle) As UInteger
     End Function
-
-    ' get the maximum fan speed, the fan speed range = [0, max], closed interval
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_FanMaxSpeed(h As SafeCamHandle) As UInteger
     End Function
-
-    ' power supply:
-    '   0 => 60HZ AC
-    '   1 => 50Hz AC
-    '   2 => DC
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_HZ(h As SafeCamHandle, nHZ As Integer) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_HZ(h As SafeCamHandle, ByRef nHZ As Integer) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_Mode(h As SafeCamHandle, bSkip As Integer) As Integer
     End Function
-    ' skip or bin
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Mode(h As SafeCamHandle, ByRef bSkip As Integer) As Integer
     End Function
@@ -2947,14 +3132,12 @@ Friend Class Ogmacam
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_TempTint(h As SafeCamHandle, ByRef nTemp As Integer, ByRef nTint As Integer) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_WhiteBalanceGain(h As SafeCamHandle, aGain As Integer()) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_WhiteBalanceGain(h As SafeCamHandle, aGain As Integer()) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_BlackBalance(h As SafeCamHandle, aSub As UShort()) As Integer
     End Function
@@ -2981,14 +3164,9 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_get_ABBAuxRect(h As SafeCamHandle, ByRef pAuxRect As RECT) As Integer
     End Function
 
-    '
-    '  S_FALSE:    color mode
-    '  S_OK:       mono mode, such as EXCCD00300KMA and UHCCD01400KMA
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_MonoMode(h As SafeCamHandle) As Integer
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_StillResolutionNumber(h As SafeCamHandle) As UInteger
     End Function
@@ -2996,51 +3174,24 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_get_StillResolution(h As SafeCamHandle, nResolutionIndex As UInteger, ByRef pWidth As Integer, ByRef pHeight As Integer) As Integer
     End Function
 
-    '
-    ' get the revision
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Revision(h As SafeCamHandle, ByRef pRevision As UShort) As Integer
     End Function
-
-    '
-    ' get the serial number which is always 32 chars which is zero-terminated such as "TP110826145730ABCD1234FEDC56787"
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_SerialNumber(h As SafeCamHandle, sn As IntPtr) As Integer
     End Function
-
-    '
-    ' get the firmware version, such as: 3.2.1.20140922
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_FwVersion(h As SafeCamHandle, fwver As IntPtr) As Integer
     End Function
-
-    '
-    ' get the hardware version, such as: 3.2.1.20140922
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_HwVersion(h As SafeCamHandle, hwver As IntPtr) As Integer
     End Function
-
-    '
-    ' get FPGA version, such as 1.3
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_FpgaVersion(h As SafeCamHandle, fpgaver As IntPtr) As Integer
     End Function
-
-    '
-    ' get the production date, such as: 20150327
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_ProductionDate(h As SafeCamHandle, pdate As IntPtr) As Integer
     End Function
-
-    '
-    ' get the sensor pixel size, such as: 2.4um x 2.4um
-    '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_PixelSize(h As SafeCamHandle, nResolutionIndex As UInteger, ByRef x As Single, ByRef y As Single) As Integer
     End Function
@@ -3082,7 +3233,10 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_LevelRangeAuto(h As SafeCamHandle) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_GetHistogram(h As SafeCamHandle, funHistogram As HISTOGRAM_CALLBACK, ctxHistogram As IntPtr) As Integer
+    Private Shared Function Ogmacam_GetHistogram(h As SafeCamHandle, funHistogramV1 As HISTOGRAM_CALLBACKV1, ctxHistogramV1 As IntPtr) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_GetHistogramV2(h As SafeCamHandle, funHistogramV2 As HISTOGRAM_CALLBACKV2, ctxHistogramV2 As IntPtr) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -3178,7 +3332,10 @@ Friend Class Ogmacam
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_IoControl(h As SafeCamHandle, index As UInteger, eType As eIoControType, inVal As Integer, ByRef outVal As UInteger) As Integer
+    Private Shared Function Ogmacam_IoControl(h As SafeCamHandle, ioLineNumber As UInteger, eType As eIoControType, inVal As Integer, ByRef outVal As UInteger) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_AAF(h As SafeCamHandle, action As eAAF, inVal As Integer, ByRef outVal As UInteger) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -3191,17 +3348,19 @@ Friend Class Ogmacam
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_calc_ClarityFactorV2(pImageData As IntPtr, bits As Integer, nImgWidth As UInteger, nImgHeight As UInteger, xOffset As UInteger, yOffset As UInteger, xWidth As UInteger, yHeight As UInteger) As Double
     End Function
-
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_deBayerV2(nBayer As UInteger, nW As Integer, nH As Integer, input As IntPtr, output As IntPtr, nBitDepth As Byte, nBitCount As Byte)
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_Replug(<MarshalAs(UnmanagedType.LPWStr)> id As String) As Integer
+    Private Shared Function Ogmacam_Replug(<MarshalAs(UnmanagedType.LPWStr)> camId As String) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_Update(<MarshalAs(UnmanagedType.LPWStr)> camId As String, <MarshalAs(UnmanagedType.LPWStr)> filePath As String, funProgress As PROGRESS_CALLBACK, ctxProgress As IntPtr) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_Update(<MarshalAs(UnmanagedType.LPWStr)> camId As String, <MarshalAs(UnmanagedType.LPWStr)> filePath As String, funProgress As PROGRESS_CALLBACK, ctxProgress As IntPtr) As Integer
+    Private Shared Function Ogmacam_GigeEnable(funHotplug As HOTPLUG_CALLBACK, ctxHotplug As IntPtr) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>

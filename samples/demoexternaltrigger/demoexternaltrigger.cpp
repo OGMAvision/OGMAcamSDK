@@ -109,17 +109,16 @@ int main(int, char**)
                     else
                         printf("'x' to exit\n");
                     do {
+                        int n = 1;
                         if (fgets(str, 1023, stdin))
                         {
                             if (('x' == str[0]) || ('X' == str[1]))
                                 break;
-                            if (5 == trigger_source)
-                            {
-                                int n = atoi(str);
-                                if (n > 0)
-                                    Ogmacam_Trigger(g_hcam, n);
-                            }
+                            else if ('\n' != str[0])
+                                n = atoi(str);
                         }
+                        if ((5 == trigger_source) && (n > 0))
+                            Ogmacam_Trigger(g_hcam, n);
                     } while (true);
                 }
             }

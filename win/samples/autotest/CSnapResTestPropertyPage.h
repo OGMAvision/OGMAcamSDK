@@ -1,10 +1,9 @@
 #pragma once
 
-class CSnapResTestPropertyPage : public CPropertyPage
+#include "CTestPropertyPage.h"
+
+class CSnapResTestPropertyPage : public CTestPropertyPage
 {
-	bool m_bStart;
-	int m_totalCount;
-	int m_count;
 	int m_snap, m_resCount;
 public:
 	CSnapResTestPropertyPage();

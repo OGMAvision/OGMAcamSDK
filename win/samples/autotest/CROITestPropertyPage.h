@@ -1,6 +1,8 @@
 #pragma once
 
-class CROITestPropertyPage : public CPropertyPage
+#include "CTestPropertyPage.h"
+
+class CROITestPropertyPage : public CTestPropertyPage
 {
 	int m_invertal;
 	int m_xWidth, m_yHeight;

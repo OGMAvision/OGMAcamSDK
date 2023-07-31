@@ -1,10 +1,9 @@
 #pragma once
 
-class CBitDepthTestPropertyPage : public CPropertyPage
+#include "CTestPropertyPage.h"
+
+class CBitDepthTestPropertyPage : public CTestPropertyPage
 {
-	bool m_bStart;
-	int m_totalCount;
-	int m_count;
 public:
 	CBitDepthTestPropertyPage();
 

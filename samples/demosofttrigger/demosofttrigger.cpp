@@ -57,14 +57,16 @@ int main(int, char**)
                 printf("'x' to exit, number to trigger\n");
                 do {
                     char str[1024];
+                    int n = 1;
                     if (fgets(str, 1023, stdin))
                     {
                         if (('x' == str[0]) || ('X' == str[0]))
                             break;
-                        int n = atoi(str);
-                        if (n > 0)
-                            Ogmacam_Trigger(g_hcam, n);
+                        else if ('\n' != str[0])
+                            n = atoi(str);
                     }
+                    if (n > 0)
+                        Ogmacam_Trigger(g_hcam, n);
                 } while (true);
             }
         }

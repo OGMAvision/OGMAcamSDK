@@ -54,6 +54,9 @@
     <ClInclude Include="..\CSamplingPropertyPage.h">
       <Filter>Setting</Filter>
     </ClInclude>
+    <ClInclude Include="..\CTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
     <ClInclude Include="..\CROITestPropertyPage.h">
       <Filter>Test</Filter>
     </ClInclude>
@@ -70,6 +73,12 @@
       <Filter>Test</Filter>
     </ClInclude>
     <ClInclude Include="..\CBitDepthTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CFlushTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CPauseTestPropertyPage.h">
       <Filter>Test</Filter>
     </ClInclude>
     <ClInclude Include="..\CBitDepthPropertyPage.h">
@@ -113,6 +122,9 @@
     <ClCompile Include="..\CSamplingPropertyPage.cpp">
       <Filter>Setting</Filter>
     </ClCompile>
+    <ClCompile Include="..\CTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
     <ClCompile Include="..\CROITestPropertyPage.cpp">
       <Filter>Test</Filter>
     </ClCompile>
@@ -133,6 +145,12 @@
     </ClCompile>
     <ClCompile Include="..\CBitDepthPropertyPage.cpp">
       <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CFlushTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CPauseTestPropertyPage.cpp">
+      <Filter>Test</Filter>
     </ClCompile>
     <ClCompile Include="..\COpenCloseTestPropertyPage.cpp">
       <Filter>Test</Filter>

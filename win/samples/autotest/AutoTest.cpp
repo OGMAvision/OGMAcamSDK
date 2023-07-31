@@ -1,10 +1,7 @@
 #include "stdafx.h"
+#include "global.h"
 #include "AutoTest.h"
 #include "AutoTestDlg.h"
-
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#endif
 
 BEGIN_MESSAGE_MAP(CAutoTestApp, CWinApp)
 END_MESSAGE_MAP()
@@ -40,6 +37,13 @@ BOOL CAutoTestApp::InitInstance()
 	// the specific initialization routines you do not need
 	// Change the registry key under which our settings are stored
 	SetRegistryKey(_T("AutoTest"));
+
+	g_NopacketTimeout = GetProfileInt(_T("Options"), _T("NopacketTimeout"), g_NopacketTimeout);
+	g_NoframeTimeout = GetProfileInt(_T("Options"), _T("NoframeTimeout"), g_NoframeTimeout);
+	g_HeartbeatTimeout = GetProfileInt(_T("Options"), _T("HeartbeatTimeout"), g_HeartbeatTimeout);
+	g_bReplug = GetProfileInt(_T("Options"), _T("Replug"), g_bReplug ? 1 : 0) ? true : false;
+	g_bEnableCheckBlack = GetProfileInt(_T("Options"), _T("CheckBlack"), g_bCheckBlack ? 1 : 0) ? true : false;
+	g_bRealtime = GetProfileInt(_T("Options"), _T("Realtime"), g_bRealtime ? 1 : 0) ? true : false;
 
 	CAutoTestDlg dlg;
 	m_pMainWnd = &dlg;

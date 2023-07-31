@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 53.22081.20230207
+    Version: 54.22913.20230709
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -62,9 +62,12 @@ public class ogmacam implements AutoCloseable {
     public final static long FLAG_LEVELRANGE_HARDWARE     = 0x0000020000000000L;  /* hardware level range, put(get)_LevelRangeV2 */
     public final static long FLAG_EVENT_HARDWARE          = 0x0000040000000000L;  /* hardware event, such as exposure start & stop */
     public final static long FLAG_LIGHTSOURCE             = 0x0000080000000000L;  /* light source */
-    public final static long FLAG_FILTERWHEEL             = 0x0000100000000000L;  /* filter wheel */
-    public final static long FLAG_GIGE                    = 0x0000200000000000L;  /* GigE */
-    public final static long OGMACAM_FLAG_10GIGE          = 0x0000400000000000L;  /* 10 Gige */
+    public final static long FLAG_FILTERWHEEL             = 0x0000100000000000L;  /* astro filter wheel */
+    public final static long FLAG_GIGE                    = 0x0000200000000000L;  /* 1 Gigabit GigE */
+    public final static long FLAG_10GIGE                  = 0x0000400000000000L;  /* 10 Gigabit GigE */
+    public final static long FLAG_5GIGE                   = 0x0000800000000000L;  /* 5 Gigabit GigE */
+    public final static long FLAG_25GIGE                  = 0x0001000000000000L;  /* 2.5 Gigabit GigE */
+    public final static long FLAG_AUTOFOCUSER             = 0x0002000000000000L;  /* astro auto focuser */
     
     public final static int EVENT_EXPOSURE                = 0x0001; /* exposure time or gain changed */
     public final static int EVENT_TEMPTINT                = 0x0002; /* white balance changed, Temp/Tint mode */
@@ -98,7 +101,7 @@ public class ogmacam implements AutoCloseable {
                                                                              Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                                              Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
                                                                         */
-    public final static int OPTION_RAW                    = 0x04;       /* raw data mode, read the sensor "raw" data. This can be set only BEFORE Ogmacam_StartXXX(). 0 = rgb, 1 = raw, default value: 0 */
+    public final static int OPTION_RAW                    = 0x04;       /* raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0 */
     public final static int OPTION_HISTOGRAM              = 0x05;       /* 0 = only one, 1 = continue mode */
     public final static int OPTION_BITDEPTH               = 0x06;       /* 0 = 8 bits mode, 1 = 16 bits mode */
     public final static int OPTION_FAN                    = 0x07;       /* 0 = turn off the cooling fan, [1, max] = fan speed */
@@ -181,7 +184,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_AFZONE                 = 0x26;       /* auto focus zone */
     public final static int OPTION_AFFEEDBACK             = 0x27;       /* auto focus information feedback; 0:unknown; 1:focused; 2:focusing; 3:defocus; 4:up; 5:down */
     public final static int OPTION_TESTPATTERN            = 0x28;       /* test pattern:
-                                                                            0: TestPattern Off
+                                                                            0: off
                                                                             3: monochrome diagonal stripes
                                                                             5: monochrome vertical stripes
                                                                             7: monochrome horizontal stripes
@@ -213,7 +216,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_LOW_NOISE              = 0x38;       /* low noise mode (Higher signal noise ratio, lower frame rate): 1 => enable */
     public final static int OPTION_POWER                  = 0x39;       /* get power consumption, unit: milliwatt */
     public final static int OPTION_GLOBAL_RESET_MODE      = 0x3a;       /* global reset mode */
-    public final static int OPTION_OPEN_USB_ERRORCODE     = 0x3b;       /* get the open usb error code */
+    public final static int OPTION_OPEN_ERRORCODE         = 0x3b;       /* get the open camera error code */
     public final static int OPTION_FLUSH                  = 0x3d;       /* 1 = hard flush, discard frames cached by camera DDR (if any)
                                                                            2 = soft flush, discard frames cached by ogmacam.dll (if any)
                                                                            3 = both flush
@@ -272,7 +275,33 @@ public class ogmacam implements AutoCloseable {
                                                                               low 16 bits: min
                                                                         */
     public final static int OPTION_HIGH_FULLWELL          = 0x55;       /* high fullwell capacity: 0 => disable, 1 => enable */
-    
+    public final static int OPTION_DYNAMIC_DEFECT         = 0x56;       /* dynamic defect pixel correction:
+                                                                           threshold:
+                                                                              t1 (high 16 bits): [1, 100]
+                                                                              t2 (low 16 bits): [0, 100]
+                                                                        */
+    public final static int OPTION_HDR_KB                 = 0x57;       /* HDR synthesize
+                                                                              K (high 16 bits): [1, 25500]
+                                                                              B (low 16 bits): [0, 65535]
+                                                                              0xffffffff => set to default
+                                                                        */
+    public final static int OPTION_HDR_THRESHOLD          = 0x58;       /* HDR synthesize
+                                                                              threshold: [1, 4095]
+                                                                              0xffffffff => set to default
+                                                                        */
+    public final static int OPTION_GIGETIMEOUT            = 0x5a;       /* For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
+                                                                           If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
+                                                                           When the application is stopped by the debugger, the application cannot create the heartbeat signals
+                                                                               0 => auto: when the camera is opened, disable if debugger is present or enable if no debugger is present
+                                                                               1 => enable
+                                                                               2 => disable
+                                                                               default: auto
+                                                                        */
+    public final static int OPTION_EEPROM_SIZE            = 0x5b;       /* get EEPROM size */
+    public final static int OPTION_OVERCLOCK_MAX          = 0x5c;       /* get overclock range: [0, max] */
+    public final static int OPTION_OVERCLOCK              = 0x5d;       /* overclock, default: 0 */
+    public final static int OPTION_RESET_SENSOR           = 0x5e;       /* reset sensor */
+
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
     public final static int PIXELFORMAT_RAW12             = 0x02;
@@ -308,9 +337,9 @@ public class ogmacam implements AutoCloseable {
     public final static int IOCONTROLTYPE_SET_FORMAT                = 0x06;
     public final static int IOCONTROLTYPE_GET_OUTPUTINVERTER        = 0x07; /* boolean, only support output signal */
     public final static int IOCONTROLTYPE_SET_OUTPUTINVERTER        = 0x08;
-    public final static int IOCONTROLTYPE_GET_INPUTACTIVATION       = 0x09; /* 0x00 => Positive, 0x01 => Negative */
+    public final static int IOCONTROLTYPE_GET_INPUTACTIVATION       = 0x09; /* 0x00 => Rising edge, 0x01 => Negative, 0x02 => Level high, 0x03 => Level low */
     public final static int IOCONTROLTYPE_SET_INPUTACTIVATION       = 0x0a;
-    public final static int IOCONTROLTYPE_GET_DEBOUNCERTIME         = 0x0b; /* debouncer time in microseconds, [0, 20000] */
+    public final static int IOCONTROLTYPE_GET_DEBOUNCERTIME         = 0x0b; /* debouncer time in microseconds, range: [0, 20000] */
     public final static int IOCONTROLTYPE_SET_DEBOUNCERTIME         = 0x0c;
     public final static int IOCONTROLTYPE_GET_TRIGGERSOURCE         = 0x0d; /*
                                                                                0x00 => Opto-isolated input
@@ -321,7 +350,7 @@ public class ogmacam implements AutoCloseable {
                                                                                0x05 => Software
                                                                             */
     public final static int IOCONTROLTYPE_SET_TRIGGERSOURCE         = 0x0e;
-    public final static int IOCONTROLTYPE_GET_TRIGGERDELAY          = 0x0f; /* Trigger delay time in microseconds, [0, 5000000] */
+    public final static int IOCONTROLTYPE_GET_TRIGGERDELAY          = 0x0f; /* Trigger delay time in microseconds, range: [0, 5000000] */
     public final static int IOCONTROLTYPE_SET_TRIGGERDELAY          = 0x10;
     public final static int IOCONTROLTYPE_GET_BURSTCOUNTER          = 0x11; /* Burst Counter, range: [1 ~ 65535] */
     public final static int IOCONTROLTYPE_SET_BURSTCOUNTER          = 0x12;
@@ -341,13 +370,15 @@ public class ogmacam implements AutoCloseable {
                                                                                0x01 => Exposure Active
                                                                                0x02 => Strobe
                                                                                0x03 => User output
+                                                                               0x04 => Counter Output
+                                                                               0x05 => Timer Output
                                                                             */
     public final static int IOCONTROLTYPE_SET_OUTPUTMODE            = 0x20;
     public final static int IOCONTROLTYPE_GET_STROBEDELAYMODE       = 0x21; /* boolean, 1 => delay, 0 => pre-delay; compared to exposure active signal */
     public final static int IOCONTROLTYPE_SET_STROBEDELAYMODE       = 0x22;
-    public final static int IOCONTROLTYPE_GET_STROBEDELAYTIME       = 0x23; /* Strobe delay or pre-delay time in microseconds, [0, 5000000] */
+    public final static int IOCONTROLTYPE_GET_STROBEDELAYTIME       = 0x23; /* Strobe delay or pre-delay time in microseconds, range: [0, 5000000] */
     public final static int IOCONTROLTYPE_SET_STROBEDELAYTIME       = 0x24;
-    public final static int IOCONTROLTYPE_GET_STROBEDURATION        = 0x25; /* Strobe duration time in microseconds, [0, 5000000] */
+    public final static int IOCONTROLTYPE_GET_STROBEDURATION        = 0x25; /* Strobe duration time in microseconds, range: [0, 5000000] */
     public final static int IOCONTROLTYPE_SET_STROBEDURATION        = 0x26;
     public final static int IOCONTROLTYPE_GET_USERVALUE             = 0x27; /*
                                                                                bit0 => Opto-isolated output
@@ -371,6 +402,34 @@ public class ogmacam implements AutoCloseable {
     public final static int IOCONTROLTYPE_SET_EXPO_END_LINE         = 0x34;
     public final static int IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE     = 0x35; /* exposure event: 0 => specified line, 1 => common exposure time */
     public final static int IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE     = 0x36;
+    public final static int IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37; /* Output Counter Value, range: [0 ~ 65535] */
+    public final static int IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38;
+    
+    /* AAF: Astro Auto Focuser */
+    public final static int AAF_SETPOSITION     = 0x01;
+    public final static int AAF_GETPOSITION     = 0x02;
+    public final static int AAF_SETZERO         = 0x03;
+    public final static int AAF_GETZERO         = 0x04;
+    public final static int AAF_SETDIRECTION    = 0x05;
+    public final static int AAF_SETMAXINCREMENT = 0x07;
+    public final static int AAF_GETMAXINCREMENT = 0x08;
+    public final static int AAF_SETFINE         = 0x09;
+    public final static int AAF_GETFINE         = 0x0a;
+    public final static int AAF_SETCOARSE       = 0x0b;
+    public final static int AAF_GETCOARSE       = 0x0c;
+    public final static int AAF_SETBUZZER       = 0x0d;
+    public final static int AAF_GETBUZZER       = 0x0e;
+    public final static int AAF_SETBACKLASH     = 0x0f;
+    public final static int AAF_GETBACKLASH     = 0x10;
+    public final static int AAF_GETAMBIENTTEMP  = 0x12;
+    public final static int AAF_GETTEMP         = 0x14;
+    public final static int AAF_ISMOVING        = 0x16;
+    public final static int AAF_HALT            = 0x17;
+    public final static int AAF_SETMAXSTEP      = 0x1b;
+    public final static int AAF_GETMAXSTEP      = 0x1c;
+    public final static int AAF_RANGEMIN        = 0xfd;  /* Range: min value */
+    public final static int AAF_RANGEMAX        = 0xfe;  /* Range: max value */
+    public final static int AAF_RANGEDEF        = 0xff;  /* Range: default value */
     
     /* hardware level range mode */
     public final static int LEVELRANGE_MANUAL        = 0x0000;   /* manual */
@@ -432,7 +491,7 @@ public class ogmacam implements AutoCloseable {
     public final static int DENOISE_DEF              = 0;        /* denoise */
     public final static int DENOISE_MIN              = 0;        /* denoise */
     public final static int DENOISE_MAX              = 100;      /* denoise */
-    public final static int TEC_TARGET_MIN           = -300;     /* TEC target: -30.0 degrees Celsius */
+    public final static int TEC_TARGET_MIN           = -500;     /* TEC target: -50.0 degrees Celsius */
     public final static int TEC_TARGET_DEF           = 0;        /* TEC target: 0.0 degrees Celsius */
     public final static int TEC_TARGET_MAX           = 400;      /* TEC target: 40.0 degrees Celsius */
     public final static int HEARTBEAT_MIN            = 100;      /* millisecond */
@@ -442,7 +501,19 @@ public class ogmacam implements AutoCloseable {
     public final static int AE_PERCENT_DEF           = 10;
     public final static int NOPACKET_TIMEOUT_MIN     = 500;      /* no packet timeout minimum: 500ms */
     public final static int NOFRAME_TIMEOUT_MIN      = 500;      /* no frame timeout minimum: 500ms */
-
+    public final static int DYNAMIC_DEFECT_T1_MIN    = 10;       /* dynamic defect pixel correction */
+    public final static int DYNAMIC_DEFECT_T1_MAX    = 100;
+    public final static int DYNAMIC_DEFECT_T1_DEF    = 13;
+    public final static int DYNAMIC_DEFECT_T2_MIN    = 0;
+    public final static int DYNAMIC_DEFECT_T2_MAX    = 100;
+    public final static int DYNAMIC_DEFECT_T2_DEF    = 100;
+    public final static int HDR_K_MIN                = 1;        /* HDR synthesize */
+    public final static int HDR_K_MAX                = 25500;
+    public final static int HDR_B_MIN                = 0;
+    public final static int HDR_B_MAX                = 65535;
+    public final static int HDR_THRESHOLD_MIN        = 0;
+    public final static int HDR_THRESHOLD_MAX        = 4094;
+    
     public final static int FLASH_SIZE               = 0x00;    /* query total size */
     public final static int FLASH_EBLOCK             = 0x01;    /* query erase block size */
     public final static int FLASH_RWBLOCK            = 0x02;    /* query read/write block size */
@@ -469,6 +540,7 @@ public class ogmacam implements AutoCloseable {
         public final static int E_FAIL          = 0x80004005; /* Generic failure */
         public final static int E_WRONG_THREAD  = 0x8001010e; /* Call function in the wrong thread */
         public final static int E_GEN_FAILURE   = 0x8007001f; /* Device not functioning */
+        public final static int E_BUSY          = 0x800700aa; /* The requested resource is in use */
         public final static int E_PENDING       = 0x8000000a; /* The data necessary to complete this operation is not yet available */
         public final static int E_TIMEOUT       = 0x8001011f; /* This operation returned because the timeout period expired */
         
@@ -505,6 +577,8 @@ public class ogmacam implements AutoCloseable {
                     return "Call function in the wrong thread";
                 case E_GEN_FAILURE:
                     return "Device not functioning";
+                case E_BUSY:
+                    return "The requested resource is in use";
                 case E_PENDING:
                     return "The data necessary to complete this operation is not yet available";
                 case E_TIMEOUT:
@@ -545,7 +619,7 @@ public class ogmacam implements AutoCloseable {
         public ModelV2 model;
     }
     
-    @FieldOrder({ "width", "height", "flag", "seq", "timestamp", "shutterseq", "expotime", "expogain" })
+    @FieldOrder({ "width", "height", "flag", "seq", "timestamp", "shutterseq", "expotime", "expogain", "blacklevel" })
     public static class FrameInfoV3 extends Structure {
         public int  width;
         public int  height;
@@ -586,6 +660,7 @@ public class ogmacam implements AutoCloseable {
     private interface CLib {
         Pointer Ogmacam_Version();
         int Ogmacam_EnumV2(Pointer ptr);
+        int Ogmacam_EnumWithName(Pointer ptr);
         Pointer Ogmacam_OpenByIndex(int index);
         void Ogmacam_Close(Pointer h);
         int Ogmacam_PullImageV3(Pointer h, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
@@ -599,6 +674,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_SnapN(Pointer h, int nResolutionIndex, int nNumber);
         int Ogmacam_SnapR(Pointer h, int nResolutionIndex, int nNumber);
         int Ogmacam_Trigger(Pointer h, short nNumber);
+        int Ogmacam_TriggerSync(Pointer h, int nTimeout, Pointer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_put_Size(Pointer h, int nWidth, int nHeight);
         int Ogmacam_get_Size(Pointer h, IntByReference nWidth, IntByReference nHeight);
         int Ogmacam_put_eSize(Pointer h, int nResolutionIndex);
@@ -620,6 +696,8 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_put_AutoExpoEnable(Pointer h, int bAutoExposure);
         int Ogmacam_get_AutoExpoTarget(Pointer h, ShortByReference Target);
         int Ogmacam_put_AutoExpoTarget(Pointer h, short Target);
+        int Ogmacam_put_AutoExpoRange(Pointer h, int maxTime, int minTime, short maxGain, short minGain);
+        int Ogmacam_get_AutoExpoRange(Pointer h, IntByReference maxTime, IntByReference minTime, ShortByReference maxGain, ShortByReference minGain);
         int Ogmacam_put_MaxAutoExpoTimeAGain(Pointer h, int maxTime, short maxGain);
         int Ogmacam_get_MaxAutoExpoTimeAGain(Pointer h, IntByReference maxTime, ShortByReference maxGain);
         int Ogmacam_put_MinAutoExpoTimeAGain(Pointer h, int minTime, short minGain);
@@ -706,8 +784,10 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_FfcOnce(Pointer h);
         int Ogmacam_DfcOnce(Pointer h);
         int Ogmacam_IoControl(Pointer h, int ioLineNumber, int eType, int outVal, IntByReference inVal);
+        int Ogmacam_AAF(Pointer h, int action, int outVal, IntByReference inVal);
         int Ogmacam_get_AfParam(Pointer h, AfParam pAfParam);
         
+        int Ogmacam_TriggerSyncArray(Pointer h, int nTimeout, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_PullImageV3Array(Pointer h, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_PullImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
         int Ogmacam_PullStillImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
@@ -727,12 +807,12 @@ public class ogmacam implements AutoCloseable {
         WinLibrary INSTANCE = (WinLibrary)Native.load("ogmacam", WinLibrary.class, options_);
         
         interface EVENT_CALLBACK extends StdCallCallback {
-            void invoke(int nEvent, long ctxEvent);
+            void invoke(int nEvent, Pointer ctxEvent);
         }
         
-        Pointer Ogmacam_Open(WString id);
-        int Ogmacam_Replug(WString id);
-        int Ogmacam_StartPullModeWithCallback(Pointer h, EVENT_CALLBACK funEvent, long ctxEvent);
+        Pointer Ogmacam_Open(WString camId);
+        int Ogmacam_Replug(WString camId);
+        int Ogmacam_StartPullModeWithCallback(Pointer h, EVENT_CALLBACK funEvent, Pointer ctxEvent);
         int Ogmacam_StartPullModeWithWndMsg(Pointer h, Pointer hWnd, int nMsg);
         int Ogmacam_FfcImport(Pointer h, WString filepath);
         int Ogmacam_FfcExport(Pointer h, WString filepath);
@@ -740,35 +820,50 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_DfcExport(Pointer h, WString filepath);
 
         interface PROGRESS_CALLBACK extends StdCallCallback {
-            void invoke(int percent, long ctxProgress);
+            void invoke(int percent, Pointer ctxProgress);
         }
-        int Ogmacam_Update(WString camId, WString filePath, PROGRESS_CALLBACK funProgress, long ctxProgress);
+        interface HOTPLUG_CALLBACK extends StdCallCallback {
+            void invoke(Pointer ctxHotplug);
+        }
+        int Ogmacam_Update(WString camId, WString filePath, PROGRESS_CALLBACK funProgress, Pointer ctxProgress);
+        int Ogmacam_GigeEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug);
+
+        interface HISTOGRAM_CALLBACK extends StdCallCallback {
+            void invoke(Pointer aHist, int nFlag, Pointer ctxHistogram);
+        }
+        int Ogmacam_GetHistogramV2(Pointer h, HISTOGRAM_CALLBACK funHistogram, Pointer ctxHistogram);
      }
     
     private interface CLibrary extends CLib, Library {
         CLibrary INSTANCE = (CLibrary)Native.load("ogmacam", CLibrary.class, options_);
         
         interface EVENT_CALLBACK extends Callback {
-            void invoke(int nEvent, long ctxEvent);
+            void invoke(int nEvent, Pointer ctxEvent);
         }
         
-        Pointer Ogmacam_Open(String id);
-        int Ogmacam_Replug(String id);
-        int Ogmacam_StartPullModeWithCallback(Pointer h, EVENT_CALLBACK funEvent, long ctxEvent);
+        Pointer Ogmacam_Open(String camId);
+        int Ogmacam_Replug(String camId);
+        int Ogmacam_StartPullModeWithCallback(Pointer h, EVENT_CALLBACK funEvent, Pointer ctxEvent);
         int Ogmacam_FfcImport(Pointer h, String filepath);
         int Ogmacam_FfcExport(Pointer h, String filepath);
         int Ogmacam_DfcImport(Pointer h, String filepath);
         int Ogmacam_DfcExport(Pointer h, String filepath);
         
         interface HOTPLUG_CALLBACK extends Callback {
-            void invoke(long ctxHotPlug);
+            void invoke(Pointer ctxHotPlug);
         }
-        void Ogmacam_HotPlug(HOTPLUG_CALLBACK funHotPlug, long ctxHotPlug);
+        void Ogmacam_HotPlug(HOTPLUG_CALLBACK funHotPlug, Pointer ctxHotPlug);
 
         interface PROGRESS_CALLBACK extends Callback {
-            void invoke(int percent, long ctxProgress);
+            void invoke(int percent, Pointer ctxProgress);
         }
-        int Ogmacam_Update(String camId, String filePath, PROGRESS_CALLBACK funProgress, long ctxProgress);
+        int Ogmacam_Update(String camId, String filePath, PROGRESS_CALLBACK funProgress, Pointer ctxProgress);
+        int Ogmacam_GigeEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug);
+
+        interface HISTOGRAM_CALLBACK extends Callback {
+            void invoke(Pointer aHist, int nFlag, Pointer ctxHistogram);
+        }
+        int Ogmacam_GetHistogramV2(Pointer h, HISTOGRAM_CALLBACK funHistogram, Pointer ctxHistogram);
     }
     
     public interface IEventCallback {
@@ -782,12 +877,17 @@ public class ogmacam implements AutoCloseable {
     public interface IProgressCallback {
         void onProgress(int percent);
     }
+
+    public interface IHistogramCallback {
+        void onHistogram(int[] array);
+    }
     
     private final static Map options_ = new HashMap() {
         {
             put(Library.OPTION_FUNCTION_MAPPER, new FunctionMapper() {
                 HashMap<String, String> funcmap_ = new HashMap() {
                     {
+                        put("Ogmacam_TriggerSyncArray", "Ogmacam_TriggerSync");
                         put("Ogmacam_PullImageV3Array", "Ogmacam_PullImageV3");
                         put("Ogmacam_PullImageV2Array", "Ogmacam_PullImageV2");
                         put("Ogmacam_PullStillImageV2Array", "Ogmacam_PullStillImageV2");
@@ -825,6 +925,8 @@ public class ogmacam implements AutoCloseable {
     private Pointer _handle = null;
     private Callback _callback = null;
     private IEventCallback _cb = null;
+    private IHistogramCallback _histogram = null;
+    private Callback _histogramcallback = null;
     
     static public int MAKEFOURCC(int a, int b, int c, int d) {
         return ((int)(byte)(a) | ((int)(byte)(b) << 8) | ((int)(byte)(c) << 16) | ((int)(byte)(d) << 24));
@@ -838,6 +940,7 @@ public class ogmacam implements AutoCloseable {
         synchronized (_hash) {
             _objid = _clsid++;
         }
+        _hash.put(_objid, this);
     }
     
     @Override
@@ -852,7 +955,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 53.22081.20230207 */
+    /* get the version of this dll/so/dylib, which is: 54.22913.20230709 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -861,7 +964,7 @@ public class ogmacam implements AutoCloseable {
     }
     
     /*
-        Only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
+        USB hotplug is only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
             (1) On Windows, please refer to the MSDN
                 (a) Device Management, https://docs.microsoft.com/en-us/windows/win32/devio/device-management
                 (b) Detecting Media Insertion or Removal, https://docs.microsoft.com/en-us/windows/win32/devio/detecting-media-insertion-or-removal
@@ -882,13 +985,13 @@ public class ogmacam implements AutoCloseable {
             {
                 _hotplugcallback = new CLibrary.HOTPLUG_CALLBACK() {
                     @Override
-                    public void invoke(long ctxHotPlug) {
+                    public void invoke(Pointer ctxHotPlug) {
                         if (_hotplug != null)
                             _hotplug.onHotplug();
                     }
                 };
             }
-            ((CLibrary)_lib).Ogmacam_HotPlug(_hotplugcallback, 0);
+            ((CLibrary)_lib).Ogmacam_HotPlug(_hotplugcallback, new Pointer(0));
         }
     }
 
@@ -926,11 +1029,8 @@ public class ogmacam implements AutoCloseable {
         }
         return model;
     }
-
-    /* enumerate cameras that are currently connected to the computer */
-    public static DeviceV2[] EnumV2() {
-        Memory ptr = new Memory(512 * 128);
-        int cnt = _lib.Ogmacam_EnumV2(ptr);
+    
+    private static DeviceV2[] Ptr2Device(Memory ptr, int cnt) {
         DeviceV2[] arr = new DeviceV2[(cnt > 0) ? cnt : 0];
         if (cnt > 0) {
             long poffset = 0;
@@ -960,20 +1060,64 @@ public class ogmacam implements AutoCloseable {
         return arr;
     }
     
+    /* enumerate cameras that are currently connected to the computer */
+    public static DeviceV2[] EnumV2() {
+        Memory ptr = new Memory(512 * 128);
+        return Ptr2Device(ptr, _lib.Ogmacam_EnumV2(ptr));
+    }
+    
+    public static DeviceV2[] EnumWithName() {
+        Memory ptr = new Memory(512 * 128);
+        return Ptr2Device(ptr, _lib.Ogmacam_EnumWithName(ptr));
+    }
+
+    private static void OnHotplugCallback(Pointer ctxHotplug) {
+        Object o = _hash.get((int)Pointer.nativeValue(ctxHotplug));
+        if (o instanceof IHotplugCallback) {
+            ((IHotplugCallback)o).onHotplug();
+        }
+    }
+
+    /* Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to null */
+    public static void GigeEnable(IHotplugCallback cb) throws HRESULTException {
+        int id = _clsid++;
+        _hash.put(id, cb);
+        if (Platform.isWindows()) {
+            WinLibrary.HOTPLUG_CALLBACK p = new WinLibrary.HOTPLUG_CALLBACK() {
+                @Override
+                public void invoke(Pointer ctxHotplug) {
+                    OnHotplugCallback(ctxHotplug);
+                }
+            };
+            Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "hotplugCallback"));
+            errCheck(((WinLibrary)_lib).Ogmacam_GigeEnable(p, new Pointer(id)));
+        }
+        else {
+            CLibrary.HOTPLUG_CALLBACK p = new CLibrary.HOTPLUG_CALLBACK() {
+                @Override
+                public void invoke(Pointer ctxHotplug) {
+                    OnHotplugCallback(ctxHotplug);
+                }
+            };
+            Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "hotplugCallback"));
+            errCheck(((CLibrary)_lib).Ogmacam_GigeEnable(p, new Pointer(id)));
+        }
+    }
+
     /*
         the object of ogmacam must be obtained by static mothod Open or OpenByIndex, it cannot be obtained by obj = new ogmacam (The constructor is private on purpose)
     */
-    // id: enumerated by EnumV2, null means the first enumerated camera
-    public static ogmacam Open(String id) {
+    // camId: enumerated by EnumV2, null means the first enumerated camera
+    public static ogmacam Open(String camId) {
         Pointer tmphandle = null;
         if (Platform.isWindows()) {
-            if (id == null)
+            if (camId == null)
                 tmphandle = ((WinLibrary)_lib).Ogmacam_Open(null);
             else
-                tmphandle = ((WinLibrary)_lib).Ogmacam_Open(new WString(id));
+                tmphandle = ((WinLibrary)_lib).Ogmacam_Open(new WString(camId));
         }
         else {
-            tmphandle = ((CLibrary)_lib).Ogmacam_Open(id);
+            tmphandle = ((CLibrary)_lib).Ogmacam_Open(camId);
         }
         if (tmphandle == null)
             return null;
@@ -1077,10 +1221,9 @@ public class ogmacam implements AutoCloseable {
         return errCheck(_lib.Ogmacam_get_Field(_handle));
     }
     
-    private static void OnEventCallback(int nEvent, long ctxEvent) {
-        Object o = _hash.get((int)ctxEvent);
-        if (o instanceof ogmacam)
-        {
+    private static void OnEventCallback(int nEvent, Pointer ctxEvent) {
+        Object o = _hash.get((int)Pointer.nativeValue(ctxEvent));
+        if (o instanceof ogmacam) {
             ogmacam t = (ogmacam)o;
             if (t._cb != null)
                 t._cb.onEvent(nEvent);
@@ -1089,26 +1232,25 @@ public class ogmacam implements AutoCloseable {
     
     public void StartPullModeWithCallback(IEventCallback cb) throws HRESULTException {
         _cb = cb;
-        _hash.put(_objid, this);
         if (Platform.isWindows()) {
             _callback = new WinLibrary.EVENT_CALLBACK() {
                 @Override
-                public void invoke(int nEvent, long ctxEvent) {
+                public void invoke(int nEvent, Pointer ctxEvent) {
                     OnEventCallback(nEvent, ctxEvent);
                 }
             };
             Native.setCallbackThreadInitializer(_callback, new CallbackThreadInitializer(false, false, "eventCallback"));
-            errCheck(((WinLibrary)_lib).Ogmacam_StartPullModeWithCallback(_handle, (WinLibrary.EVENT_CALLBACK)_callback, _objid));
+            errCheck(((WinLibrary)_lib).Ogmacam_StartPullModeWithCallback(_handle, (WinLibrary.EVENT_CALLBACK)_callback, new Pointer(_objid)));
         }
         else {
             _callback = new CLibrary.EVENT_CALLBACK() {
                 @Override
-                public void invoke(int nEvent, long ctxEvent) {
+                public void invoke(int nEvent, Pointer ctxEvent) {
                     OnEventCallback(nEvent, ctxEvent);
                 }
             };
             Native.setCallbackThreadInitializer(_callback, new CallbackThreadInitializer(false, false, "eventCallback"));
-            errCheck(((CLibrary)_lib).Ogmacam_StartPullModeWithCallback(_handle, (CLibrary.EVENT_CALLBACK)_callback, _objid));
+            errCheck(((CLibrary)_lib).Ogmacam_StartPullModeWithCallback(_handle, (CLibrary.EVENT_CALLBACK)_callback, new Pointer(_objid)));
         }
     }
 
@@ -1229,7 +1371,6 @@ public class ogmacam implements AutoCloseable {
         
         _callback = null;
         _cb = null;
-        _hash.remove(_objid);
     }
     
     /* 1 => pause, 0 => continue */
@@ -1260,6 +1401,25 @@ public class ogmacam implements AutoCloseable {
     */
     public void Trigger(short nNumber) throws HRESULTException {
         errCheck(_lib.Ogmacam_Trigger(_handle, nNumber));
+    }
+    
+    /*
+      trigger synchronously
+      nTimeout:     0:              by default, exposure * 102% + 4000 milliseconds
+                    0xffffffff:     wait infinite
+                    other:          milliseconds to wait
+    */
+    public void TriggerSync(int nTimeout, ByteBuffer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
+        if (pImageData.isDirect())
+            errCheck(_lib.Ogmacam_TriggerSync(_handle, nTimeout, Native.getDirectBufferPointer(pImageData), bits, rowPitch, pInfo));
+        else if (pImageData.hasArray())
+            TriggerSync(nTimeout, pImageData.array(), bits, rowPitch, pInfo);
+        else
+            errCheck(HRESULTException.E_INVALIDARG);
+    }
+    
+    public void TriggerSync(int nTimeout, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
+        errCheck(_lib.Ogmacam_TriggerSyncArray(_handle, nTimeout, pImageData, bits, rowPitch, pInfo));
     }
     
     public void put_Size(int nWidth, int nHeight) throws HRESULTException {
@@ -1417,6 +1577,19 @@ public class ogmacam implements AutoCloseable {
     
     public void put_AutoExpoTarget(short Target) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_AutoExpoTarget(_handle, Target));
+    }
+    
+    public void put_AutoExpoRange(int maxTime, int minTime, short maxGain, short minGain) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_AutoExpoRange(_handle, maxTime, minTime, maxGain, minGain));
+    }
+    
+    public int[] get_AutoExpoRange() throws HRESULTException {
+        IntByReference maxTime = new IntByReference();
+        IntByReference minTime = new IntByReference();
+        ShortByReference maxGain = new ShortByReference();
+        ShortByReference minGain = new ShortByReference();
+        errCheck(_lib.Ogmacam_get_AutoExpoRange(_handle, maxTime, minTime, maxGain, minGain));
+        return new int[] { maxTime.getValue(), minTime.getValue(), maxGain.getValue(), minGain.getValue() };
     }
     
     public void put_MaxAutoExpoTimeAGain(int maxTime, short maxGain) throws HRESULTException {
@@ -1776,6 +1949,11 @@ public class ogmacam implements AutoCloseable {
         return errCheck(_lib.Ogmacam_read_EEPROMArray(_handle, addr, pBuffer, pBuffer.length));
     }
 
+    /* Flash:
+      action = FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+      addr = address
+      see democpp
+    */
     public int rwc_Flash(int action, int addr, ByteBuffer pBuffer) throws HRESULTException {
         if (pBuffer.isDirect())
             return errCheck(_lib.Ogmacam_rwc_Flash(_handle, action, addr, pBuffer.remaining(), Native.getDirectBufferPointer(pBuffer)));
@@ -1990,8 +2168,51 @@ public class ogmacam implements AutoCloseable {
         return p.getValue();
     }
     
+    public int AAF(int action, int outVal) throws HRESULTException {
+        IntByReference p = new IntByReference();
+        errCheck(_lib.Ogmacam_AAF(_handle, action, outVal, p));
+        return p.getValue();
+    }
+    
     public void get_AfParam(AfParam pAfParam) throws HRESULTException {
         errCheck(_lib.Ogmacam_get_AfParam(_handle, pAfParam));
+    }
+
+    private static void OnHistogramCallback(Pointer aHist, int nFlag, Pointer ctxHistogram) {
+        Object o = _hash.get((int)Pointer.nativeValue(ctxHistogram));
+        if (o instanceof ogmacam) {
+            ogmacam t = (ogmacam)o;
+            if (t._histogram != null) {
+                int arraySize = 1 << (nFlag & 0x0f);
+                if ((nFlag & 0x00008000) == 0)
+                    arraySize *= 3;
+                t._histogram.onHistogram(aHist.getIntArray(0, arraySize));
+            }
+        }
+    }
+
+    public void GetHistogram(IHistogramCallback cb) throws HRESULTException {
+        _histogram = cb;
+        if (Platform.isWindows()) {
+            _histogramcallback = new WinLibrary.HISTOGRAM_CALLBACK() {
+                @Override
+                public void invoke(Pointer aHist, int nFlag, Pointer ctxHistogram) {
+                    OnHistogramCallback(aHist, nFlag, ctxHistogram);
+                }
+            };
+            Native.setCallbackThreadInitializer(_histogramcallback, new CallbackThreadInitializer(false, false, "histogramcallback"));
+            errCheck(((WinLibrary)_lib).Ogmacam_GetHistogramV2(_handle, (WinLibrary.HISTOGRAM_CALLBACK)_histogramcallback, new Pointer(_objid)));
+        }
+        else {
+            _histogramcallback = new CLibrary.HISTOGRAM_CALLBACK() {
+                @Override
+                public void invoke(Pointer aHist, int nFlag, Pointer ctxHistogram) {
+                    OnHistogramCallback(aHist, nFlag, ctxHistogram);
+                }
+            };
+            Native.setCallbackThreadInitializer(_histogramcallback, new CallbackThreadInitializer(false, false, "histogramcallback"));
+            errCheck(((CLibrary)_lib).Ogmacam_GetHistogramV2(_handle, (CLibrary.HISTOGRAM_CALLBACK)_histogramcallback, new Pointer(_objid)));
+        }
     }
     
     /*
@@ -2001,15 +2222,15 @@ public class ogmacam implements AutoCloseable {
         return E_ACCESSDENIED if without UAC Administrator privileges
         for each device found, it will take about 3 seconds
     */
-    public static void Replug(String id) throws HRESULTException {
+    public static void Replug(String camId) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_Replug(new WString(id)));
+            errCheck(((WinLibrary)_lib).Ogmacam_Replug(new WString(camId)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_Replug(id));
+            errCheck(((CLibrary)_lib).Ogmacam_Replug(camId));
     }
 
-    private static void OnProgressCallback(int percent, long ctxProgress) {
-        Object o = _hash.get((int)ctxProgress);
+    private static void OnProgressCallback(int percent, Pointer ctxProgress) {
+        Object o = _hash.get((int)Pointer.nativeValue(ctxProgress));
         if (o instanceof IProgressCallback) {
             ((IProgressCallback)o).onProgress(percent);
         }
@@ -2029,22 +2250,22 @@ public class ogmacam implements AutoCloseable {
         if (Platform.isWindows()) {
             WinLibrary.PROGRESS_CALLBACK p = new WinLibrary.PROGRESS_CALLBACK() {
                 @Override
-                public void invoke(int percent, long ctxProgress) {
+                public void invoke(int percent, Pointer ctxProgress) {
                     OnProgressCallback(percent, ctxProgress);
                 }
             };
             Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "progressCallback"));
-            errCheck(((WinLibrary)_lib).Ogmacam_Update(new WString(camId), new WString(filePath), p, id));
+            errCheck(((WinLibrary)_lib).Ogmacam_Update(new WString(camId), new WString(filePath), p, new Pointer(id)));
         }
         else {
             CLibrary.PROGRESS_CALLBACK p = new CLibrary.PROGRESS_CALLBACK() {
                 @Override
-                public void invoke(int percent, long ctxProgress) {
+                public void invoke(int percent, Pointer ctxProgress) {
                     OnProgressCallback(percent, ctxProgress);
                 }
             };
             Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "progressCallback"));
-            errCheck(((CLibrary)_lib).Ogmacam_Update(camId, filePath, p, id));
+            errCheck(((CLibrary)_lib).Ogmacam_Update(camId, filePath, p, new Pointer(id)));
         }
     }
 

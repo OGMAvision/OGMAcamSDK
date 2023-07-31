@@ -4,8 +4,7 @@
 #include "CBitDepthTestPropertyPage.h"
 
 CBitDepthTestPropertyPage::CBitDepthTestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_BITDEPTH_TEST)
-	, m_bStart(false), m_totalCount(0), m_count(0)
+	: CTestPropertyPage(IDD_PROPERTY_BITDEPTH_TEST)
 {
 }
 
@@ -56,7 +55,7 @@ void CBitDepthTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 
 void CBitDepthTestPropertyPage::Stop()
 {
-	m_bStart = false;
+	m_bStart = g_bTesting = false;
 	KillTimer(1);
 	SetDlgItemText(IDC_BUTTON_BITDEPTH_TEST_START, _T("Start"));
 	GetDlgItem(IDC_EDIT_BITDEPTH_TEST_CNT)->EnableWindow(TRUE);
@@ -66,9 +65,9 @@ void CBitDepthTestPropertyPage::OnBnClickedButtonBitDepthTestStart()
 {
 	if (m_bStart)
 		Stop();
-	else
+	else if (OnStart())
 	{
-		m_bStart = true;
+		m_bStart = g_bTesting = true;
 		g_bCheckBlack = false;
 		m_count = 0;
 		SetDlgItemText(IDC_BUTTON_BITDEPTH_TEST_START, _T("Stop"));

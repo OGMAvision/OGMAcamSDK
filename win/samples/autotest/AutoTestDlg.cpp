@@ -99,12 +99,6 @@ CAutoTestDlg::CAutoTestDlg(CWnd* pParent /*=nullptr*/)
 	m_header.biSize = sizeof(m_header);
 	m_header.biPlanes = 1;
 	m_header.biBitCount = 24;
-
-	g_NopacketTimeout = theApp.GetProfileInt(_T("Options"), _T("NopacketTimeout"), g_NopacketTimeout);
-	g_NoframeTimeout = theApp.GetProfileInt(_T("Options"), _T("NoframeTimeout"), g_NoframeTimeout);
-	g_HeartbeatTimeout = theApp.GetProfileInt(_T("Options"), _T("HeartbeatTimeout"), g_HeartbeatTimeout);
-	g_bReplug = theApp.GetProfileInt(_T("Options"), _T("Replug"), g_bReplug ? 1 : 0);
-	g_bEnableCheckBlack = theApp.GetProfileInt(_T("Options"), _T("CheckBlack"), g_bEnableCheckBlack ? 1 : 0);
 }
 
 void CAutoTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -125,14 +119,33 @@ BEGIN_MESSAGE_MAP(CAutoTestDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON1, &CAutoTestDlg::OnBnClickedButton1)
 	ON_BN_CLICKED(IDC_BUTTON_OPTIONS, &CAutoTestDlg::OnBnClickedOptions)
 	ON_WM_TIMER()
+	ON_MESSAGE(MSG_GIGEHOTPLUG, &CAutoTestDlg::OnMsgGigehotplug)
 END_MESSAGE_MAP()
+
+static void __stdcall GigeHotPlug(void* ctxHotPlug)
+{
+	HWND hWnd = (HWND)ctxHotPlug;
+	if (IsWindow(hWnd))
+		PostMessage(hWnd, MSG_GIGEHOTPLUG, 0, 0);
+}
+
+LRESULT CAutoTestDlg::OnMsgGigehotplug(WPARAM, LPARAM)
+{
+	EnumCamera();
+	return 0;
+}
 
 BOOL CAutoTestDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+
+	Ogmacam_GigeEnable(GigeHotPlug, GetSafeHwnd());
+
 	EnumCamera();
 
 	CheckDlgButton(IDC_CHECK2, g_bEnableCheckBlack ? 1 : 0);
+
+	SetTimer(2, 1000, nullptr);
 	return TRUE;
 }
 
@@ -189,6 +202,17 @@ void CAutoTestDlg::OnTimer(UINT_PTR nIDEvent)
 		if (g_HeartbeatTimeout && (GetTickCount() - m_dwHeartbeat > g_HeartbeatTimeout))
 			OnEventError();
 	}
+	else if (2 == nIDEvent)
+	{
+		TCHAR str[64] = { 0 };
+		if (g_hcam)
+		{
+			unsigned nFrame, nTime, nTotalFrame;
+			if (SUCCEEDED(Ogmacam_get_FrameRate(g_hcam, &nFrame, &nTime, &nTotalFrame)) && nTime)
+				_stprintf(str, _T("%u, fps = %.1f"), nTotalFrame, nFrame * 1000.0 / nTime);
+		}
+		SetDlgItemText(IDC_FRAMENUM, str);
+	}
 }
 
 LRESULT CAutoTestDlg::OnPreviewResChanged(WPARAM wp, LPARAM lp)
@@ -196,8 +220,7 @@ LRESULT CAutoTestDlg::OnPreviewResChanged(WPARAM wp, LPARAM lp)
 	if (nullptr == g_hcam)
 		return -1;
 
-	unsigned nSel = wp;
-	unsigned nResolutionIndex = 0;
+	unsigned nSel = (unsigned)wp, nResolutionIndex = 0;
 	HRESULT hr = Ogmacam_get_eSize(g_hcam, &nResolutionIndex);
 	if (FAILED(hr))
 		return -1;
@@ -274,6 +297,7 @@ void CAutoTestDlg::OnBnClickedButtonStart()
 		}
 		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOPACKET_TIMEOUT, g_NopacketTimeout);
 		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOFRAME_TIMEOUT, g_NoframeTimeout);
+		Ogmacam_put_RealTime(g_hcam, g_bRealtime ? 1 : 0);
 
 		StartCamera();
 
@@ -566,6 +590,7 @@ BOOL COptionsDlg::OnInitDialog()
 
 	CheckDlgButton(IDC_CHECK1, g_bReplug ? 1 : 0);
 	CheckDlgButton(IDC_CHECK2, g_bEnableCheckBlack ? 1 : 0);
+	CheckDlgButton(IDC_CHECK3, g_bRealtime ? 1 : 0);
 	SetDlgItemInt(IDC_EDIT1, g_NopacketTimeout);
 	SetDlgItemInt(IDC_EDIT3, g_NoframeTimeout);
 	SetDlgItemInt(IDC_EDIT2, g_HeartbeatTimeout);
@@ -593,6 +618,7 @@ void COptionsDlg::OnOK()
 
 	g_bReplug = IsDlgButtonChecked(IDC_CHECK1) ? true : false;
 	g_bEnableCheckBlack = IsDlgButtonChecked(IDC_CHECK2) ? true : false;
+	g_bRealtime = IsDlgButtonChecked(IDC_CHECK3) ? true : false;
 
 	CDialog::OnOK();
 }
@@ -606,6 +632,7 @@ void CAutoTestDlg::OnBnClickedOptions()
 		{
 			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOPACKET_TIMEOUT, g_NopacketTimeout);
 			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOFRAME_TIMEOUT, g_NoframeTimeout);
+			Ogmacam_put_RealTime(g_hcam, g_bRealtime ? 1 : 0);
 		}
 	
 		theApp.WriteProfileInt(_T("Options"), _T("NopacketTimeout"), g_NopacketTimeout);
@@ -613,5 +640,6 @@ void CAutoTestDlg::OnBnClickedOptions()
 		theApp.WriteProfileInt(_T("Options"), _T("HeartbeatTimeout"), g_HeartbeatTimeout);
 		theApp.WriteProfileInt(_T("Options"), _T("Replug"), g_bReplug ? 1 : 0);
 		theApp.WriteProfileInt(_T("Options"), _T("CheckBlack"), g_bEnableCheckBlack ? 1 : 0);
+		theApp.WriteProfileInt(_T("Options"), _T("Realtime"), g_bRealtime ? 1 : 0);
 	}
 }

@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 53.22081.20230207 */
+/* Version: 54.22913.20230709 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -364,6 +364,11 @@ typedef struct {
 
         STDMETHOD(get_Flag)(THIS_ unsigned long long* pFlag) PURE; /* model property: OGMACAM_FLAG_xxxx */
         STDMETHOD(put_RoiN)(THIS_ unsigned xOffset[], unsigned yOffset[], unsigned xWidth[], unsigned yHeight[], unsigned Num) PURE;
+        
+        STDMETHOD(put_AutoExpoRange)(THIS_ unsigned maxTime, unsigned minTime, unsigned short maxGain, unsigned short minGain) PURE;
+        STDMETHOD(get_AutoExpoRange)(THIS_ unsigned* maxTime, unsigned* minTime, unsigned short* maxGain, unsigned short* minGain) PURE;
+
+        STDMETHOD(size_EEPROM)(THIS_) PURE;
     };
 #endif
 
@@ -418,6 +423,20 @@ typedef struct {
     };
 #endif
 
+#ifndef __IOGMACAMADVANCED_DEFINED__
+#define __IOGMACAMADVANCED_DEFINED__
+
+    // {88822AD8-3FF5-4252-B615-520925E4FF3B}
+    DEFINE_GUID(IID_IOgmacamAdvanced, 0x88822ad8, 0x3ff5, 0x4252, 0xb6, 0x15, 0x52, 0x9, 0x25, 0xe4, 0xff, 0x3b);
+    
+    DECLARE_INTERFACE_(IOgmacamAdvanced, IUnknown)
+    {
+        /* see OGMACAM_FRAMEINFO_FLAG_TIMESTAMP */
+        STDMETHOD(get_UseCameraTimestamp) (THIS_ int* bUse) PURE;
+        STDMETHOD(put_UseCameraTimestamp) (THIS_ int bUse) PURE;
+    };
+#endif
+
 #ifndef __IOGMACAMST4_DEFINED__
 #define __IOGMACAMST4_DEFINED__
 
@@ -436,19 +455,6 @@ typedef struct {
         /* S_OK: yes */
         /* S_FALSE: no */
         STDMETHOD(IsPulseGuiding) (THIS_) PURE;
-    };
-#endif
-
-#ifndef __IOGMACAMINDEX_DEFINED__
-#define __IOGMACAMINDEX_DEFINED__
-
-    // {F670E70F-FDD0-4131-BAF7-E7F6C3EB66CF}
-    DEFINE_GUID(IID_IOgmacamIndex, 0xf670e70f, 0xfdd0, 0x4131, 0xba, 0xf7, 0xe7, 0xf6, 0xc3, 0xeb, 0x66, 0xcf);
-    
-    DECLARE_INTERFACE_(IOgmacamIndex, IUnknown)
-    {
-        STDMETHOD(get_Index) (THIS_ unsigned* pIndex) PURE;
-        STDMETHOD(put_Index) (THIS_ unsigned nIndex) PURE;
     };
 #endif
 

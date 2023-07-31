@@ -1,10 +1,10 @@
 #pragma once
 
-class CResTestPropertyPage : public CPropertyPage
+#include "CTestPropertyPage.h"
+
+class CResTestPropertyPage : public CTestPropertyPage
 {
-	bool m_bStart;
-	int m_totalCount;
-	int m_count, m_resCount;
+	int m_resCount;
 public:
 	CResTestPropertyPage();
 

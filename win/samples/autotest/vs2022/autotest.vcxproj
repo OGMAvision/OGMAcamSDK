@@ -146,7 +146,10 @@
     <ClInclude Include="..\AutoTest.h" />
     <ClInclude Include="..\AutoTestDlg.h" />
     <ClInclude Include="..\CBitDepthPropertyPage.h" />
+    <ClInclude Include="..\CTestPropertyPage.h" />
     <ClInclude Include="..\CBitDepthTestPropertyPage.h" />
+	<ClInclude Include="..\CFlushTestPropertyPage.h" />
+    <ClInclude Include="..\CPauseTestPropertyPage.h" />
     <ClInclude Include="..\CExposureGainPropertyPage.h" />
     <ClInclude Include="..\CFrameRatePropertyPage.h" />
     <ClInclude Include="..\COpenCloseTestPropertyPage.h" />
@@ -169,7 +172,10 @@
     <ClCompile Include="..\AutoTest.cpp" />
     <ClCompile Include="..\AutoTestDlg.cpp" />
     <ClCompile Include="..\CBitDepthPropertyPage.cpp" />
+    <ClCompile Include="..\CTestPropertyPage.cpp" />
     <ClCompile Include="..\CBitDepthTestPropertyPage.cpp" />
+    <ClCompile Include="..\CFlushTestPropertyPage.cpp" />
+    <ClCompile Include="..\CPauseTestPropertyPage.cpp" />
     <ClCompile Include="..\CExposureGainPropertyPage.cpp" />
     <ClCompile Include="..\CFrameRatePropertyPage.cpp" />
     <ClCompile Include="..\COpenCloseTestPropertyPage.cpp" />

@@ -5,8 +5,8 @@
 #include "AutoTestDlg.h"
 
 CResTestPropertyPage::CResTestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_RESOLUTION_TEST)
-	, m_bStart(false), m_totalCount(0), m_count(0), m_resCount(0)
+	: CTestPropertyPage(IDD_PROPERTY_RESOLUTION_TEST)
+	, m_resCount(0)
 {
 }
 
@@ -43,7 +43,7 @@ void CResTestPropertyPage::OnEnChangeEditResolutionTestCount()
 void CResTestPropertyPage::Stop()
 {
 	KillTimer(1);
-	m_bStart = false;
+	m_bStart = g_bTesting = false;
 	SetDlgItemText(IDC_BUTTON_RESOLUTION_TEST_START, _T("Start"));
 	GetDlgItem(IDC_EDIT_RESOLUTION_TEST_COUNT)->EnableWindow(TRUE);
 	m_count = 0;
@@ -54,10 +54,10 @@ void CResTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 {
 	if (g_bImageSnap)
 		return;
-	if (m_count >= m_totalCount|| g_bBlack)
+	if ((m_count >= m_totalCount) || g_bBlack)
 	{
 		Stop();
-		AfxMessageBox(_T("Resolution test completed."));
+		AfxMessageBox((m_count >= m_totalCount) ? _T("Resolution test completed.") : _T("Image is completely black."));
 		return;
 	}
 
@@ -76,13 +76,13 @@ void CResTestPropertyPage::OnBnClickedButtonResolutionTestStart()
 {
 	if (m_bStart)
 		Stop();
-	else
+	else if (OnStart())
 	{
 		g_snapDir = GetAppTimeDir(_T("ResTest"));
 		if (!PathIsDirectory((LPCTSTR)g_snapDir))
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
 
-		m_bStart = true;
+		m_bStart = g_bTesting = true;
 		g_bCheckBlack = g_bEnableCheckBlack;
 		g_bBlack = false;
 		m_resCount = 0;

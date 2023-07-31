@@ -19,8 +19,10 @@ CAppModule _Module;
 #include <InitGuid.h>
 #include <wincodec.h>
 #include <wmsdkidl.h>
+#include <Dbt.h>
 
 #define MSG_CAMEVENT			(WM_APP + 1)
+#define MSG_CAMENUM				(WM_APP + 2)
 
 class CMainFrame;
 
@@ -182,7 +184,7 @@ class CSpeedDlg : public CDialogImpl<CSpeedDlg>
 public:
 	enum { IDD = IDD_SPEED };
 	CSpeedDlg(HOgmacam hCam)
-		: m_hCam(hCam)
+	: m_hCam(hCam)
 	{
 	}
 private:
@@ -228,7 +230,7 @@ class CMaxAEDlg : public CDialogImpl<CMaxAEDlg>
 public:
 	enum { IDD = IDD_MAXAE };
 	CMaxAEDlg(HOgmacam hCam)
-		: m_hCam(hCam)
+	: m_hCam(hCam)
 	{
 	}
 private:
@@ -425,7 +427,7 @@ class CRoiDlg : public CDialogImpl<CRoiDlg>
 public:
 	enum { IDD = IDD_ROI };
 	CRoiDlg()
-		: xOffset_(0), yOffset_(0), xWidth_(0), yHeight_(0)
+	: xOffset_(0), yOffset_(0), xWidth_(0), yHeight_(0)
 	{
 	}
 private:
@@ -531,7 +533,7 @@ class CTECTargetDlg : public CDialogImpl<CTECTargetDlg>
 public:
 	enum { IDD = IDD_TECTARGET };
 	CTECTargetDlg(HOgmacam hCam)
-		: m_hCam(hCam)
+	: m_hCam(hCam)
 	{
 	}
 private:
@@ -614,6 +616,7 @@ class CEEPROMDlg : public CDialogImpl<CEEPROMDlg>
 		COMMAND_HANDLER(IDC_BUTTON1, BN_CLICKED, OnButton1)
 		COMMAND_HANDLER(IDC_BUTTON2, BN_CLICKED, OnButton2)
 		COMMAND_HANDLER(IDC_BUTTON3, BN_CLICKED, OnButton3)
+		COMMAND_HANDLER(IDC_BUTTON4, BN_CLICKED, OnButton4)
 		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
 	END_MSG_MAP()
 public:
@@ -626,6 +629,8 @@ private:
 	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 	{
 		CenterWindow(GetParent());
+		SetDlgItemText(IDC_EDIT1, L"0x0000");
+		SetDlgItemText(IDC_EDIT2, L"0x2000");
 		return TRUE;
 	}
 
@@ -644,7 +649,7 @@ private:
 				if (FAILED(hr))
 					AtlMessageBox(m_hWnd, L"Failed to read EEPROM.");
 				else if (0 == hr)
-					AtlMessageBox(m_hWnd, L"Read EEPROM, 0 byte.");
+					AtlMessageBox(m_hWnd, L"Read 0 byte.");
 				else if (hr > 0)
 				{
 					std::wstringstream wstr;
@@ -698,18 +703,22 @@ private:
 
 	LRESULT OnButton3(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		wchar_t strLength[64] = { 0 };
-		if (GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)))
+		wchar_t strAddr[64] = { 0 }, strLength[64] = { 0 };
+		if (GetDlgItemText(IDC_EDIT1, strAddr, _countof(strAddr)) && GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)))
 		{
 			wchar_t* endptr = NULL;
-			const unsigned uLength = _tcstoul((LPCTSTR)strLength, &endptr, 16);
+			const unsigned uAddr = _tcstoul(strAddr, &endptr, 16);
+			const unsigned uLength = _tcstoul(strLength, &endptr, 16);
 			if (uLength)
 			{
 				unsigned char* tmpWriteBuffer = (unsigned char*)alloca(uLength);
 				unsigned char* tmpReadBuffer = (unsigned char*)alloca(uLength);
-				const HRESULT hr1 = Ogmacam_write_EEPROM(m_hCam, 0, tmpWriteBuffer, uLength);
-				const HRESULT hr2 = Ogmacam_read_EEPROM(m_hCam, 0, tmpReadBuffer, uLength);
-				if ((hr1 == uLength) && (hr2 == uLength))
+				srand(GetTickCount());
+				for (unsigned i = 0; i < uLength; ++i)
+					tmpWriteBuffer[i] = (unsigned char)rand();
+				const HRESULT hrWrite = Ogmacam_write_EEPROM(m_hCam, uAddr, tmpWriteBuffer, uLength);
+				const HRESULT hrRead = Ogmacam_read_EEPROM(m_hCam, uAddr, tmpReadBuffer, uLength);
+				if ((hrWrite == uLength) && (hrRead == uLength))
 				{
 					if (0 == memcmp(tmpWriteBuffer, tmpReadBuffer, uLength))
 					{
@@ -718,7 +727,300 @@ private:
 					}
 				}
 
-				AtlMessageBox(m_hWnd, L"Test Failed");
+				wchar_t strText[256];
+				swprintf(strText, L"Test failed, hrWrite = 0x%08x, hrRead = 0x%08x", hrWrite, hrRead);
+				AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+			}
+		}
+		return 0;
+	}
+
+	LRESULT OnButton4(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		wchar_t strAddr[64] = { 0 }, strLength[64] = { 0 };
+		if (GetDlgItemText(IDC_EDIT1, strAddr, _countof(strAddr)) && GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)))
+		{
+			wchar_t* endptr = NULL;
+			const unsigned uAddr = _tcstoul(strAddr, &endptr, 16);
+			const unsigned uLength = _tcstoul(strLength, &endptr, 16);
+			if (uLength)
+			{
+				unsigned char* tmpWriteBuffer = (unsigned char*)alloca(uLength);
+				memset(tmpWriteBuffer, 0xff, uLength);
+				const HRESULT hr = Ogmacam_write_EEPROM(m_hCam, uAddr, tmpWriteBuffer, uLength);
+				if (hr == uLength)
+				{
+					AtlMessageBox(m_hWnd, L"Erase OK");
+					return 0;
+				}
+
+				AtlMessageBox(m_hWnd, L"Erase failed");
+			}
+		}
+		return 0;
+	}
+
+	LRESULT OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		EndDialog(wID);
+		return 0;
+	}
+};
+
+class CWaitDlg : public CDialogImpl<CWaitDlg>
+{
+	HOgmacam	m_hCam;
+	DWORD		m_tick;
+
+	BEGIN_MSG_MAP(CWaitDlg)
+		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+		MESSAGE_HANDLER(WM_TIMER, OnWmTimer)
+		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
+	END_MSG_MAP()
+public:
+	enum { IDD = IDD_WAIT };
+	CWaitDlg(HOgmacam hCam)
+	: m_hCam(hCam), m_tick(GetTickCount())
+	{
+	}
+private:
+	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		CenterWindow(GetParent());
+		SetTimer(1, 200, NULL);
+
+		return TRUE;
+	}
+
+	LRESULT OnWmTimer(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		if (1 == wParam)
+		{
+			if (S_OK == Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_STATUS, 0, 0, NULL))
+				EndDialog(IDOK);
+			else
+				SetDlgItemInt(IDC_STATIC1, GetTickCount() - m_tick, FALSE);
+		}
+		return 0;
+	}
+
+	LRESULT OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		EndDialog(wID);
+		return 0;
+	}
+};
+
+class CFlashDlg : public CDialogImpl<CFlashDlg>
+{
+	HOgmacam	m_hCam;
+	int m_totalSize, m_eBlock, m_rwBlock;
+
+	BEGIN_MSG_MAP(CFlashDlg)
+		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+		COMMAND_HANDLER(IDC_BUTTON1, BN_CLICKED, OnButton1)
+		COMMAND_HANDLER(IDC_BUTTON2, BN_CLICKED, OnButton2)
+		COMMAND_HANDLER(IDC_BUTTON3, BN_CLICKED, OnButton3)
+		COMMAND_HANDLER(IDC_BUTTON4, BN_CLICKED, OnButton4)
+		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
+	END_MSG_MAP()
+public:
+	enum { IDD = IDD_FLASH };
+	CFlashDlg(HOgmacam hCam)
+	: m_hCam(hCam)
+	, m_totalSize(Ogmacam_rwc_Flash(hCam, OGMACAM_FLASH_SIZE, 0, 0, NULL))
+	, m_eBlock(Ogmacam_rwc_Flash(hCam, OGMACAM_FLASH_EBLOCK, 0, 0, NULL))
+	, m_rwBlock(Ogmacam_rwc_Flash(hCam, OGMACAM_FLASH_RWBLOCK, 0, 0, NULL))
+	{
+	}
+private:
+	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		CenterWindow(GetParent());
+		SetDlgItemText(IDC_EDIT1, L"0x0000");
+		SetDlgItemText(IDC_EDIT2, L"0x400");
+
+		wchar_t strText[256];
+		swprintf(strText, L"%u (0x%08x)", m_totalSize, m_totalSize);
+		SetDlgItemText(IDC_STATIC1, strText);
+		swprintf(strText, L"%u (0x%08x)", m_eBlock, m_eBlock);
+		SetDlgItemText(IDC_STATIC2, strText);
+		swprintf(strText, L"%u (0x%08x)", m_rwBlock, m_rwBlock);
+		SetDlgItemText(IDC_STATIC3, strText);
+		return TRUE;
+	}
+
+	LRESULT OnButton1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		wchar_t strAddr[64] = { 0 }, strLength[64] = { 0 };
+		if (GetDlgItemText(IDC_EDIT1, strAddr, _countof(strAddr)) && GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)))
+		{
+			wchar_t* endptr = NULL;
+			const unsigned uAddr = _tcstoul(strAddr, &endptr, 16);
+			const unsigned uLength = _tcstoul(strLength, &endptr, 16);
+			if (uLength)
+			{
+				if ((uAddr % m_rwBlock) || (uLength % m_rwBlock))
+					AtlMessageBox(m_hWnd, L"Address and length must be an integer multiple of read write block.");
+				else
+				{
+					unsigned char* tmpBuffer = (unsigned char*)alloca(uLength);
+					HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_READ, uAddr, uLength, tmpBuffer);
+					if (FAILED(hr))
+					{						
+						wchar_t strText[256];
+						swprintf(strText, L"Read failed, hr = 0x%08x", hr);
+						AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+					}
+					else if (0 == hr)
+						AtlMessageBox(m_hWnd, L"Read 0 byte.");
+					else if (hr > 0)
+					{
+						std::wstringstream wstr;
+						wstr << L"Flash: length = " << hr << L", data = ";
+						for (int i = 0; i < hr; ++i)
+							wstr << std::hex << std::setw(2) << std::setfill((wchar_t)'0') << tmpBuffer[i] << L" ";
+						AtlMessageBox(m_hWnd, wstr.str().c_str());
+					}
+				}
+			}
+		}
+		return 0;
+	}
+
+	LRESULT OnButton2(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		wchar_t strAddr[64] = { 0 }, strLength[64] = { 0 }, strData[1024] = { 0 };
+		if (GetDlgItemText(IDC_EDIT1, strAddr, _countof(strAddr)) && GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)) && GetDlgItemText(IDC_EDIT3, strData, _countof(strData)))
+		{
+			wchar_t* endptr = NULL;
+			const unsigned uAddr = _tcstoul((LPCTSTR)strAddr, &endptr, 16);
+			const unsigned uLength = _tcstoul((LPCTSTR)strLength, &endptr, 16);
+			if (uLength)
+			{
+				if ((uAddr % m_rwBlock) || (uLength % m_rwBlock))
+					AtlMessageBox(m_hWnd, L"Address and length must be an integer multiple of read write block.");
+				else
+				{
+					unsigned char* tmpBuffer = (unsigned char*)alloca(uLength);
+					memset(tmpBuffer, 0, uLength);
+					for (size_t i = 0; i < uLength * 2; i += 2)
+					{
+						if ('\0' == strData[i])
+							break;
+						if (strData[i] >= '0' && strData[i] <= '9')
+							tmpBuffer[i / 2] = (strData[i] - '0') << 4;
+						else if (strData[i] >= 'a' && strData[i] <= 'f')
+							tmpBuffer[i / 2] = (strData[i] - 'a' + 10) << 4;
+						else if (strData[i] >= 'A' && strData[i] <= 'F')
+							tmpBuffer[i / 2] = (strData[i] - 'A' + 10) << 4;
+						if (strData[i + 1] >= '0' && strData[i + 1] <= '9')
+							tmpBuffer[i / 2] |= (strData[i + 1] - '0');
+						else if (strData[i + 1] >= 'a' && strData[i + 1] <= 'f')
+							tmpBuffer[i / 2] |= (strData[i + 1] - 'a' + 10);
+						else if (strData[i + 1] >= 'A' && strData[i + 1] <= 'F')
+							tmpBuffer[i / 2] |= (strData[i + 1] - 'A' + 10);
+					}
+					const HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_WRITE, uAddr, uLength, tmpBuffer);
+					if (FAILED(hr))
+					{
+						wchar_t strText[256];
+						swprintf(strText, L"Write failed, hr = 0x%08x", hr);
+						AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+					}
+					else
+					{
+						CWaitDlg dlg(m_hCam);
+						dlg.DoModal();
+					}
+				}
+			}
+		}
+		return 0;
+	}
+
+	LRESULT OnButton3(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		wchar_t strAddr[64] = { 0 }, strLength[64] = { 0 }, strText[256];
+		if (GetDlgItemText(IDC_EDIT1, strAddr, _countof(strAddr)) && GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)))
+		{
+			wchar_t* endptr = NULL;
+			const unsigned uAddr = _tcstoul(strAddr, &endptr, 16);
+			const unsigned uLength = _tcstoul(strLength, &endptr, 16);
+			if (uLength)
+			{
+				if ((uAddr % m_rwBlock) || (uLength % m_rwBlock))
+					AtlMessageBox(m_hWnd, L"Address and length must be an integer multiple of read write block.");
+				else
+				{
+					unsigned char* tmpWriteBuffer = (unsigned char*)alloca(uLength);
+					unsigned char* tmpReadBuffer = (unsigned char*)alloca(uLength);
+					srand(GetTickCount());
+					for (unsigned i = 0; i < uLength; ++i)
+						tmpWriteBuffer[i] = (unsigned char)rand();
+					HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_WRITE, uAddr, uLength, tmpWriteBuffer);
+					if (FAILED(hr))
+					{
+						swprintf(strText, L"Write failed, hr = 0x%08x", hr);
+						AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+					}
+					else
+					{
+						CWaitDlg dlg(m_hCam);
+						if (IDOK == dlg.DoModal())
+						{
+							hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_READ, uAddr, uLength, tmpReadBuffer);
+							if (FAILED(hr))
+							{
+								swprintf(strText, L"Read failed, hr = 0x%08x", hr);
+								AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+							}
+							else if (hr != uLength)
+							{
+								swprintf(strText, L"Read partial, %u byte(s)", hr);
+								AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+							}
+							else if (0 == memcmp(tmpWriteBuffer, tmpReadBuffer, uLength))
+								AtlMessageBox(m_hWnd, L"Test OK");
+							else
+							{
+								AtlMessageBox(m_hWnd, L"Test failed");
+							}
+						}
+					}
+				}
+			}
+		}
+		return 0;
+	}
+
+	LRESULT OnButton4(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		wchar_t strAddr[64] = { 0 }, strLength[64] = { 0 };
+		if (GetDlgItemText(IDC_EDIT1, strAddr, _countof(strAddr)) && GetDlgItemText(IDC_EDIT2, strLength, _countof(strLength)))
+		{
+			wchar_t* endptr = NULL;
+			const unsigned uAddr = _tcstoul(strAddr, &endptr, 16);
+			const unsigned uLength = _tcstoul(strLength, &endptr, 16);
+			if (uLength)
+			{				
+				if ((uAddr % m_eBlock) || (uLength % m_eBlock))
+					AtlMessageBox(m_hWnd, L"Address and length must be an integer multiple of erase block.");
+				else
+				{
+					const HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_ERASE, uAddr, uLength, NULL);
+					if (FAILED(hr))
+					{
+						wchar_t strText[256];
+						swprintf(strText, L"Erase failed, hr = 0x%08x", hr);
+						AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
+					}
+					else
+					{
+						CWaitDlg dlg(m_hCam);
+						dlg.DoModal();
+					}
+				}
 			}
 		}
 		return 0;
@@ -839,7 +1141,7 @@ class CIocontrolDlg : public CDialogImpl<CIocontrolDlg>
 public:
 	enum { IDD = IDD_IOCONTROL };
 	CIocontrolDlg(HOgmacam hCam, const OgmacamDeviceV2& tdev)
-		: m_hCam(hCam), m_tdev(tdev)
+	: m_hCam(hCam), m_tdev(tdev)
 	{
 	}
 private:
@@ -879,8 +1181,8 @@ private:
 		}
 		{
 			CComboBox box(GetDlgItem(IDC_INPUTACTIVATION));
-			box.AddString(L"Positive");
-			box.AddString(L"Negative");
+			box.AddString(L"Rising edge");
+			box.AddString(L"Falling edge");
 			box.SetCurSel(0);
 		}
 		{
@@ -1327,8 +1629,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 {
 	HOgmacam		m_hCam;
 	CMainView		m_view;
-	OgmacamDeviceV2	m_dev[OGMACAM_MAX];
-	unsigned		m_nIndex;
+	OgmacamDeviceV2	m_arrDev[OGMACAM_MAX], m_dev;
 	BOOL			m_bPaused;
 	int				m_nSnapType; // 0-> not snaping, 1 -> single snap, 2 -> multiple snap
 	unsigned		m_nSnapSeq;
@@ -1356,6 +1657,8 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 		MSG_WM_CREATE(OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnWmDestroy)
 		MESSAGE_HANDLER(MSG_CAMEVENT, OnMsgCamEvent)
+		MESSAGE_HANDLER(MSG_CAMENUM, OnMsgCamEnum)
+		MSG_WM_DEVICECHANGE(OnWmDeviceChange)
 		COMMAND_RANGE_HANDLER_EX(ID_DEVICE_DEVICE0, ID_DEVICE_DEVICEF, OnOpenDevice)
 		COMMAND_RANGE_HANDLER_EX(ID_PREVIEW_RESOLUTION0, ID_PREVIEW_RESOLUTION4, OnPreviewResolution)
 		COMMAND_RANGE_HANDLER_EX(ID_SNAP_RESOLUTION0, ID_SNAP_RESOLUTION4, OnSnapResolution)
@@ -1372,7 +1675,8 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 		COMMAND_ID_HANDLER_EX(ID_ACTION_LED, OnLed)
 		COMMAND_ID_HANDLER_EX(ID_PIXELFORMAT, OnPixelFormat)
 		COMMAND_ID_HANDLER_EX(ID_TECTARGET, OnTECTarget)
-		COMMAND_ID_HANDLER_EX(ID_ACTION_EEPROM, OnEEPROM)
+		COMMAND_ID_HANDLER_EX(ID_ACTION_EEPROM, OnEEPROM)		
+		COMMAND_ID_HANDLER_EX(ID_ACTION_FLASH, OnFlash)
 		COMMAND_ID_HANDLER_EX(ID_ACTION_UART, OnUART)
 		COMMAND_ID_HANDLER_EX(ID_ACTION_FWVER, OnFwVer)
 		COMMAND_ID_HANDLER_EX(ID_ACTION_HWVER, OnHwVer)
@@ -1406,7 +1710,8 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 		UPDATE_ELEMENT(ID_PIXELFORMAT, UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_TECTARGET, UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_SPEED, UPDUI_MENUPOPUP)
-		UPDATE_ELEMENT(ID_ACTION_EEPROM, UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_ACTION_EEPROM, UPDUI_MENUPOPUP)		
+		UPDATE_ELEMENT(ID_ACTION_FLASH, UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_ACTION_UART, UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_ACTION_FWVER, UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_ACTION_HWVER, UPDUI_MENUPOPUP)
@@ -1442,13 +1747,13 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	END_UPDATE_UI_MAP()
 public:
 	CMainFrame()
-	: m_hCam(NULL), m_nIndex(0), m_bPaused(FALSE), m_nSnapType(0), m_nSnapSeq(0), m_nSnapFile(0), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pWmvRecord(NULL), m_pData(NULL), m_view(this)
+	: m_hCam(NULL), m_bPaused(FALSE), m_nSnapType(0), m_nSnapSeq(0), m_nSnapFile(0), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pWmvRecord(NULL), m_pData(NULL), m_view(this)
 	{
 		m_bTriggerMode = false;
 		m_nTriggerNumber = 1;
 		m_eTriggerType = eTriggerNumber;
 
-		memset(m_dev, 0, sizeof(m_dev));
+		memset(m_arrDev, 0, sizeof(m_arrDev));
 		memset(m_szFilePath, 0, sizeof(m_szFilePath));
 		
 		memset(&m_header, 0, sizeof(m_header));
@@ -1501,23 +1806,49 @@ private:
 		return 0;
 	}
 
-	int OnCreate(LPCREATESTRUCT /*lpCreateStruct*/)
+	BOOL OnWmDeviceChange(UINT nEventType, DWORD_PTR dwData)
+	{
+		if ((DBT_DEVNODES_CHANGED == nEventType) || (DBT_DEVICEARRIVAL == nEventType) || (DBT_DEVICEREMOVECOMPLETE == nEventType))
+			PostMessage(MSG_CAMENUM);
+		return TRUE;
+	}
+
+	LRESULT OnMsgCamEnum(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		EnumCamera();
+		return 0;
+	}
+
+	void EnumCamera()
 	{
 		CMenuHandle menu = GetMenu();
 		CMenuHandle submenu = menu.GetSubMenu(0);
 		while (submenu.GetMenuItemCount() > 0)
 			submenu.RemoveMenu(submenu.GetMenuItemCount() - 1, MF_BYPOSITION);
 
-		const unsigned cnt = Ogmacam_EnumV2(m_dev);
+		const unsigned cnt = Ogmacam_EnumV2(m_arrDev);
 		if (0 == cnt)
 			submenu.AppendMenu(MF_GRAYED | MF_STRING, ID_DEVICE_DEVICE0, L"No Device");
 		else
 		{
 			for (unsigned i = 0; i < cnt; ++i)
-				submenu.AppendMenu(MF_STRING, ID_DEVICE_DEVICE0 + i, m_dev[i].displayname);
+				submenu.AppendMenu(MF_STRING, ID_DEVICE_DEVICE0 + i, m_arrDev[i].displayname);
 		}
+	}
 
+	static void __stdcall GigeHotplug(void* ctxHotPlug)
+	{
+		HWND hWnd = (HWND)ctxHotPlug;
+		if (::IsWindow(hWnd))
+			::PostMessage(hWnd, MSG_CAMENUM, 0, 0);
+	}
+
+	int OnCreate(LPCREATESTRUCT /*lpCreateStruct*/)
+	{
+		Ogmacam_GigeEnable(GigeHotplug, m_hWnd);
+		EnumCamera();
 		CreateSimpleStatusBar();
+
 		{
 			int iWidth[] = { 150, 400, 600, -1 };
 			CStatusBarCtrl statusbar(m_hWndStatusBar);
@@ -1527,6 +1858,7 @@ private:
 		m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, WS_EX_CLIENTEDGE);
 		
 		OnDeviceChanged();
+
 		return 0;
 	}
 
@@ -1623,14 +1955,14 @@ private:
 	{
 		if (m_hCam)
 		{
-			CPixelFormatDlg dlg(m_dev[m_nIndex], m_hCam);
+			CPixelFormatDlg dlg(m_dev, m_hCam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnTECTarget(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam && (m_dev[m_nIndex].model->flag & OGMACAM_FLAG_TEC_ONOFF)) // support set the tec target
+		if (m_hCam && (m_dev.model->flag & OGMACAM_FLAG_TEC_ONOFF)) // support set the tec target
 		{
 			CTECTargetDlg dlg(m_hCam);
 			dlg.DoModal();
@@ -1652,6 +1984,21 @@ private:
 		{
 			CEEPROMDlg dlg(m_hCam);
 			dlg.DoModal();
+		}
+	}
+	
+
+	void OnFlash(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
+	{
+		if (m_hCam)
+		{
+			if (Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_SIZE, 0, 0, NULL) <= 0)
+				AtlMessageBox(m_hWnd, L"No Flash available");
+			else
+			{
+				CFlashDlg dlg(m_hCam);
+				dlg.DoModal();
+			}
 		}
 	}
 
@@ -1721,11 +2068,11 @@ private:
 	{
 		if (m_hCam)
 		{
-			if (m_dev[m_nIndex].model->ioctrol <= 0)
+			if (m_dev.model->ioctrol <= 0)
 				AtlMessageBox(m_hWnd, L"No IoControl");
 			else
 			{
-				CIocontrolDlg dlg(m_hCam, m_dev[m_nIndex]);
+				CIocontrolDlg dlg(m_hCam, m_dev);
 				dlg.DoModal();
 			}
 		}
@@ -1791,7 +2138,7 @@ private:
 			int val = 0;
 			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_TRIGGER, &val);
 			if (val == 0)
-				val = (m_dev[m_nIndex].model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL) ? 2 : 1;
+				val = (m_dev.model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL) ? 2 : 1;
 			else
 				val = 0;
 			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, val);
@@ -1809,7 +2156,7 @@ private:
 		if (IDOK == dlg.DoModal())
 		{
 			m_nTriggerNumber = dlg.number_;
-			if (m_dev[m_nIndex].model->ioctrol > 0)
+			if (m_dev.model->ioctrol > 0)
 				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER, m_nTriggerNumber, NULL);
 		}
 	}
@@ -1881,7 +2228,7 @@ private:
 					m_dwStartTick = m_dwLastTick = 0;
 
 					Ogmacam_put_eSize(m_hCam, nID - ID_PREVIEW_RESOLUTION0);
-					for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
+					for (unsigned i = 0; i < m_dev.model->preview; ++i)
 						UISetCheck(ID_PREVIEW_RESOLUTION0 + i, (nID - ID_PREVIEW_RESOLUTION0 == i) ? 1 : 0);
 					UpdateSnapMenu();
 					if (SUCCEEDED(Ogmacam_get_Size(m_hCam, (int*)&m_header.biWidth, (int*)&m_header.biHeight)))
@@ -1959,10 +2306,11 @@ private:
 		UISetCheck(ID_ACTION_PAUSE, FALSE);
 		m_nFrameCount = 0;
 		m_dwStartTick = m_dwLastTick = 0;
-		m_nIndex = nID - ID_DEVICE_DEVICE0;
-		m_hCam = Ogmacam_Open(m_dev[m_nIndex].id);
+		const int idx = nID - ID_DEVICE_DEVICE0;
+		m_hCam = Ogmacam_Open(m_arrDev[idx].id);
 		if (m_hCam)
 		{
+			m_dev = m_arrDev[idx];
 			/* just to demo put roi befor the camera is started */
 			if (m_xRoiWidth && m_yRoiHeight)
 			{
@@ -1976,9 +2324,9 @@ private:
 
 			if (m_bTriggerMode)
 			{
-				if (m_dev->model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL)
+				if (m_dev.model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL)
 					Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, 2);
-				else if (m_dev->model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL)
+				else if (m_dev.model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL)
 					Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, 1);
 			}
 
@@ -1992,7 +2340,7 @@ private:
 				unsigned eSize = 0;
 				if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
 				{
-					for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
+					for (unsigned i = 0; i < m_dev.model->preview; ++i)
 						UISetCheck(ID_PREVIEW_RESOLUTION0 + i, (eSize == i) ? 1 : 0);
 				}
 				if (SUCCEEDED(Ogmacam_StartPullModeWithWndMsg(m_hCam, m_hWnd, MSG_CAMEVENT)))
@@ -2208,9 +2556,9 @@ private:
 			Ogmacam_get_eSize(m_hCam, &eSize);
 
 			wchar_t res[128];
-			for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
+			for (unsigned i = 0; i < m_dev.model->preview; ++i)
 			{
-				swprintf(res, L"%u * %u", m_dev[m_nIndex].model->res[i].width, m_dev[m_nIndex].model->res[i].height);
+				swprintf(res, L"%u * %u", m_dev.model->res[i].width, m_dev.model->res[i].height);
 				previewsubmenu.AppendMenu(MF_STRING, ID_PREVIEW_RESOLUTION0 + i, res);
 				snapsubmenu.AppendMenu(MF_STRING, ID_SNAP_RESOLUTION0 + i, res);
 				snapnsubmenu.AppendMenu(MF_STRING, ID_SNAPN_RESOLUTION0 + i, res);
@@ -2247,6 +2595,7 @@ private:
 		UIEnable(ID_ACTION_LED, m_hCam ? TRUE : FALSE);
 		UIEnable(ID_PIXELFORMAT, m_hCam ? TRUE : FALSE);
 		UIEnable(ID_ACTION_EEPROM, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_FLASH, m_hCam ? TRUE : FALSE);
 		UIEnable(ID_ACTION_UART, m_hCam ? TRUE : FALSE);
 		UIEnable(ID_ACTION_FWVER, m_hCam ? TRUE : FALSE);
 		UIEnable(ID_ACTION_HWVER, m_hCam ? TRUE : FALSE);
@@ -2258,7 +2607,7 @@ private:
 		UISetCheck(ID_CONFIG_HORIZONTALFLIP, 0);
 		UISetCheck(ID_CONFIG_VERTICALFLIP, 0);
 		UIEnable(ID_ACTION_STOPRECORD, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_TECTARGET, (m_hCam && (m_dev[m_nIndex].model->flag & OGMACAM_FLAG_TEC_ONOFF)) ? TRUE : FALSE);
+		UIEnable(ID_TECTARGET, (m_hCam && (m_dev.model->flag & OGMACAM_FLAG_TEC_ONOFF)) ? TRUE : FALSE);
 		UIEnable(ID_SPEED, m_hCam ? TRUE : FALSE);
 		UIEnable(ID_MAXAE, m_hCam ? TRUE : FALSE);
 
@@ -2276,7 +2625,7 @@ private:
 	{
 		if (m_nSnapType)
 		{
-			for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
+			for (unsigned i = 0; i < m_dev.model->preview; ++i)
 			{
 				UIEnable(ID_SNAP_RESOLUTION0 + i, FALSE);
 				UIEnable(ID_SNAPN_RESOLUTION0 + i, FALSE);
@@ -2287,21 +2636,21 @@ private:
 		unsigned eSize = 0;
 		if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
 		{
-			for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
+			for (unsigned i = 0; i < m_dev.model->preview; ++i)
 			{
-				if (m_dev[m_nIndex].model->still == m_dev[m_nIndex].model->preview) /* still capture full supported */
+				if (m_dev.model->still == m_dev.model->preview) /* still capture full supported */
 				{
 					UIEnable(ID_SNAP_RESOLUTION0 + i, TRUE);
 					UIEnable(ID_SNAPN_RESOLUTION0 + i, TRUE);
 				}
-				else if (0 == m_dev[m_nIndex].model->still) /* still capture not supported */
+				else if (0 == m_dev.model->still) /* still capture not supported */
 				{
 					UIEnable(ID_SNAP_RESOLUTION0 + i, (eSize == i) ? TRUE : FALSE);
 					UIEnable(ID_SNAPN_RESOLUTION0 + i, (eSize == i) ? TRUE : FALSE);
 				}
-				else if (m_dev[m_nIndex].model->still < m_dev[m_nIndex].model->preview)
+				else if (m_dev.model->still < m_dev.model->preview)
 				{
-					if ((eSize == i) || (i < m_dev[m_nIndex].model->still))
+					if ((eSize == i) || (i < m_dev.model->still))
 					{
 						UIEnable(ID_SNAP_RESOLUTION0 + i, TRUE);
 						UIEnable(ID_SNAPN_RESOLUTION0 + i, TRUE);

@@ -7,6 +7,8 @@
 
 class CMainFrame : public CFrameWnd
 {
+	std::wstring	m_curDshowDevice;
+	TDshowContext*	m_pDshowContext;
 public:
 	CMainFrame();
 protected:
@@ -19,7 +21,6 @@ protected:
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSetFocus(CWnd *pOldWnd);
-	afx_msg BOOL OnDeviceChange(UINT nEventType, DWORD_PTR dwData);
 	afx_msg void OnUpdateCamera(CCmdUI* pCmdUI);
 	afx_msg void OnCamera(UINT nID);
 	afx_msg void OnSetup(UINT nID);
@@ -48,8 +49,4 @@ protected:
 	DECLARE_MESSAGE_MAP()
 private:
 	void MenuCamera(CMenu* pMenu);
-private:
-	std::vector<TDshowDevice>	m_vecDshowDevice;
-	std::wstring				m_curDshowDevice;
-	TDshowContext*				m_pDshowContext;
 };

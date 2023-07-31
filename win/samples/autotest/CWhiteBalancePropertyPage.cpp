@@ -10,10 +10,13 @@ CWhiteBalancePropertyPage::CWhiteBalancePropertyPage()
 
 void CWhiteBalancePropertyPage::OnWhiteBalance()
 {
-	int temp = 0, tint = 0;
-	Ogmacam_get_TempTint(g_hcam, &temp, &tint);
-	SetTempValue(temp);
-	SetTintValue(tint);
+	if (GetSafeHwnd())
+	{
+		int temp = 0, tint = 0;
+		Ogmacam_get_TempTint(g_hcam, &temp, &tint);
+		SetTempValue(temp);
+		SetTintValue(tint);
+	}
 }
 
 void CWhiteBalancePropertyPage::SetTempValue(int value)

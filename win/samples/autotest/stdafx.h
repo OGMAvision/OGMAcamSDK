@@ -27,6 +27,8 @@
 #define WM_USER_PREVIEW_CHANGE			(WM_APP + 2)
 #define WM_USER_OPEN_CLOSE				(WM_APP + 4)
 
+#define MSG_GIGEHOTPLUG					(WM_APP + 5)
+
 #ifdef _UNICODE
 #if defined _M_IX86
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")

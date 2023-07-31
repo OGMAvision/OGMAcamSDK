@@ -9,7 +9,6 @@ IMPLEMENT_DYNAMIC(CMainFrame, CFrameWnd)
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_WM_CREATE()
 	ON_WM_SETFOCUS()
-	ON_WM_DEVICECHANGE()
 	ON_UPDATE_COMMAND_UI(ID_CAMERA00, OnUpdateCamera)
 	ON_COMMAND_RANGE(ID_CAMERA00, ID_CAMERA39, OnCamera)
 	ON_COMMAND_RANGE(ID_SETUP_SETUP0, ID_SETUP_SETUP4, OnSetup)
@@ -53,21 +52,10 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 	}
 
-	{
-		// Register for device add/remove notifications
-		DEV_BROADCAST_DEVICEINTERFACE filterData;
-		ZeroMemory(&filterData, sizeof(DEV_BROADCAST_DEVICEINTERFACE));
-		filterData.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
-		filterData.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
-		filterData.dbcc_classguid = AM_KSCATEGORY_CAPTURE;
-        RegisterDeviceNotification(m_hWnd, &filterData, DEVICE_NOTIFY_WINDOW_HANDLE);
-	}
-
 	CMenu* pMenu = GetMenu()->GetSubMenu(2);
 	while (pMenu->GetMenuItemCount())
 		pMenu->RemoveMenu(0, MF_BYPOSITION);
 
-	m_vecDshowDevice = dscap_enum_device();
 	return 0;
 }
 
@@ -96,34 +84,23 @@ BOOL CMainFrame::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO*
 	return CFrameWnd::OnCmdMsg(nID, nCode, pExtra, pHandlerInfo);
 }
 
-BOOL CMainFrame::OnDeviceChange(UINT nEventType, DWORD_PTR dwData)
-{
-	if ((DBT_DEVICEARRIVAL == nEventType)
-		|| (DBT_DEVICEREMOVECOMPLETE == nEventType)
-		|| (DBT_DEVNODES_CHANGED == nEventType))
-	{
-		m_vecDshowDevice = dscap_enum_device();
-	}
-
-	return TRUE;
-}
-
 void CMainFrame::MenuCamera(CMenu* pMenu)
 {
 	while (pMenu->GetMenuItemCount())
 		pMenu->RemoveMenu(0, MF_BYPOSITION);
 
-	if (m_vecDshowDevice.empty())
+	const std::vector<TDshowDevice> vec = dscap_enum_device();
+	if (vec.empty())
 		pMenu->AppendMenu(MF_GRAYED | MF_STRING, ID_CAMERA00, _T("No Device"));
 	else
 	{
 		UINT nFlag;
-		for (size_t i = 0; i < m_vecDshowDevice.size(); ++i)
+		for (size_t i = 0; i < vec.size(); ++i)
 		{
 			nFlag = MF_STRING;
-			if (m_curDshowDevice == m_vecDshowDevice[i].DisplayName)
+			if (m_curDshowDevice == vec[i].DisplayName)
 				nFlag |= MF_CHECKED | MF_GRAYED;
-			pMenu->AppendMenu(nFlag, ID_CAMERA00 + i, m_vecDshowDevice[i].FriendlyName.c_str());
+			pMenu->AppendMenu(nFlag, ID_CAMERA00 + i, vec[i].FriendlyName.c_str());
 		}
 	}
 }
@@ -150,6 +127,24 @@ void CMainFrame::OnSetup(UINT nID)
 		m_pDshowContext->on_dialog(nID - ID_SETUP_SETUP0);
 }
 
+void AfxMessageBoxHresult(HRESULT hr)
+{
+	PTCHAR pMsgBuf = nullptr;
+	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		nullptr, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&pMsgBuf, 0, nullptr);
+	if (pMsgBuf && pMsgBuf[0])
+	{
+		AfxMessageBox((LPCTSTR)pMsgBuf, MB_OK | MB_ICONWARNING);
+		LocalFree(pMsgBuf);
+	}
+	else
+	{
+		TCHAR str[1024] = { 0 };
+		_stprintf(str, L"Error. 0x%08x", hr);
+		AfxMessageBox(str, MB_OK | MB_ICONWARNING);
+	}
+}
+
 void CMainFrame::OnCamera(UINT nID)
 {
 	CMenu* pMenu = GetMenu()->GetSubMenu(2);
@@ -164,12 +159,17 @@ void CMainFrame::OnCamera(UINT nID)
 	}
 
 	nID -= ID_CAMERA00;
-	if (nID < m_vecDshowDevice.size())
+	std::vector<TDshowDevice> vec = dscap_enum_device();
+	if (nID < vec.size())
 	{
-		m_curDshowDevice = m_vecDshowDevice[nID].DisplayName;
+		m_curDshowDevice = vec[nID].DisplayName;
 		m_pDshowContext = NewDshowContext(m_hWnd, m_wndView.m_hWnd, m_curDshowDevice, MSG_DSNOTIFY);
 		if (m_pDshowContext)
-			m_pDshowContext->start(GetMenu()->GetSubMenu(2)->GetSafeHmenu(), 0, 5, ID_SETUP_SETUP0);
+		{
+			const HRESULT hr = m_pDshowContext->start(GetMenu()->GetSubMenu(2)->GetSafeHmenu(), 0, 5, ID_SETUP_SETUP0);
+			if (FAILED(hr))
+				AfxMessageBoxHresult(hr);
+		}
 	}
 }
 

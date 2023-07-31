@@ -10,26 +10,50 @@
 HOgmacam g_hcam = NULL;
 void* g_pImageData = NULL;
 unsigned g_total = 0, g_totalstill = 0;
+bool g_bBitdepth = false, g_bSave = false;
+
+static void SaveRaw(const char* filePrefix, unsigned num, unsigned width, unsigned height, const void* pData, unsigned length)
+{
+    char filename[1024];
+    sprintf(filename, "%s_%ux%u_%u.raw", filePrefix, width, height, num);
+    FILE* fp = fopen(filename, "wb");
+    if (fp)
+    {
+        fwrite(pData, 1, length, fp);
+        fclose(fp);
+    }
+    printf("saveraw: %s\n", filename);
+}
 
 static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
 {
     if (OGMACAM_EVENT_IMAGE == nEvent)
     {
         OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 24, 0, &info);
+        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 0, 0, &info);
         if (FAILED(hr))
             printf("failed to pull image, hr = %08x\n", hr);
         else
+        {
             printf("pull image ok, total = %u, resolution = %u x %u\n", ++g_total, info.width, info.height);
+            if (g_bSave)
+            {
+                g_bSave = false;
+                SaveRaw("demoraw", g_total, info.width, info.height, g_pImageData, info.width * info.height * (g_bBitdepth ? 2 : 1));
+            }
+        }
     }
     else if (OGMACAM_EVENT_STILLIMAGE == nEvent)
     {
-		OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 24, 0, &info);
+        OgmacamFrameInfoV3 info = { 0 };
+        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 1, 0, 0, &info);
         if (FAILED(hr))
             printf("failed to pull still image, hr = %08x\n", hr);
         else
+        {
             printf("pull still image ok, total = %u, resolution = %u x %u\n", ++g_totalstill, info.width, info.height);
+            SaveRaw("demorawstill", g_totalstill, info.width, info.height, g_pImageData, info.width * info.height * (g_bBitdepth ? 2 : 1));
+        }
     }
     else
     {
@@ -60,11 +84,10 @@ int main(int, char**)
     if (tdev[0].model->preview > 1)
         Ogmacam_put_eSize(g_hcam, 1);
 
-    bool bbitdepth = false;
     if (tdev[0].model->flag & (OGMACAM_FLAG_RAW10 | OGMACAM_FLAG_RAW12 | OGMACAM_FLAG_RAW14 | OGMACAM_FLAG_RAW16))  /* bitdepth supported */
     {
         Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, 1); /* enable bitdepth */
-        bbitdepth = true;
+        g_bBitdepth = true;
     }
 
     int nMaxWidth = 0, nMaxHeight = 0;
@@ -73,7 +96,7 @@ int main(int, char**)
         printf("failed to get size, hr = %08x\n", hr);
     else
     {
-        g_pImageData = malloc(nMaxWidth * nMaxHeight * (bbitdepth ? 2 : 1));
+        g_pImageData = malloc(nMaxWidth * nMaxHeight * (g_bBitdepth ? 2 : 1));
         if (NULL == g_pImageData)
             printf("failed to malloc\n");
         else
@@ -86,14 +109,19 @@ int main(int, char**)
                 bool bloop = true;
                 while (bloop)
                 {
-					if (tdev[0].model->still)
-						printf("press x to exit, any other key to snap\n");
-					else
-						printf("press any key to exit\n");
+                    if (tdev[0].model->still)
+                        printf("press x to exit, s to save raw, any other key to snap\n");
+                    else
+                        printf("press s to save raw, any other key to exit\n");
                     switch (getch())
                     {
                     case 'x':
+                    case 'X':
                         bloop = false;
+                        break;
+                    case 's':
+                    case 'S':
+                        g_bSave = true;
                         break;
                     default:
                         if (tdev[0].model->still)             /* snap supported */

@@ -429,7 +429,7 @@ private:
 				double d = 0.0;
 				if (GetDlgDouble(this, IDC_EDIT7, d))
 					return 0;
-				int n = (int)(d * 10.0);
+				const int n = (int)(d * 10.0);
 				if ((n < OGMACAM_TEC_TARGET_MIN) || (n > OGMACAM_TEC_TARGET_MAX))
 				{
 					AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Tec target out of range [%.1f, %.1f].", OGMACAM_TEC_TARGET_MIN / 10.0, OGMACAM_TEC_TARGET_MAX / 10.0), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
@@ -910,8 +910,7 @@ private:
 
 class CVideoView : public CWindowImpl<CVideoView>
 {
-	unsigned char m_header[sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * 256];
-	unsigned char m_nBitDepth;
+	unsigned char m_nBitDepth, m_header[sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * 256];
 	unsigned m_nBayer;
 	PBITMAPINFOHEADER m_pInfoHeader;
 	PBYTE m_pRgbData;
@@ -1036,8 +1035,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	const OgmacamModelV2*	m_pModel;
 	HOgmacam		m_hCam;
 	void*			m_pRawData;
-	int				m_ymax;
-	int				m_scale;
+	int				m_ymax, m_scale;
 	unsigned		m_area, m_bitdepth;
 	DWORD			m_tickLast;
 	bool			m_bTriggerMode, m_bWantTigger, m_bTemperature;

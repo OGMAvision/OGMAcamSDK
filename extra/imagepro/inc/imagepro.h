@@ -88,7 +88,7 @@ enum eImageproStitchDirection {
 enum eImageproStitchEvent {
     eImageproStitchE_NONE,
     eImageproStitchE_ERROR,
-    eImageproStitchE_NOMEM,
+    eImageproStitchE_NOMEM, /* out of memory */
     eImageproStitchE_EXPAND,
     eImageproStitchE_EXPAND_FAILURE,
     eImageproStitchE_EXPAND_SUCCESS,
@@ -138,7 +138,7 @@ enum eImageproEdfMethod {
 enum eImageproEdfEvent {
     eImageproEdf_NONE,
     eImageproEdf_ERROR,
-    eImageproEdf_NOMEM
+    eImageproEdf_NOMEM /* out of memory */
 };
 
 enum eImageproEdfMode {

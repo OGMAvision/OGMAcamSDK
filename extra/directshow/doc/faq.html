@@ -9,13 +9,13 @@
 <h1 align="center">FAQ for ogmacam directshow sdk</h1>
 <p>NOTICE: This Q&amp;A is only for directshow sdk.</p>
 <h2>Q01: What's the version of this sdk?</h2>
-<p align="left">A: 1.0.22081.20230207</p>
+<p align="left"><strong>A</strong>: 1.0.22913.20230709</p>
 <h2>Q02: What's in ogmacam directshow sdk?</h2>
-<p align="left">A: For normal directshow application development, pure directshow programming is sufficient. For advanced directshow application development (such as camera control GUI customization), COM interfaces in ogmacam_dshow.h are available. A how-to-use C++ source code sample demodshow is shipped within ogmacamsdk.zip as well.</p>
+<p align="left"><strong>A</strong>: For normal directshow application development, pure directshow programming is sufficient. For advanced directshow application development (such as camera control GUI customization), COM interfaces in ogmacam_dshow.h are available. A how-to-use C++ source code sample demodshow is shipped within ogmacamsdk.zip as well.</p>
 <h2>Q03: The ogmacam camera gets found on dshow device enumeration even when it is not connected to PC. If the camera is not connected it should not be enumerated. Is this a bug?</h2>
-<p align="left">A: No, this is not a bug, it is inherent. If you want to avoid this, please reference <a href="#q14">Q14</a> or use the native C API.</p>
+<p align="left"><strong>A</strong>: No, this is not a bug, it is inherent. If you want to avoid this, please reference <a href="#q14">Q14</a> or use the native C API.</p>
 <h2>Q04: Why the media type is always RGB24 and how to use MONO8/MONO16 or RAW format?</h2>
-<p align="left">A: The media type of the output pin is fixed to RGB24, but the content of the media sample can be reinterpret.<br/>
+<p align="left"><strong>A</strong>: The media type of the output pin is fixed to RGB24, but the content of the media sample can be reinterpret.<br/>
 While the camera filter is <strong>not</strong> connected, use:<br/>
 <blockquote>(a) IOgmacam::put_Option(OGMACAM_OPTION_RAW, 1) to enable RAW data mode;</blockquote>
 <blockquote>(b) or IOgmacam::put_Option(OGMACAM_OPTION_RGB, 3) to enable MONO8 data mode;</blockquote>
@@ -24,10 +24,10 @@ The data is stored into the output buffer as usual, the only difference is that 
 NOTE:<br/>(a) It is <strong>not</strong> supported to change OGMACAM_OPTION_RAW or OGMACAM_OPTION_RGB while the camera filter is connected, the function will fail with return value E_UNEXPECTED(0x8000ffff).<br/>
 (b) OGMACAM_OPTION_RGB and OGMACAM_OPTION_RAW are defined in ogmacam.h</p>
 <h2>Q05: How about the samples?</h2>
-<p align="left">A: 1. demodshow: everything about directshow is in dshow.h and dshow.cpp. This sample uses mfc for the UI.</p>
+<p align="left"><strong>A</strong>: 1. demodshow: everything about directshow is in dshow.h and dshow.cpp. This sample uses mfc for the UI.</p>
 <p>2. amcap: Microsoft sample demonstrates various tasks related to video capture, see <a href="https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap" target="_blank">https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap</a>.</p>
 <h2>Q06: Where can I find the learning materials about DirectShow?</h2>
-<p align="left">A: Microsoft technical documentation is the most complete reference of DirectShow. You can access it at <a href="https://docs.microsoft.com/en-us/windows/win32/directshow/directshow" target="_blank">https://docs.microsoft.com/en-us/windows/win32/directshow/directshow</a></p>
+<p align="left"><strong>A</strong>: Microsoft technical documentation is the most complete reference of DirectShow. You can access it at <a href="https://docs.microsoft.com/en-us/windows/win32/directshow/directshow" target="_blank">https://docs.microsoft.com/en-us/windows/win32/directshow/directshow</a></p>
 <h2>Q07: Which interfaces does ogmacam support?</h2>
 <table border="1" cellspacing="0" cellpadding="0" width="100%">
   <tr>
@@ -45,6 +45,7 @@ NOTE:<br/>(a) It is <strong>not</strong> supported to change OGMACAM_OPTION_RAW 
       IOgmacamStillImage (Still capture capable models)<br/>
       IOgmacamSerialNumber<br/>
       IOgmacamVersion<br/>
+	  IOgmacamAdvanced<br/>
       IOgmacamST4</td>
   </tr>
   <tr>
@@ -64,17 +65,18 @@ NOTE:<br/>(a) It is <strong>not</strong> supported to change OGMACAM_OPTION_RAW 
       IOgmacamStillImage (Still capture capable models)<br/>
       IOgmacamSerialNumber<br/>
       IOgmacamVersion<br/>
+	  IOgmacamAdvanced<br/>
       IOgmacamST4</td>
   </tr>
   <tr>
     <td width="26%">Output Pin Media Types</td>
     <td width="73%" valign="top">MEDIATYPE_Video<br/>
-      MEDIASUBTYPE_RGB24 (always RGB24)<br/>
+      MEDIASUBTYPE_RGB24 (RGB24 or RAW)<br/>
       FORMAT_VideoInfo</td>
   </tr>
 </table>
 <h2>Q08: What are the valid ranges of parameters?</h2>
-<p>A: </p>
+<p><strong>A</strong>: </p>
 <table border="1" cellspacing="0" cellpadding="0" width="100%">
   <tr>
     <td width="14%">Category</td>
@@ -230,20 +232,25 @@ NOTE:<br/>(a) It is <strong>not</strong> supported to change OGMACAM_OPTION_RAW 
 </table>
 <p align="left">NOTE: Exposure time unit is microsecond.</p>
 <h2>Q09: How to know whether the  camera supports still capture via SDK?</h2>
-<p align="left">A: Query the IOgmacamStillImage interface.</p>
+<p align="left"><strong>A</strong>: Query the IOgmacamStillImage interface.</p>
 <h2>Q10: How to get the actual frame rate with this SDK?</h2>
-<p align="left">A: Code example can be found in TDshowContext::get_framerate function in dshow.h and dshow.cpp of the demodshow sample project.</p>
+<p align="left"><strong>A</strong>: Code example can be found in TDshowContext::get_framerate function in dshow.h and dshow.cpp of the demodshow sample project.</p>
 <h2>Q11: How to get the camera's unique id?</h2>
-<p>A: Use the IOgmacamSerialNumber interface. Code example can be found in the demodshow sample project.</p>
+<p><strong>A</strong>: Use the IOgmacamSerialNumber interface. Code example can be found in the demodshow sample project.</p>
 <h2>Q12: Can this SDK used with .net applications?</h2>
-<p align="left">A: Yes, of course. This SDK is DirectShow based and can be easily integrated into your .net applications. See <a href="http://directshownet.sourceforge.net">http://directshownet.sourceforge.net</a> for more details.</p>
+<p align="left"><strong>A</strong>: Yes, of course. This SDK is DirectShow based and can be easily integrated into your .net applications. See <a href="http://www.aforgenet.com/framework">http://www.aforgenet.com/framework</a> for more details.</p>
 <h2>Q13: How to use the ROI?</h2>
-<p align="left">There are two cases according to that the camera filter is connected or not connected.<br/>
+<p align="left"><strong>A</strong>: There are two cases according to that the camera filter is connected or not connected.<br/>
 (1) While the camera filter is <strong>not</strong> connected: firstly, use put_Roi to set the ROI, both the offset and the size can be changed.<br/>
 (2) While the camera filter is connected: call put_Roi to set the offset can be supported. The width and height can <strong>not</strong> be changed.<br/>
-<br/>DShow ROI is supported since 20180824.</p>
-<h2><a id="q14">Q14: Does directshow sdk support multiple cameras?</a></h2>
-<p align="left">A: Yes, but it's something tricky. The ogmacam.ax generally open the "first" camera connected to the computer. If you want to open multiple cameras simultaneously, we advise you to use the native C API. If you truely want to open multiple cameras simultaneously in directshow, please use DshowEnumCamera and DshowOpenCamera which are defined as below:<br/></p>
+<br/>Dshow ROI is supported since 20180824.</p>
+<h2><a id="q14">Q14: What is DshowMonSvc used for?</a></h2>
+<p align="left"><strong>A</strong>: DshowMonSrc is a service that can monitor the status of the connection of cameras that are connected to PC by directshow driver and report it to Windows, including whether there are cameras connected, how many cameras connected and their model names.</br/>
+By default, the start type of the DshowMonSvc service is set to "On Demand".</p>
+<h2>Q15: Does directshow sdk support multiple cameras?</h2>
+<p align="left"><strong>A</strong>: Yes, but it's something tricky. The ogmacam.ax generally open the "first" camera connected to the computer. If you truely want to open multiple cameras simultaneously in directshow, please use one of the following 2 methods:<br/></p>
+(a) Run DshowMonSvc automatically, set the service start type to "Auto"<br/><br/>
+(b) Use DshowEnumCamera and DshowOpenCamera which are defined as below:<br/>
 <table width="100%" border="0" bgcolor="#B0D0B0">
 <tr><td>
 	/* return value: the number of connected camera */<br/>

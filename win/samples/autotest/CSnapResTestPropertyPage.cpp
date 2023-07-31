@@ -5,8 +5,8 @@
 #include "AutoTestDlg.h"
 
 CSnapResTestPropertyPage::CSnapResTestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_SNAP_RES_TEST)
-	, m_bStart(false), m_totalCount(0), m_count(0), m_resCount(0)
+	: CTestPropertyPage(IDD_PROPERTY_SNAP_RES_TEST)
+	, m_resCount(0)
 {
 }
 
@@ -60,7 +60,7 @@ void CSnapResTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 void CSnapResTestPropertyPage::Stop()
 {
 	KillTimer(1);
-	g_bSnapTest = m_bStart = false;
+	g_bSnapTest = m_bStart = g_bTesting = false;
 	g_bSnapFinish = true;
 	m_count = 0;
 	UpdateHint();
@@ -72,13 +72,13 @@ void CSnapResTestPropertyPage::OnBnClickedButtonStart()
 {
 	if (m_bStart)
 		Stop();
-	else
+	else if (OnStart())
 	{
 		g_snapDir = GetAppTimeDir(_T("SnapResTest"));
 		if (!PathIsDirectory((LPCTSTR)g_snapDir))
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
 
-		g_bSnapTest = g_bSnapFinish = m_bStart = true;
+		g_bSnapTest = g_bSnapFinish = m_bStart = g_bTesting = true;
 		g_bCheckBlack = false;
 		m_count = m_snap = m_resCount = 0;
 		SetDlgItemText(IDC_BUTTON_START, _T("Stop"));

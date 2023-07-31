@@ -4,8 +4,8 @@
 #include "CSnapTestPropertyPage.h"
 
 CSnapTestPropertyPage::CSnapTestPropertyPage()
-	: CPropertyPage(IDD_PROPERTY_SNAP_TEST)
-	, m_bStart(false), m_totalCount(0), m_count(0), m_snap(0)
+	: CTestPropertyPage(IDD_PROPERTY_SNAP_TEST)
+	, m_snap(0)
 {
 }
 
@@ -32,7 +32,7 @@ void CSnapTestPropertyPage::OnEnChangeEditSnapCount()
 void CSnapTestPropertyPage::Stop()
 {
 	KillTimer(1);
-	g_bSnapTest = m_bStart = false;
+	g_bSnapTest = m_bStart = g_bTesting = false;
 	g_bSnapFinish = true;
 	m_count = 0;
 	UpdateHint();
@@ -53,8 +53,7 @@ void CSnapTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 	g_bSnapFinish = false;
 	g_snapCount = m_count;
 	Ogmacam_Snap(g_hcam, m_snap);
-	++m_snap;
-	if (m_snap >= Ogmacam_get_StillResolutionNumber(g_hcam))
+	if (++m_snap >= Ogmacam_get_StillResolutionNumber(g_hcam))
 		m_snap = 0;
 	if (m_snap == 0)
 	{
@@ -67,13 +66,13 @@ void CSnapTestPropertyPage::OnBnClickedButtonStart()
 {
 	if (m_bStart)
 		Stop();
-	else
+	else if (OnStart())
 	{
 		g_snapDir = GetAppTimeDir(_T("SnapTest"));
 		if (!PathIsDirectory((LPCTSTR)g_snapDir))
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
 
-		g_bSnapTest = g_bSnapFinish = m_bStart = true;
+		g_bSnapTest = g_bSnapFinish = m_bStart = g_bTesting = true;
 		g_bCheckBlack = false;
 		m_count = m_snap = 0;
 		SetDlgItemText(IDC_BUTTON_SNAP_START, _T("Stop"));

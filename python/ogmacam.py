@@ -1,4 +1,4 @@
-"""Version: 53.22081.20230207
+"""Version: 54.22913.20230709
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -54,9 +54,12 @@ OGMACAM_FLAG_LOW_NOISE           = 0x0000010000000000  # support low noise mode 
 OGMACAM_FLAG_LEVELRANGE_HARDWARE = 0x0000020000000000  # hardware level range, put(get)_LevelRangeV2
 OGMACAM_FLAG_EVENT_HARDWARE      = 0x0000040000000000  # hardware event, such as exposure start & stop
 OGMACAM_FLAG_LIGHTSOURCE         = 0x0000080000000000  # light source
-OGMACAM_FLAG_FILTERWHEEL         = 0x0000100000000000  # filter wheel
-OGMACAM_FLAG_GIGE                = 0x0000200000000000  # GigE
-OGMACAM_FLAG_10GIGE              = 0x0000400000000000  # 10 Gige
+OGMACAM_FLAG_FILTERWHEEL         = 0x0000100000000000  # astro filter wheel
+OGMACAM_FLAG_GIGE                = 0x0000200000000000  # 1 Gigabit GigE
+OGMACAM_FLAG_10GIGE              = 0x0000400000000000  # 10 Gigabit GigE
+OGMACAM_FLAG_5GIGE               = 0x0000800000000000  # 5 Gigabit GigE
+OGMACAM_FLAG_25GIGE              = 0x0001000000000000  # 2.5 Gigabit GigE
+OGMACAM_FLAG_AUTOFOCUSER         = 0x0002000000000000  # astro auto focuser
 
 OGMACAM_EVENT_EXPOSURE           = 0x0001          # exposure time or gain changed
 OGMACAM_EVENT_TEMPTINT           = 0x0002          # white balance changed, Temp/Tint mode
@@ -90,7 +93,7 @@ OGMACAM_OPTION_THREAD_PRIORITY        = 0x02       # set the priority of the int
                                                    #   Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                    #   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
                                                    #
-OGMACAM_OPTION_RAW                    = 0x04       # raw data mode, read the sensor "raw" data. This can be set only BEFORE Ogmacam_StartXXX(). 0 = rgb, 1 = raw, default value: 0
+OGMACAM_OPTION_RAW                    = 0x04       # raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0
 OGMACAM_OPTION_HISTOGRAM              = 0x05       # 0 = only one, 1 = continue mode
 OGMACAM_OPTION_BITDEPTH               = 0x06       # 0 = 8 bits mode, 1 = 16 bits mode
 OGMACAM_OPTION_FAN                    = 0x07       # 0 = turn off the cooling fan, [1, max] = fan speed
@@ -173,7 +176,7 @@ OGMACAM_OPTION_AFMODE                 = 0x25       # auto focus mode (0:manul fo
 OGMACAM_OPTION_AFZONE                 = 0x26       # auto focus zone
 OGMACAM_OPTION_AFFEEDBACK             = 0x27       # auto focus information feedback; 0:unknown; 1:focused; 2:focusing; 3:defocus; 4:up; 5:down
 OGMACAM_OPTION_TESTPATTERN            = 0x28       # test pattern:
-                                                   #     0: TestPattern Off
+                                                   #     0: off
                                                    #     3: monochrome diagonal stripes
                                                    #     5: monochrome vertical stripes
                                                    #     7: monochrome horizontal stripes
@@ -205,7 +208,7 @@ OGMACAM_OPTION_HEAT                   = 0x37       # heat to prevent fogging up
 OGMACAM_OPTION_LOW_NOISE              = 0x38       # low noise mode (Higher signal noise ratio, lower frame rate): 1 => enable
 OGMACAM_OPTION_POWER                  = 0x39       # get power consumption, unit: milliwatt
 OGMACAM_OPTION_GLOBAL_RESET_MODE      = 0x3a       # global reset mode
-OGMACAM_OPTION_OPEN_USB_ERRORCODE     = 0x3b       # get the open usb error code
+OGMACAM_OPTION_OPEN_ERRORCODE         = 0x3b       # get the open camera error code
 OGMACAM_OPTION_FLUSH                  = 0x3d       # 1 = hard flush, discard frames cached by camera DDR (if any)
                                                    # 2 = soft flush, discard frames cached by ogmacam.dll (if any)
                                                    # 3 = both flush
@@ -263,6 +266,28 @@ OGMACAM_OPTION_TEC_VOLTAGE_MAX_RANGE  = 0x54       # get the tec maximum voltage
                                                    #     high 16 bits: max
                                                    #     low 16 bits: min
 OGMACAM_OPTION_HIGH_FULLWELL          = 0x55       # high fullwell capacity: 0 => disable, 1 => enable
+OGMACAM_OPTION_DYNAMIC_DEFECT         = 0x56       # dynamic defect pixel correction:
+                                                   # threshold:
+                                                   #      t1, high 16 bits: [1, 100]
+                                                   #      t2, low 16 bits: [0, 100]
+OGMACAM_OPTION_HDR_KB                 = 0x57       # HDR synthesize
+                                                   #      K (high 16 bits): [1, 25500]
+                                                   #      B (low 16 bits): [0, 65535]
+                                                   #      0xffffffff => set to default
+OGMACAM_OPTION_HDR_THRESHOLD          = 0x58       # HDR synthesize
+                                                   #      threshold: [1, 4095]
+                                                   #      0xffffffff => set to default
+OGMACAM_OPTION_GIGETIMEOUT            = 0x5a       # For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
+                                                   # If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
+                                                   # When the application is stopped by the debugger, the application cannot create the heartbeat signals
+                                                   #     0 => auto: when the camera is opened, disable if debugger is present or enable if no debugger is present
+                                                   #     1 => enable
+                                                   #     2 => disable
+                                                   #     default: auto
+OGMACAM_OPTION_EEPROM_SIZE            = 0x5b       # get EEPROM size
+OGMACAM_OPTION_OVERCLOCK_MAX          = 0x5c       # get overclock range: [0, max]
+OGMACAM_OPTION_OVERCLOCK              = 0x5d       # overclock, default: 0
+OGMACAM_OPTION_RESET_SENSOR           = 0x5e       # reset sensor
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -297,9 +322,9 @@ OGMACAM_IOCONTROLTYPE_GET_FORMAT                = 0x05  # 0x00 => not connected
 OGMACAM_IOCONTROLTYPE_SET_FORMAT                = 0x06
 OGMACAM_IOCONTROLTYPE_GET_OUTPUTINVERTER        = 0x07  # boolean, only support output signal
 OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER        = 0x08
-OGMACAM_IOCONTROLTYPE_GET_INPUTACTIVATION       = 0x09  # 0x01 => Positive, 0x02 => Negative
+OGMACAM_IOCONTROLTYPE_GET_INPUTACTIVATION       = 0x09  # 0x00 => Rising edge, 0x01 => Falling edge, 0x02 => Level high, 0x03 => Level low
 OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION       = 0x0a
-OGMACAM_IOCONTROLTYPE_GET_DEBOUNCERTIME         = 0x0b  # debouncer time in microseconds, [0, 20000]
+OGMACAM_IOCONTROLTYPE_GET_DEBOUNCERTIME         = 0x0b  # debouncer time in microseconds, range: [0, 20000]
 OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME         = 0x0c
 OGMACAM_IOCONTROLTYPE_GET_TRIGGERSOURCE         = 0x0d  # 0x00 => Opto-isolated input
                                                         # 0x01 => GPIO0
@@ -308,7 +333,7 @@ OGMACAM_IOCONTROLTYPE_GET_TRIGGERSOURCE         = 0x0d  # 0x00 => Opto-isolated 
                                                         # 0x04 => PWM
                                                         # 0x05 => Software
 OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE         = 0x0e
-OGMACAM_IOCONTROLTYPE_GET_TRIGGERDELAY          = 0x0f  # Trigger delay time in microseconds, [0, 5000000]
+OGMACAM_IOCONTROLTYPE_GET_TRIGGERDELAY          = 0x0f  # Trigger delay time in microseconds, range: [0, 5000000]
 OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY          = 0x10
 OGMACAM_IOCONTROLTYPE_GET_BURSTCOUNTER          = 0x11  # Burst Counter, range: [1 ~ 65535]
 OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER          = 0x12
@@ -326,13 +351,15 @@ OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE             = 0x1e
 OGMACAM_IOCONTROLTYPE_GET_OUTPUTMODE            = 0x1f  # 0x00 => Frame Trigger Wait
                                                         # 0x01 => Exposure Active
                                                         # 0x02 => Strobe
-                                                        # 0x03 => User output
+                                                        # 0x03 => User output                                                        
+                                                        # 0x04 => Counter Output
+                                                        # 0x05 => Timer Output
 OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE            = 0x20
 OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYMODE       = 0x21  # boolean, 1 => delay, 0 => pre-delay; compared to exposure active signal
 OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE       = 0x22
-OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYTIME       = 0x23  # Strobe delay or pre-delay time in microseconds, [0, 5000000]
+OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYTIME       = 0x23  # Strobe delay or pre-delay time in microseconds, range: [0, 5000000]
 OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME       = 0x24
-OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION        = 0x25  # Strobe duration time in microseconds, [0, 5000000]
+OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION        = 0x25  # Strobe duration time in microseconds, range: [0, 5000000]
 OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION        = 0x26
 OGMACAM_IOCONTROLTYPE_GET_USERVALUE             = 0x27  # bit0 => Opto-isolated output
                                                         # bit1 => GPIO0 output
@@ -353,12 +380,40 @@ OGMACAM_IOCONTROLTYPE_GET_EXPO_END_LINE         = 0x33  # exposure end line, def
 OGMACAM_IOCONTROLTYPE_SET_EXPO_END_LINE         = 0x34
 OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE     = 0x35  # exposure event: 0 => specified line, 1 => common exposure time
 OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE     = 0x36
+OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37  # Output Counter Value, range: [0 ~ 65535]
+OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38
+
+# AAF: Astro Auto Focuser
+OGMACAM_AAF_SETPOSITION     = 0x01
+OGMACAM_AAF_GETPOSITION     = 0x02
+OGMACAM_AAF_SETZERO         = 0x03
+OGMACAM_AAF_GETZERO         = 0x04
+OGMACAM_AAF_SETDIRECTION    = 0x05
+OGMACAM_AAF_SETMAXINCREMENT = 0x07
+OGMACAM_AAF_GETMAXINCREMENT = 0x08
+OGMACAM_AAF_SETFINE         = 0x09
+OGMACAM_AAF_GETFINE         = 0x0a
+OGMACAM_AAF_SETCOARSE       = 0x0b
+OGMACAM_AAF_GETCOARSE       = 0x0c
+OGMACAM_AAF_SETBUZZER       = 0x0d
+OGMACAM_AAF_GETBUZZER       = 0x0e
+OGMACAM_AAF_SETBACKLASH     = 0x0f
+OGMACAM_AAF_GETBACKLASH     = 0x10
+OGMACAM_AAF_GETAMBIENTTEMP  = 0x12
+OGMACAM_AAF_GETTEMP         = 0x14
+OGMACAM_AAF_ISMOVING        = 0x16
+OGMACAM_AAF_HALT            = 0x17
+OGMACAM_AAF_SETMAXSTEP      = 0x1b
+OGMACAM_AAF_GETMAXSTEP      = 0x1c
+OGMACAM_AAF_RANGEMIN        = 0xfd  # Range: min value
+OGMACAM_AAF_RANGEMAX        = 0xfe  # Range: max value
+OGMACAM_AAF_RANGEDEF        = 0xff  # Range: default value
 
 # hardware level range mode
-OGMACAM_LEVELRANGE_MANUAL                       = 0x0000 # manual
-OGMACAM_LEVELRANGE_ONCE                         = 0x0001 # once
-OGMACAM_LEVELRANGE_CONTINUE                     = 0x0002 # continue
-OGMACAM_LEVELRANGE_ROI                          = 0xffff # update roi rect only
+OGMACAM_LEVELRANGE_MANUAL   = 0x0000 # manual
+OGMACAM_LEVELRANGE_ONCE     = 0x0001 # once
+OGMACAM_LEVELRANGE_CONTINUE = 0x0002 # continue
+OGMACAM_LEVELRANGE_ROI      = 0xffff # update roi rect only
 
 # see rwc_Flash
 OGMACAM_FLASH_SIZE      = 0x00    # query total size
@@ -381,6 +436,7 @@ E_POINTER       = 0x80004003 # Pointer that is not valid
 E_FAIL          = 0x80004005 # Generic failure
 E_WRONG_THREAD  = 0x8001010e # Call function in the wrong thread
 E_GEN_FAILURE   = 0x8007001f # Device not functioning
+E_BUSY          = 0x800700aa # The requested resource is in use
 E_PENDING       = 0x8000000a # The data necessary to complete this operation is not yet available
 E_TIMEOUT       = 0x8001011f # This operation returned because the timeout period expired
 
@@ -437,7 +493,7 @@ OGMACAM_BANDWIDTH_MAX            = 100      # bandwidth
 OGMACAM_DENOISE_DEF              = 0        # denoise
 OGMACAM_DENOISE_MIN              = 0        # denoise
 OGMACAM_DENOISE_MAX              = 100      # denoise
-OGMACAM_TEC_TARGET_MIN           = -300     # TEC target: -30.0 degrees Celsius
+OGMACAM_TEC_TARGET_MIN           = -500     # TEC target: -50.0 degrees Celsius
 OGMACAM_TEC_TARGET_DEF           = 0        # TEC target: 0.0 degrees Celsius
 OGMACAM_TEC_TARGET_MAX           = 400      # TEC target: 40.0 degrees Celsius
 OGMACAM_HEARTBEAT_MIN            = 100      # millisecond
@@ -447,6 +503,18 @@ OGMACAM_AE_PERCENT_MAX           = 100
 OGMACAM_AE_PERCENT_DEF           = 10
 OGMACAM_NOPACKET_TIMEOUT_MIN     = 500      # no packet timeout minimum: 500ms
 OGMACAM_NOFRAME_TIMEOUT_MIN      = 500      # no frame timeout minimum: 500ms
+OGMACAM_DYNAMIC_DEFECT_T1_MIN    = 10       # dynamic defect pixel correction
+OGMACAM_DYNAMIC_DEFECT_T1_MAX    = 100
+OGMACAM_DYNAMIC_DEFECT_T1_DEF    = 13
+OGMACAM_DYNAMIC_DEFECT_T2_MIN    = 0
+OGMACAM_DYNAMIC_DEFECT_T2_MAX    = 100
+OGMACAM_DYNAMIC_DEFECT_T2_DEF    = 100
+OGMACAM_HDR_K_MIN                = 1        # HDR synthesize
+OGMACAM_HDR_K_MAX                = 25500
+OGMACAM_HDR_B_MIN                = 0
+OGMACAM_HDR_B_MAX                = 65535
+OGMACAM_HDR_THRESHOLD_MIN        = 0
+OGMACAM_HDR_THRESHOLD_MAX        = 4094
 
 def TDIBWIDTHBYTES(bits):
     return ((bits + 31) // 32 * 4)
@@ -526,7 +594,8 @@ class OgmacamDeviceV2:
 if sys.platform == 'win32':
     class HRESULTException(OSError):
         def __init__(self, hr):
-            OSError.__init__(self, None, ctypes.FormatError(hr).strip(), None, hr)
+            OSError.__init__(self, None, ctypes.FormatError(hr).strip(), None)
+            self.hr = hr
 else:
     class HRESULTException(Exception):
         def __init__(self, hr):
@@ -606,14 +675,24 @@ class Ogmacam:
     if sys.platform == 'win32':
         __EVENT_CALLBACK = ctypes.WINFUNCTYPE(None, ctypes.c_uint, ctypes.py_object)
         __PROGRESS_CALLBACK = ctypes.WINFUNCTYPE(None, ctypes.c_int, ctypes.py_object)
+        __HOTPLUG_CALLBACK = ctypes.WINFUNCTYPE(None, ctypes.c_void_p)
+        __HISTOGRAM_CALLBACK = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_uint, ctypes.py_object)
     else:
         __EVENT_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_uint, ctypes.py_object)
         __PROGRESS_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.py_object)
         __HOTPLUG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
-        __hotplug = None
+        __HISTOGRAM_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_uint, ctypes.py_object)
 
     __lib = None
-    __progress = None
+    __progress_fun = None
+    __progress_ctx = None
+    __progress_cb = None
+    __hotplug_fun = None
+    __hotplug_ctx = None
+    __hotplug_cb = None
+    __gigeenable_fun = None
+    __gigeenable_ctx = None
+    __gigeenable_cb = None
 
     @staticmethod
     def __errcheck(result, fun, args):
@@ -630,7 +709,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 53.22081.20230207"""
+        """get the version of this dll, which is: 54.22913.20230709"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -651,14 +730,31 @@ class Ogmacam:
         return OgmacamDeviceV2(__class__.__convertStr(a.displayname), __class__.__convertStr(a.id), __class__.__convertModel(a.model.contents))
 
     @staticmethod
-    def __hotplugCallbackFun(ctx):
-        if __class__.__hotplug:
-            __class__.__hotplug()
+    def __gigeEnableCallbackFun(ctx):
+        if __class__.__gigeenable_fun:
+            __class__.__gigeenable_fun(__class__.__gigeenable_ctx)
 
     @classmethod
-    def HotPlug(cls, fun):
+    def GigeEnable(cls, fun, ctx):
+        """Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to None"""
+        cls.__initlib()
+        cls.__gigeenable_fun = fun
+        cls.__gigeenable_ctx = ctx
+        if cls.__gigeenable_fun is None:
+            cls.__lib.Ogmacam_GigeEnable(cls.__HOTPLUG_CALLBACK(0), None)
+        else:
+            cls.__gigeenable_cb = cls.__HOTPLUG_CALLBACK(cls.__gigeEnableCallbackFun)
+            cls.__lib.Ogmacam_GigeEnable(cls.__gigeenable_cb, None)
+
+    @staticmethod
+    def __hotplugCallbackFun(ctx):
+        if __class__.__hotplug_fun:
+            __class__.__hotplug_fun(__class__.__hotplug_ctx)
+
+    @classmethod
+    def HotPlug(cls, fun, ctx):
         """
-        Only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
+        USB hotplug is only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
             (1) On Windows, please refer to the MSDN
                 (a) Device Management, https://docs.microsoft.com/en-us/windows/win32/devio/device-management
                 (b) Detecting Media Insertion or Removal, https://docs.microsoft.com/en-us/windows/win32/devio/detecting-media-insertion-or-removal
@@ -671,11 +767,13 @@ class Ogmacam:
             raise HRESULTException(0x80004001)
         else:
             cls.__initlib()
-            cls.__hotplug = fun
-            if cls.__hotplug is None:
-                cls.__lib.Ogmacam_HotPlug(None, None)
+            cls.__hotplug_fun = fun
+            cls.__hotplug_ctx = ctx
+            if cls.__hotplug_fun is None:
+                cls.__lib.Ogmacam_HotPlug(cls.__HOTPLUG_CALLBACK(0), None)
             else:
-                cls.__lib.Ogmacam_HotPlug(cls.__HOTPLUG_CALLBACK(cls.__hotplugCallbackFun), None)
+                cls.__hotplug_cb = cls.__HOTPLUG_CALLBACK(cls.__hotplugCallbackFun)
+                cls.__lib.Ogmacam_HotPlug(__hotplug_cb, None)
 
     @classmethod
     def EnumV2(cls):
@@ -687,12 +785,24 @@ class Ogmacam:
             arr.append(cls.__convertDevice(a[i]))
         return arr
 
+    @classmethod
+    def EnumWithName(cls):
+        cls.__initlib()
+        a = (_DeviceV2 * OGMACAM_MAX)()
+        n = cls.__lib.Ogmacam_EnumWithName(a)
+        arr = []
+        for i in range(0, n):
+            arr.append(cls.__convertDevice(a[i]))
+        return arr
+
     def __init__(self, h):
         """the object of Ogmacam must be obtained by classmethod Open or OpenByIndex, it cannot be obtained by obj = ogmacam.Ogmacam()"""
         self.__h = h
         self.__fun = None
         self.__ctx = None
         self.__cb = None
+        self.__ctxhistogram = None
+        self.__cbhistogram = None
 
     def __del__(self):
         self.Close()
@@ -710,18 +820,18 @@ class Ogmacam:
         return self.__h is not None
 
     @classmethod
-    def Open(cls, id):
+    def Open(cls, camId):
         """
         the object of Ogmacam must be obtained by classmethod Open or OpenByIndex, it cannot be obtained by obj = ogmacam.Ogmacam()
         Open(None) means try to Open the first enumerated camera
         """
         cls.__initlib()
-        if id is None:
+        if camId is None:
             h = cls.__lib.Ogmacam_Open(None)
         elif sys.platform == 'win32':
-            h = cls.__lib.Ogmacam_Open(id)
+            h = cls.__lib.Ogmacam_Open(camId)
         else:
-            h = cls.__lib.Ogmacam_Open(id.encode('ascii'))
+            h = cls.__lib.Ogmacam_Open(camId.encode('ascii'))
         if h is None:
             return None
         return __class__(h)
@@ -950,6 +1060,20 @@ class Ogmacam:
         """
         self.__lib.Ogmacam_Trigger(self.__h, ctypes.c_ushort(nNumber))
 
+    def TriggerSync(self, nTimeout, pImageData, bits, rowPitch, pInfo):
+        """
+        trigger synchronously
+        nTimeout:   0:              by default, exposure * 102% + 4000 milliseconds
+                    0xffffffff:     wait infinite
+                    other:          milliseconds to wait        
+        """
+        if pInfo is None:
+            self.__lib.TriggerSync(self.__h, nTimeout, pImageData, bits, rowPitch, None)
+        else:
+            x = self.__FrameInfoV3()
+            self.__lib.TriggerSync(self.__h, nTimeout, pImageData, bits, rowPitch, ctypes.byref(x))
+            self.__convertFrameInfoV3(pInfo, x)
+
     def put_Size(self, nWidth, nHeight):
         self.__lib.Ogmacam_put_Size(self.__h, ctypes.c_int(nWidth), ctypes.c_int(nHeight))
 
@@ -1073,6 +1197,17 @@ class Ogmacam:
 
     def put_AutoExpoTarget(self, Target):
         self.__lib.Ogmacam_put_AutoExpoTarget(self.__h, ctypes.c_int(Target))
+
+    def put_AutoExpoRange(self, maxTime, minTime, maxGain, minGain):
+        return self.__lib.Ogmacam_put_AutoExpoRange(self.__h, ctypes.c_uint(maxTime), ctypes.c_uint(minTime), ctypes.c_ushort(maxGain), ctypes.c_ushort(minGain))
+
+    def get_AutoExpoRange(self):
+        maxTime = ctypes.c_uint(0)
+        minTime = ctypes.c_uint(0)
+        maxGain = ctypes.c_ushort(0)
+        minGain = ctypes.c_ushort(0)
+        self.__lib.Ogmacam_get_AutoExpoRange(self.__h, ctypes.byref(maxTime), ctypes.byref(minTime), ctypes.byref(maxGain), ctypes.byref(minGain))
+        return (maxTime.value, minTime.value, maxGain.value, minGain.value)
 
     def put_MaxAutoExpoTimeAGain(self, maxTime, maxGain):
         return self.__lib.Ogmacam_put_MaxAutoExpoTimeAGain(self.__h, ctypes.c_uint(maxTime), ctypes.c_ushort(maxGain))
@@ -1329,13 +1464,13 @@ class Ogmacam:
 
     def put_BlackBalance(self, aSub):
         if len(aSub) == 3:
-            x = (ctypes.c_int * 3)(aSub[0], aSub[1], aSub[2])
+            x = (ctypes.c_ushort * 3)(aSub[0], aSub[1], aSub[2])
             self.__lib.Ogmacam_put_BlackBalance(self.__h, x)
         else:
             raise HRESULTException(0x80070057)
 
     def get_BlackBalance(self):
-        x = (ctypes.c_int * 3)()
+        x = (ctypes.c_ushort * 3)()
         self.__lib.Ogmacam_get_BlackBalance(self.__h, x)
         return (x[0], x[1], x[2])
 
@@ -1375,6 +1510,12 @@ class Ogmacam:
         self.__lib.Ogmacam_read_EEPROM(self.__h, addr, pBuffer, ctypes.c_uint(len(pBuffer)))
 
     def rwc_Flash(self, action, addr, pData):
+        """
+        Flash:
+        action = OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+        addr = address
+        see democpp
+        """
         self.__lib.Ogmacam_rwc_Flash(self.__h, action, addr, ctypes.c_uint(len(pData)), pData)
 
     def write_Pipe(self, pipeId, pBuffer):
@@ -1515,13 +1656,36 @@ class Ogmacam:
         self.__lib.Ogmacam_IoControl(self.__h, ctypes.c_uint(ioLineNumber), ctypes.c_uint(eType), ctypes.c_int(outVal), ctypes.byref(x))
         return x.value
 
+    def AAF(self, action, outVal):
+        x = ctypes.c_int(0)
+        self.__lib.Ogmacam_AAF(self.__h, ctypes.c_int(action), ctypes.c_int(outVal), ctypes.byref(x))
+        return x.value
+
     def get_AfParam(self):
         x = self.__AfParam()
         self.__lib.Ogmacam_get_AfParam(self.__h, ctypes.byref(x))
         return OgmacamAfParam(x.imax.value, x.imin.value, x.idef.value, x.imaxabs.value, x.iminabs.value, x.zoneh.value, x.zonev.value)
 
+    @staticmethod
+    def __histogramCallbackFun(aHist, nFlag, ctx):
+        if ctx:
+            ctx.__histogramFun(aHist, nFlag)
+
+    def __histogramFun(self, aHist, nFlag):
+        if self.__funhistogram:
+            arraySize = 1 << (nFlag & 0x0f)
+            if nFlag & 0x8000 == 0:
+                arraySize *= 3
+            self.__funhistogram(aHist, self.__ctxhistogram)
+
+    def GetHistogram(self, fun, ctx):
+        self.__funhistogram = fun
+        self.__ctxhistogram = ctx
+        self.__cbhistogram = __class__.__HISTOGRAM_CALLBACK(__class__.__histogramCallbackFun)
+        self.__lib.Ogmacam_GetHistogramV2(self.__h, self.__cbhistogram, ctypes.py_object(self))
+
     @classmethod
-    def Replug(cls, id):
+    def Replug(cls, camId):
         """
         simulate replug:
         return > 0, the number of device has been replug
@@ -1530,17 +1694,17 @@ class Ogmacam:
         for each device found, it will take about 3 seconds
         """
         if sys.platform == 'win32':
-            return cls.__lib.Ogmacam_Replug(id)
+            return cls.__lib.Ogmacam_Replug(camId)
         else:
-            return cls.__lib.Ogmacam_Replug(id.encode('ascii'))
+            return cls.__lib.Ogmacam_Replug(camId.encode('ascii'))
 
     @staticmethod
     def __progressCallbackFun(percent, ctx):
-        if __class__.__progress:
-            __class__.__progress(percent)
+        if __class__.__progress_fun:
+            __class__.__progress_fun(percent, __progress_ctx)
 
     @classmethod
-    def Update(cls, camId, filePath, pFun):
+    def Update(cls, camId, filePath, pFun, pCtx):
         """
         firmware update:
            camId: camera ID
@@ -1549,11 +1713,13 @@ class Ogmacam:
         Please do not unplug the camera or lost power during the upgrade process, this is very very important.
         Once an unplugging or power outage occurs during the upgrade process, the camera will no longer be available and can only be returned to the factory for repair.
         """
-        cls.__progress = pFun
+        cls.__progress_fun = pFun
+        cls.__progress_ctx = pCtx
+        cls.__progress_cb = cls.__PROGRESS_CALLBACK(cls.__progressCallbackFun)
         if sys.platform == 'win32':
-            return cls.__lib.Ogmacam_Update(camId, filePath, cls.__PROGRESS_CALLBACK(cls.__progressCallbackFun), None)
+            return cls.__lib.Ogmacam_Update(camId, filePath, __progress_cb, None)
         else:
-            return cls.__lib.Ogmacam_Update(camId.encode('ascii'), filePath.encode('ascii'), cls.__PROGRESS_CALLBACK(cls.__progressCallbackFun), None)
+            return cls.__lib.Ogmacam_Update(camId.encode('ascii'), filePath.encode('ascii'), __progress_cb, None)
 
     @classmethod
     def __initlib(cls):
@@ -1580,6 +1746,8 @@ class Ogmacam:
             cls.__lib.Ogmacam_Version.argtypes = None
             cls.__lib.Ogmacam_EnumV2.restype = ctypes.c_uint
             cls.__lib.Ogmacam_EnumV2.argtypes = [_DeviceV2 * OGMACAM_MAX]
+            cls.__lib.Ogmacam_EnumWithName.restype = ctypes.c_uint
+            cls.__lib.Ogmacam_EnumWithName.argtypes = [_DeviceV2 * OGMACAM_MAX]
             cls.__lib.Ogmacam_Open.restype = ctypes.c_void_p
             cls.__lib.Ogmacam_Replug.restype = ctypes.c_int
             cls.__lib.Ogmacam_Update.restype = ctypes.c_int
@@ -1635,6 +1803,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_Trigger.restype = ctypes.c_int
             cls.__lib.Ogmacam_Trigger.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_Trigger.argtypes = [ctypes.c_void_p, ctypes.c_ushort]
+            cls.__lib.Ogmacam_TriggerSync.restype = ctypes.c_int
+            cls.__lib.Ogmacam_TriggerSync.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_TriggerSync.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]            
             cls.__lib.Ogmacam_put_Size.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_Size.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_Size.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
@@ -1677,6 +1848,12 @@ class Ogmacam:
             cls.__lib.Ogmacam_put_AutoExpoTarget.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_AutoExpoTarget.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_AutoExpoTarget.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            cls.__lib.Ogmacam_put_AutoExpoRange.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_AutoExpoRange.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_AutoExpoRange.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_ushort, ctypes.c_ushort]
+            cls.__lib.Ogmacam_get_AutoExpoRange.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_AutoExpoRange.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_AutoExpoRange.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_ushort), ctypes.POINTER(ctypes.c_ushort)]
             cls.__lib.Ogmacam_put_MaxAutoExpoTimeAGain.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_MaxAutoExpoTimeAGain.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_MaxAutoExpoTimeAGain.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_ushort]
@@ -1730,10 +1907,10 @@ class Ogmacam:
             cls.__lib.Ogmacam_get_WhiteBalanceGain.argtypes = [ctypes.c_void_p, (ctypes.c_int * 3)]
             cls.__lib.Ogmacam_put_BlackBalance.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_BlackBalance.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_put_BlackBalance.argtypes = [ctypes.c_void_p, (ctypes.c_int * 3)]
+            cls.__lib.Ogmacam_put_BlackBalance.argtypes = [ctypes.c_void_p, (ctypes.c_ushort * 3)]
             cls.__lib.Ogmacam_get_BlackBalance.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_BlackBalance.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_get_BlackBalance.argtypes = [ctypes.c_void_p, (ctypes.c_int * 3)]
+            cls.__lib.Ogmacam_get_BlackBalance.argtypes = [ctypes.c_void_p, (ctypes.c_ushort * 3)]
             cls.__lib.Ogmacam_AbbOnce.restype = ctypes.c_int
             cls.__lib.Ogmacam_AbbOnce.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_AbbOnce.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
@@ -1959,6 +2136,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_IoControl.restype = ctypes.c_int
             cls.__lib.Ogmacam_IoControl.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_IoControl.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+            cls.__lib.Ogmacam_AAF.restype = ctypes.c_int
+            cls.__lib.Ogmacam_AAF.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_AAF.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
             cls.__lib.Ogmacam_read_UART.restype = ctypes.c_int
             cls.__lib.Ogmacam_read_UART.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_read_UART.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint]
@@ -1980,6 +2160,11 @@ class Ogmacam:
             cls.__lib.Ogmacam_get_FrameRate.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_FrameRate.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_get_FrameRate.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
+            cls.__lib.Ogmacam_GetHistogramV2.restype = ctypes.c_int
+            cls.__lib.Ogmacam_GetHistogramV2.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_GetHistogramV2.argtypes = [ctypes.c_void_p, cls.__HISTOGRAM_CALLBACK, ctypes.py_object]
+            cls.__lib.Ogmacam_GigeEnable.restype = ctypes.c_int
+            cls.__lib.Ogmacam_GigeEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p]
             if sys.platform != 'win32' and sys.platform != 'android':
                 cls.__lib.Ogmacam_HotPlug.restype = None
                 cls.__lib.Ogmacam_HotPlug.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p]

@@ -1,10 +1,9 @@
 #pragma once
 
-class CTriggerTestPropertyPage : public CPropertyPage
+#include "CTestPropertyPage.h"
+
+class CTriggerTestPropertyPage : public CTestPropertyPage
 {
-	bool m_bStart;
-	int m_totalCount;
-	int m_count;
 	int m_interval;
 public:
 	CTriggerTestPropertyPage();

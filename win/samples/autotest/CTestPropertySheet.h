@@ -5,6 +5,8 @@ class CROITestPropertyPage;
 class CResTestPropertyPage;
 class CSnapTestPropertyPage;
 class CBitDepthTestPropertyPage;
+class CFlushTestPropertyPage;
+class CPauseTestPropertyPage;
 class COpenCloseTestPropertyPage;
 class CTriggerTestPropertyPage;
 
@@ -15,6 +17,8 @@ class CTestPropertySheet : public CPropertySheet
 	CResTestPropertyPage* m_pResTestPropertyPage;
 	CSnapTestPropertyPage* m_pSnapTestPropertyPage;
 	CBitDepthTestPropertyPage* m_pBitDepthTestPropertyPage;
+	CFlushTestPropertyPage* m_pFlushTestPropertyPage;	
+	CPauseTestPropertyPage* m_pPauseTestPropertyPage;
 	COpenCloseTestPropertyPage* m_pOpenCloseTestPropertyPage;
 	CTriggerTestPropertyPage* m_pTriggerTestPropertyPage;
 public:
