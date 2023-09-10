@@ -10,7 +10,6 @@ class CROITestPropertyPage : public CTestPropertyPage
 public:
 	CROITestPropertyPage();
 
-
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_PROPERTY_ROI_TEST };
 #endif

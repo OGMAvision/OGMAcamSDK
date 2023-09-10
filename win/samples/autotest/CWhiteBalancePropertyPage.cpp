@@ -75,7 +75,6 @@ void CWhiteBalancePropertyPage::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* p
 	CPropertyPage::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
-
 void CWhiteBalancePropertyPage::OnBnClickedButtonWhiteBalance()
 {
 	Ogmacam_AwbOnce(g_hcam, nullptr, nullptr);

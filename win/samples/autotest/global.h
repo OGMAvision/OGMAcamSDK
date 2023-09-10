@@ -3,6 +3,7 @@
 #include "ogmacam.h"
 
 extern HOgmacam g_hcam;
+extern OgmacamDeviceV2 g_cur;
 extern OgmacamDeviceV2 g_cam[OGMACAM_MAX];
 extern int g_cameraCnt;
 extern int g_snapCount;

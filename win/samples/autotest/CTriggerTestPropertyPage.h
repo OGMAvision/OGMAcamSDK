@@ -4,7 +4,7 @@
 
 class CTriggerTestPropertyPage : public CTestPropertyPage
 {
-	int m_interval;
+	int m_interval, m_number;
 public:
 	CTriggerTestPropertyPage();
 	
@@ -15,6 +15,7 @@ public:
 protected:
 	virtual BOOL OnInitDialog();
 	afx_msg void OnEnChangeEditTriggerTestTimes();
+	afx_msg void OnEnChangeEditTriggerTestNumber();
 	afx_msg void OnEnChangeEditTriggerTestInterval();
 	afx_msg void OnBnClickedButtonTriggerTestStart();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);

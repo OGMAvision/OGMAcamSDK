@@ -30,7 +30,7 @@ namespace democs
             info.cCamera = dev_.model.name; /* just to demo exif */
             info.cSN = cam_.SerialNumber;
             IntPtr dib = Marshal.AllocCoTaskMem((int)h.biSize + ImageLib.TDIBWIDTHBYTES(width * 24) * height);
-            Ogmacam.CopyMemory(Ogmacam.IncIntPtr(dib, (int)h.biSize), data, new IntPtr(ImageLib.TDIBWIDTHBYTES(width * 24) * height));
+            Ogmacam.memcpy(Ogmacam.IncIntPtr(dib, (int)h.biSize), data, new IntPtr(ImageLib.TDIBWIDTHBYTES(width * 24) * height));
             Marshal.StructureToPtr(h, dib, false);
             ImageLib.Save("democs.jpg", dib, ref info);
             Marshal.FreeCoTaskMem(dib);
@@ -51,7 +51,7 @@ namespace democs
             info.cCamera = dev_.model.name; /* just to demo exif */
             info.cSN = cam_.SerialNumber;
             IntPtr dib = Marshal.AllocCoTaskMem((int)h.biSize + width * height * (bitdepth > 8 ? 2 : 1));
-            Ogmacam.CopyMemory(Ogmacam.IncIntPtr(dib, (int)h.biSize), data, new IntPtr(width * height * (bitdepth > 8 ? 2 : 1)));
+            Ogmacam.memcpy(Ogmacam.IncIntPtr(dib, (int)h.biSize), data, new IntPtr(width * height * (bitdepth > 8 ? 2 : 1)));
             Marshal.StructureToPtr(h, dib, false);
             ImageLib.Save("democs.dng", dib, ref info);
             Marshal.FreeCoTaskMem(dib);

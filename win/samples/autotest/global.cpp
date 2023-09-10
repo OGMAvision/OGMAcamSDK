@@ -2,7 +2,8 @@
 #include "global.h"
 
 HOgmacam g_hcam = nullptr;
-OgmacamDeviceV2 g_cam[OGMACAM_MAX];
+OgmacamDeviceV2 g_cur = { 0 };
+OgmacamDeviceV2 g_cam[OGMACAM_MAX] = { 0 };
 int g_cameraCnt = 0;
 int g_snapCount = 0;
 int g_ROITestCount = 0;

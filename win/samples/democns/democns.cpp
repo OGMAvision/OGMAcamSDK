@@ -1638,9 +1638,9 @@ public:
 		m_view.MoveWindow(&rect);
 	}
 private:
-	void OpenCamera(const wchar_t* id)
+	void OpenCamera(const wchar_t* camId)
 	{
-		m_hCam = Ogmacam_Open(id);
+		m_hCam = Ogmacam_Open(camId);
 		if (nullptr == m_hCam)
 		{
 			AtlMessageBox(m_hWnd, L"Open camera failed.", (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
@@ -1851,6 +1851,7 @@ static int Run()
 	CMainFrame frmMain;
 	if (frmMain.CreateEx() == nullptr)
 		return 0;
+	Ogmacam_GigeEnable(nullptr, nullptr);
 	frmMain.ShowWindow(SW_SHOWMAXIMIZED);
 
 	int nRet = theLoop.Run();

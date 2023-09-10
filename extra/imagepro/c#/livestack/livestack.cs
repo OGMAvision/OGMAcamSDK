@@ -16,10 +16,10 @@ internal class Livestack : IDisposable
     
     public enum eError : uint
     {
-        eINONE,
-        eIEVALFAIL,
-        eINOENOUGHSTARS,
-        eINOENOUGHMATCHES
+        eNONE,
+        eEVALFAIL,
+        eNOENOUGHSTARS,
+        eNOENOUGHMATCHES
     };
     
     public enum eMode : uint
@@ -50,6 +50,8 @@ internal class Livestack : IDisposable
             }
 		};
         SafeLivestackHandle h = imagepro_livestack_new(emode, etype, ptrCallback, id);
+        if (h == null || h.IsInvalid || h.IsClosed)
+            return null;
         return new Livestack(h, id, ptrCallback, delegateCallback);
     }
 

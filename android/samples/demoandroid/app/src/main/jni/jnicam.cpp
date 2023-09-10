@@ -44,9 +44,9 @@ JNIEXPORT jint JNICALL Java_com_droid_usbcam_CamLib_openDevice(JNIEnv *env, jobj
         Ogmacam_Close(gHcam);
         gHcam = nullptr;
     }
-    char id[128] = {0};
-    sprintf(id, "fd-%d-%04x-%04x", fd, vendorId, productId);
-    gHcam = Ogmacam_Open(id);
+    char camId[128] = {0};
+    sprintf(camId, "fd-%d-%04x-%04x", fd, vendorId, productId);
+    gHcam = Ogmacam_Open(camId);
     if (gHcam) {
         int ret = Ogmacam_StartPullModeWithCallback(gHcam, ucamCallback, nullptr);
         if (!SUCCEEDED(ret)) {

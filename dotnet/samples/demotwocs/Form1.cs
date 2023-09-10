@@ -7,9 +7,9 @@ namespace demotwocs
 {
     public partial class Form1 : Form
     {
-        private Ogmacam[] cam_;
-        private Bitmap[] bmp_;
-        private uint[] count_;
+        private Ogmacam[] cam_ = new Ogmacam[2];
+        private Bitmap[] bmp_ = new Bitmap[2];
+        private uint[] count_ = new uint[2];
 
         private void OnEventError(int idx)
         {
@@ -72,10 +72,6 @@ namespace demotwocs
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            cam_ = new Ogmacam[2];
-            bmp_ = new Bitmap[2];
-            count_ = new uint[2];
-
             checkBox1.Enabled = false;
         }
 
@@ -100,9 +96,9 @@ namespace demotwocs
             }
         }
 
-        private void startDevice(string id, int idx)
+        private void startDevice(string camId, int idx)
         {
-            cam_[idx] = Ogmacam.Open(id);
+            cam_[idx] = Ogmacam.Open(camId);
             if (cam_[idx] != null)
             {
                 int width = 0, height = 0;
@@ -123,7 +119,7 @@ namespace demotwocs
                             BeginInvoke((Action)(() =>
                             {
                                 /* this run in the UI thread */
-                                if (cam_ != null)
+                                if (cam_[idx] != null)
                                 {
                                     switch (evt)
                                     {

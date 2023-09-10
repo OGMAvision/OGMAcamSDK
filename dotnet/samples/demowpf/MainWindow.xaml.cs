@@ -183,9 +183,9 @@ namespace demowpf
             }
         }
 
-        private void startDevice(string id)
+        private void startDevice(string camId)
         {
-            cam_ = Ogmacam.Open(id);
+            cam_ = Ogmacam.Open(camId);
             if (cam_ != null)
             {
                 cam_.put_Option(Ogmacam.eOPTION.OPTION_RGB, 2); // RGB32
@@ -274,9 +274,9 @@ namespace demowpf
                     MenuItem mitem = new MenuItem() { Header = arr[i].displayname, CommandParameter = arr[i].id };
                     mitem.Click += (nsender, ne) =>
                     {
-                        string id = (string)(((MenuItem)nsender).CommandParameter);
-                        if ((id != null) && (id.Length > 0))
-                            startDevice(id);
+                        string camId = (string)(((MenuItem)nsender).CommandParameter);
+                        if ((camId != null) && (camId.Length > 0))
+                            startDevice(camId);
                     };
                     menu.Items.Add(mitem);
                 }

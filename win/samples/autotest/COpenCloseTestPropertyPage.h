@@ -9,7 +9,6 @@ class COpenCloseTestPropertyPage : public CTestPropertyPage
 public:
 	COpenCloseTestPropertyPage();
 
-
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_PROPERTY_OPEN_CLOSE_TEST };
 #endif

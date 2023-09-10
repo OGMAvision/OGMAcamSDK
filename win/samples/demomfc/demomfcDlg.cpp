@@ -90,6 +90,7 @@ CdemomfcDlg::CdemomfcDlg(CWnd* pParent /*=NULL*/)
 	m_header.biSize = sizeof(m_header);
 	m_header.biPlanes = 1;
 	m_header.biBitCount = 24;
+	m_rectTracker.m_nStyle = CRectTracker::resizeInside | CRectTracker::dottedLine;
 }
 
 BEGIN_MESSAGE_MAP(CdemomfcDlg, CDialog)
@@ -102,6 +103,8 @@ BEGIN_MESSAGE_MAP(CdemomfcDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON3, &CdemomfcDlg::OnBnClickedButton3)
 	ON_WM_HSCROLL()
 	ON_COMMAND_RANGE(IDM_SNAP_RESOLUTION, IDM_SNAP_RESOLUTION + OGMACAM_MAX, &CdemomfcDlg::OnSnapResolution)
+	ON_WM_LBUTTONDOWN()
+	ON_WM_SETCURSOR()
 END_MESSAGE_MAP()
 
 BOOL CdemomfcDlg::OnInitDialog()
@@ -133,7 +136,7 @@ void CdemomfcDlg::OnBnClickedButton1()
 
 	CComboBox* pCombox = (CComboBox*)GetDlgItem(IDC_COMBO1);
 	pCombox->ResetContent();
-	int n = (int)Ogmacam_get_ResolutionNumber(m_hcam);
+	const int n = (int)Ogmacam_get_ResolutionNumber(m_hcam);
 	if (n > 0)
 	{
 		TCHAR txt[128];
@@ -176,6 +179,7 @@ void CdemomfcDlg::StartDevice()
 	Ogmacam_get_AutoExpoEnable(m_hcam, &bEnableAutoExpo);
 	CheckDlgButton(IDC_CHECK1, bEnableAutoExpo ? 1 : 0);
 	GetDlgItem(IDC_SLIDER1)->EnableWindow(!bEnableAutoExpo);
+	GetAEAuxRect();
 
 	unsigned nMinExpoTime, nMaxExpoTime, nDefExpoTime;
 	Ogmacam_get_ExpTimeRange(m_hcam, &nMinExpoTime, &nMaxExpoTime, &nDefExpoTime);
@@ -199,8 +203,7 @@ void CdemomfcDlg::OnCbnSelchangeCombo1()
 	if (NULL == m_hcam)
 		return;
 
-	CComboBox* pCombox = (CComboBox*)GetDlgItem(IDC_COMBO1);
-	int nSel = pCombox->GetCurSel();
+	const int nSel = ((CComboBox*)GetDlgItem(IDC_COMBO1))->GetCurSel();
 	if (nSel < 0)
 		return;
 
@@ -251,6 +254,31 @@ LRESULT CdemomfcDlg::OnMsgCamevent(WPARAM wp, LPARAM /*lp*/)
 	return 0;
 }
 
+void CdemomfcDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	m_rectTracker.SetCursor(this, m_rectTracker.HitTest(point));
+	if (m_rectTracker.HitTest(point) < 0)
+	{
+		CRectTracker tempRectTracker;
+		tempRectTracker.TrackRubberBand(this, point);
+		tempRectTracker.m_rect.NormalizeRect();
+		Invalidate();
+	}
+	else if (m_rectTracker.Track(this, point))
+	{
+		Invalidate();
+		SetAEAuxRect();
+	}
+	CDialog::OnLButtonDown(nFlags, point);
+}
+
+BOOL CdemomfcDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+	if ((pWnd == this) && (m_rectTracker.SetCursor(this, nHitTest)))
+		return TRUE;
+	return CDialog::OnSetCursor(pWnd, nHitTest, message);
+}
+
 void CdemomfcDlg::OnEventDisconnected()
 {
 	if (m_hcam)
@@ -289,24 +317,32 @@ void CdemomfcDlg::OnEventTempTint()
 	((CSliderCtrl*)GetDlgItem(IDC_SLIDER3))->SetPos(nTint);
 }
 
+CRect CdemomfcDlg::GetDrawRect()
+{
+	CRect rc, rcStartButton;
+	GetClientRect(&rc);
+	GetDlgItem(IDC_BUTTON1)->GetWindowRect(&rcStartButton);
+	ScreenToClient(&rcStartButton);
+	rc.left = rcStartButton.right + 4;
+	rc.top += 4;
+	rc.bottom -= 4;
+	rc.right -= 4;
+	return rc;
+}
+
 void CdemomfcDlg::OnEventImage()
 {
 	HRESULT hr = Ogmacam_PullImageV2(m_hcam, m_pImageData, 24, NULL);
 	if (SUCCEEDED(hr))
 	{
+		const CRect rc = GetDrawRect();
 		CClientDC dc(this);
-		CRect rc, rcStartButton;
-		GetClientRect(&rc);
-		GetDlgItem(IDC_BUTTON1)->GetWindowRect(&rcStartButton);
-		ScreenToClient(&rcStartButton);
-		rc.left = rcStartButton.right + 4;
-		rc.top += 4;
-		rc.bottom -= 4;
-		rc.right -= 4;
-
 		int m = dc.SetStretchBltMode(COLORONCOLOR);
-		StretchDIBits(dc, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 0, 0, m_header.biWidth, m_header.biHeight, m_pImageData, (BITMAPINFO*)&m_header, DIB_RGB_COLORS, SRCCOPY);
+		StretchDIBits(dc, rc.left, rc.top, rc.Width(), rc.Height(), 0, 0, m_header.biWidth, m_header.biHeight, m_pImageData, (BITMAPINFO*)&m_header, DIB_RGB_COLORS, SRCCOPY);
 		dc.SetStretchBltMode(m);
+		if (IsDlgButtonChecked(IDC_CHECK1))
+			m_rectTracker.Draw(&dc);
+		Invalidate(FALSE);
 	}
 }
 
@@ -331,6 +367,29 @@ void CdemomfcDlg::OnEventStillImage()
 		}
 		free(pData);
 	}
+}
+
+void CdemomfcDlg::GetAEAuxRect()
+{
+	const CRect rc = GetDrawRect();
+	RECT rect;
+	Ogmacam_get_AEAuxRect(m_hcam, &rect);
+	rect.left = rect.left * rc.Width() / m_header.biWidth + rc.left;
+	rect.right = rect.right * rc.Width() / m_header.biWidth + rc.left;
+	rect.top = rect.top * rc.Height() / m_header.biHeight + rc.top;
+	rect.bottom = rect.bottom * rc.Height() / m_header.biHeight + rc.top;
+	m_rectTracker.m_rect.SetRect(CPoint(rect.left, rect.top), CPoint(rect.right, rect.bottom));
+}
+
+void CdemomfcDlg::SetAEAuxRect()
+{
+	const CRect rc = GetDrawRect();
+	RECT rect;
+	rect.left = (m_rectTracker.m_rect.left - rc.left) * m_header.biWidth / rc.Width();
+	rect.right = (m_rectTracker.m_rect.right - rc.left) * m_header.biWidth / rc.Width();
+	rect.bottom = (m_rectTracker.m_rect.bottom - rc.top) * m_header.biHeight / rc.Height();
+	rect.top = (m_rectTracker.m_rect.top - rc.top) * m_header.biHeight / rc.Height();
+	Ogmacam_put_AEAuxRect(m_hcam, &rect);
 }
 
 void CdemomfcDlg::OnDestroy()
@@ -394,18 +453,18 @@ void CdemomfcDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
 	if (pScrollBar == GetDlgItem(IDC_SLIDER1))
 	{
-		int nTime = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();
+		const int nTime = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();
 		SetDlgItemInt(IDC_STATIC1, nTime, TRUE);
 		Ogmacam_put_ExpoTime(m_hcam, nTime * 1000);
 	}
 	else
 	{
-		int nTemp = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER2))->GetPos();
-		int nTint = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER3))->GetPos();
+		const int nTemp = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER2))->GetPos();
+		const int nTint = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER3))->GetPos();
 		SetDlgItemInt(IDC_STATIC2, nTemp, TRUE);
 		SetDlgItemInt(IDC_STATIC3, nTint, TRUE);
 		Ogmacam_put_TempTint(m_hcam, nTemp, nTint);
 	}
-
+    
 	CDialog::OnHScroll(nSBCode, nPos, pScrollBar);
 }

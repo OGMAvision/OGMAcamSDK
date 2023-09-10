@@ -1,4 +1,4 @@
-"""Version: 54.22913.20230709
+"""Version: 54.23312.20230910
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -53,13 +53,16 @@ OGMACAM_FLAG_HEAT                = 0x0000008000000000  # support heat to prevent
 OGMACAM_FLAG_LOW_NOISE           = 0x0000010000000000  # support low noise mode (Higher signal noise ratio, lower frame rate)
 OGMACAM_FLAG_LEVELRANGE_HARDWARE = 0x0000020000000000  # hardware level range, put(get)_LevelRangeV2
 OGMACAM_FLAG_EVENT_HARDWARE      = 0x0000040000000000  # hardware event, such as exposure start & stop
-OGMACAM_FLAG_LIGHTSOURCE         = 0x0000080000000000  # light source
+OGMACAM_FLAG_LIGHTSOURCE         = 0x0000080000000000  # embedded light source
 OGMACAM_FLAG_FILTERWHEEL         = 0x0000100000000000  # astro filter wheel
 OGMACAM_FLAG_GIGE                = 0x0000200000000000  # 1 Gigabit GigE
 OGMACAM_FLAG_10GIGE              = 0x0000400000000000  # 10 Gigabit GigE
 OGMACAM_FLAG_5GIGE               = 0x0000800000000000  # 5 Gigabit GigE
 OGMACAM_FLAG_25GIGE              = 0x0001000000000000  # 2.5 Gigabit GigE
 OGMACAM_FLAG_AUTOFOCUSER         = 0x0002000000000000  # astro auto focuser
+OGMACAM_FLAG_LIGHT_SOURCE        = 0x0004000000000000  # stand alone light source
+OGMACAM_FLAG_CAMERALINK          = 0x0008000000000000  # camera link
+OGMACAM_FLAG_CXP                 = 0x0010000000000000  # CXP: CoaXPress
 
 OGMACAM_EVENT_EXPOSURE           = 0x0001          # exposure time or gain changed
 OGMACAM_EVENT_TEMPTINT           = 0x0002          # white balance changed, Temp/Tint mode
@@ -90,7 +93,7 @@ OGMACAM_EVENT_FACTORY            = 0x8001          # restore factory settings
 
 OGMACAM_OPTION_NOFRAME_TIMEOUT        = 0x01       # no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable
 OGMACAM_OPTION_THREAD_PRIORITY        = 0x02       # set the priority of the internal thread which grab data from the usb device.
-                                                   #   Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
+                                                   #   Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                    #   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
                                                    #
 OGMACAM_OPTION_RAW                    = 0x04       # raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0
@@ -121,7 +124,7 @@ OGMACAM_OPTION_MULTITHREAD            = 0x16       # multithread image processin
 OGMACAM_OPTION_BINNING                = 0x17       # binning
                                                    #     0x01: (no binning)
                                                    #     n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
-                                                   #     0x40 | n: (unsaturated add in RAW mode, n*n), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
+                                                   #     0x40 | n: (unsaturated add, n*n, works only in RAW mode), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
                                                    #     0x80 | n: (average, n*n), 0x82(2*2), 0x83(3*3), 0x84(4*4), 0x85(5*5), 0x86(6*6), 0x87(7*7), 0x88(8*8). The Bitdepth of the data remains unchanged.
                                                    # The final image size is rounded down to an even number, such as 640/3 to get 212
                                                    #
@@ -263,19 +266,18 @@ OGMACAM_OPTION_AUTOEXPO_TRIGGER       = 0x51       # auto exposure on trigger mo
 OGMACAM_OPTION_LINE_PRE_DELAY         = 0x52       # specified line signal pre-delay, microsecond
 OGMACAM_OPTION_LINE_POST_DELAY        = 0x53       # specified line signal post-delay, microsecond
 OGMACAM_OPTION_TEC_VOLTAGE_MAX_RANGE  = 0x54       # get the tec maximum voltage range:
-                                                   #     high 16 bits: max
-                                                   #     low 16 bits: min
+                                                   #      high 16 bits: max
+                                                   #      low 16 bits: min
 OGMACAM_OPTION_HIGH_FULLWELL          = 0x55       # high fullwell capacity: 0 => disable, 1 => enable
 OGMACAM_OPTION_DYNAMIC_DEFECT         = 0x56       # dynamic defect pixel correction:
-                                                   # threshold:
-                                                   #      t1, high 16 bits: [1, 100]
-                                                   #      t2, low 16 bits: [0, 100]
+                                                   #      threshold, t1: high 16 bits: [10, 100], means: [1.0, 10.0]
+                                                   #      value, t2: low 16 bits: [0, 100], means: [0.00, 1.00]
 OGMACAM_OPTION_HDR_KB                 = 0x57       # HDR synthesize
                                                    #      K (high 16 bits): [1, 25500]
                                                    #      B (low 16 bits): [0, 65535]
                                                    #      0xffffffff => set to default
 OGMACAM_OPTION_HDR_THRESHOLD          = 0x58       # HDR synthesize
-                                                   #      threshold: [1, 4095]
+                                                   #      threshold: [1, 4094]
                                                    #      0xffffffff => set to default
 OGMACAM_OPTION_GIGETIMEOUT            = 0x5a       # For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
                                                    # If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
@@ -288,6 +290,14 @@ OGMACAM_OPTION_EEPROM_SIZE            = 0x5b       # get EEPROM size
 OGMACAM_OPTION_OVERCLOCK_MAX          = 0x5c       # get overclock range: [0, max]
 OGMACAM_OPTION_OVERCLOCK              = 0x5d       # overclock, default: 0
 OGMACAM_OPTION_RESET_SENSOR           = 0x5e       # reset sensor
+
+OGMACAM_OPTION_ADC                    = 0x08000000 # Analog-Digital Conversion:
+                                                   #    get:
+                                                   #        (option | 'C'): get the current value
+                                                   #        (option | 'N'): get the supported ADC number
+                                                   #        (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
+                                                   #    set: val = ADC value, such as 11bits, 12bits, etc                                                     
+OGMACAM_OPTION_ISP                    = 0x5f       # Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -382,6 +392,7 @@ OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE     = 0x35  # exposure event: 0 => s
 OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE     = 0x36
 OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37  # Output Counter Value, range: [0 ~ 65535]
 OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38
+OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a  # Output pause: 1 => puase, 0 => unpause
 
 # AAF: Astro Auto Focuser
 OGMACAM_AAF_SETPOSITION     = 0x01
@@ -470,11 +481,11 @@ OGMACAM_WBGAIN_DEF               = 0        # white balance gain
 OGMACAM_WBGAIN_MIN               = -127     # white balance gain
 OGMACAM_WBGAIN_MAX               = 127      # white balance gain
 OGMACAM_BLACKLEVEL_MIN           = 0        # minimum black level
-OGMACAM_BLACKLEVEL8_MAX          = 31       # maximum black level for bit depth = 8
-OGMACAM_BLACKLEVEL10_MAX         = 31 * 4   # maximum black level for bit depth = 10
-OGMACAM_BLACKLEVEL12_MAX         = 31 * 16  # maximum black level for bit depth = 12
-OGMACAM_BLACKLEVEL14_MAX         = 31 * 64  # maximum black level for bit depth = 14
-OGMACAM_BLACKLEVEL16_MAX         = 31 * 256 # maximum black level for bit depth = 16
+OGMACAM_BLACKLEVEL8_MAX          = 31       # maximum black level for bitdepth = 8
+OGMACAM_BLACKLEVEL10_MAX         = 31 * 4   # maximum black level for bitdepth = 10
+OGMACAM_BLACKLEVEL12_MAX         = 31 * 16  # maximum black level for bitdepth = 12
+OGMACAM_BLACKLEVEL14_MAX         = 31 * 64  # maximum black level for bitdepth = 14
+OGMACAM_BLACKLEVEL16_MAX         = 31 * 256 # maximum black level for bitdepth = 16
 OGMACAM_SHARPENING_STRENGTH_DEF  = 0        # sharpening strength
 OGMACAM_SHARPENING_STRENGTH_MIN  = 0        # sharpening strength
 OGMACAM_SHARPENING_STRENGTH_MAX  = 500      # sharpening strength
@@ -494,7 +505,7 @@ OGMACAM_DENOISE_DEF              = 0        # denoise
 OGMACAM_DENOISE_MIN              = 0        # denoise
 OGMACAM_DENOISE_MAX              = 100      # denoise
 OGMACAM_TEC_TARGET_MIN           = -500     # TEC target: -50.0 degrees Celsius
-OGMACAM_TEC_TARGET_DEF           = 0        # TEC target: 0.0 degrees Celsius
+OGMACAM_TEC_TARGET_DEF           = 100      # TEC target: 0.0 degrees Celsius
 OGMACAM_TEC_TARGET_MAX           = 400      # TEC target: 40.0 degrees Celsius
 OGMACAM_HEARTBEAT_MIN            = 100      # millisecond
 OGMACAM_HEARTBEAT_MAX            = 10000    # millisecond
@@ -503,11 +514,11 @@ OGMACAM_AE_PERCENT_MAX           = 100
 OGMACAM_AE_PERCENT_DEF           = 10
 OGMACAM_NOPACKET_TIMEOUT_MIN     = 500      # no packet timeout minimum: 500ms
 OGMACAM_NOFRAME_TIMEOUT_MIN      = 500      # no frame timeout minimum: 500ms
-OGMACAM_DYNAMIC_DEFECT_T1_MIN    = 10       # dynamic defect pixel correction
-OGMACAM_DYNAMIC_DEFECT_T1_MAX    = 100
-OGMACAM_DYNAMIC_DEFECT_T1_DEF    = 13
-OGMACAM_DYNAMIC_DEFECT_T2_MIN    = 0
-OGMACAM_DYNAMIC_DEFECT_T2_MAX    = 100
+OGMACAM_DYNAMIC_DEFECT_T1_MIN    = 10       # dynamic defect pixel correction, threshold, means: 1.0
+OGMACAM_DYNAMIC_DEFECT_T1_MAX    = 100      # means: 10.0
+OGMACAM_DYNAMIC_DEFECT_T1_DEF    = 13       # means: 1.3
+OGMACAM_DYNAMIC_DEFECT_T2_MIN    = 0        # dynamic defect pixel correction, value, means: 0.00
+OGMACAM_DYNAMIC_DEFECT_T2_MAX    = 100      # means: 1.00
 OGMACAM_DYNAMIC_DEFECT_T2_DEF    = 100
 OGMACAM_HDR_K_MIN                = 1        # HDR synthesize
 OGMACAM_HDR_K_MAX                = 25500
@@ -581,8 +592,8 @@ class OgmacamModelV2:                    # camera model v2
         self.still = still               # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
         self.maxfanspeed = maxfanspeed   # maximum fan speed, fan speed range = [0, max], closed interval
         self.ioctrol = ioctrol           # number of input/output control
-        self.xpixsz = xpixsz             # physical pixel size
-        self.ypixsz = ypixsz             # physical pixel size
+        self.xpixsz = xpixsz             # physical pixel size in micrometer
+        self.ypixsz = ypixsz             # physical pixel size in micrometer
         self.res = res                   # OgmacamResolution
 
 class OgmacamDeviceV2:
@@ -614,8 +625,8 @@ if sys.platform == 'win32':
                     ('still', ctypes.c_uint),              # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
                     ('maxfanspeed', ctypes.c_uint),        # maximum fan speed, fan speed range = [0, max], closed interval
                     ('ioctrol', ctypes.c_uint),            # number of input/output control
-                    ('xpixsz', ctypes.c_float),            # physical pixel size
-                    ('ypixsz', ctypes.c_float),            # physical pixel size
+                    ('xpixsz', ctypes.c_float),            # physical pixel size in micrometer
+                    ('ypixsz', ctypes.c_float),            # physical pixel size in micrometer
                     ('res', _Resolution * 16)]
     class _DeviceV2(ctypes.Structure):                     # win32
         _fields_ = [('displayname', ctypes.c_wchar * 64),  # display name
@@ -630,8 +641,8 @@ else:
                     ('still', ctypes.c_uint),              # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
                     ('maxfanspeed', ctypes.c_uint),        # maximum fan speed
                     ('ioctrol', ctypes.c_uint),            # number of input/output control
-                    ('xpixsz', ctypes.c_float),            # physical pixel size
-                    ('ypixsz', ctypes.c_float),            # physical pixel size
+                    ('xpixsz', ctypes.c_float),            # physical pixel size in micrometer
+                    ('ypixsz', ctypes.c_float),            # physical pixel size in micrometer
                     ('res', _Resolution * 16)]
     class _DeviceV2(ctypes.Structure):                     # linux/mac
         _fields_ = [('displayname', ctypes.c_char * 64),   # display name
@@ -709,7 +720,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 54.22913.20230709"""
+        """get the version of this dll, which is: 54.23312.20230910"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -892,8 +903,9 @@ class Ogmacam:
         pInfo.seq = x.seq
         pInfo.timestamp = x.timestamp
 
-    def PullImageV3(self, pImageData, bStill, bits, rowPitch, pInfo):
-        """
+    """
+        nWaitMS: The timeout interval, in milliseconds. If a non-zero value is specified, the function either successfully fetches the image or waits for a timeout.
+                 If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImageV3.
         bStill: to pull still image, set to 1, otherwise 0
         bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
               In RAW mode, this parameter is ignored.
@@ -932,12 +944,21 @@ class Ogmacam:
                 | RAW       | 8bits Mode             | Width                         | Width                 |
                 |           | 10/12/14/16bits Mode   | Width * 2                     | Width * 2             |
                 |-----------|------------------------|-------------------------------|-----------------------|
-        """
+    """
+    def PullImageV3(self, pImageData, bStill, bits, rowPitch, pInfo):
         if pInfo is None:
             self.__lib.Ogmacam_PullImageV3(self.__h, pImageData, bStill, bits, rowPitch, None)
         else:
             x = self.__FrameInfoV3()
             self.__lib.Ogmacam_PullImageV3(self.__h, pImageData, bStill, bits, rowPitch, ctypes.byref(x))
+            self.__convertFrameInfoV3(pInfo, x)
+
+    def WaitImageV3(self, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo):
+        if pInfo is None:
+            self.__lib.Ogmacam_WaitImageV3(self.__h, nWaitMS, pImageData, bStill, bits, rowPitch, None)
+        else:
+            x = self.__FrameInfoV3()
+            self.__lib.Ogmacam_WaitImageV3(self.__h, nWaitMS, pImageData, bStill, bits, rowPitch, ctypes.byref(x))
             self.__convertFrameInfoV3(pInfo, x)
 
     def PullImageV2(self, pImageData, bits, pInfo):
@@ -987,7 +1008,7 @@ class Ogmacam:
         return self.__lib.Ogmacam_get_MaxSpeed(self.__h)
 
     def MaxBitDepth(self):
-        """get the max bit depth of this camera, such as 8, 10, 12, 14, 16"""
+        """get the max bitdepth of this camera, such as 8, 10, 12, 14, 16"""
         return self.__lib.Ogmacam_get_MaxBitDepth(self.__h)
 
     def FanMaxSpeed(self):
@@ -1191,7 +1212,7 @@ class Ogmacam:
         self.__lib.Ogmacam_put_AutoExpoEnable(self.__h, ctypes.c_int(bAutoExposure))
 
     def get_AutoExpoTarget(self):
-        x = ctypes.c_ushort(0)
+        x = ctypes.c_ushort(OGMACAM_AETARGET_DEF)
         self.__lib.Ogmacam_get_AutoExpoTarget(self.__h, ctypes.byref(x))
         return x.value
 
@@ -1303,7 +1324,7 @@ class Ogmacam:
         self.__lib.Ogmacam_put_Hue(self.__h, ctypes.c_int(Hue))
 
     def get_Hue(self):
-        x = ctypes.c_int(0)
+        x = ctypes.c_int(OGMACAM_HUE_DEF)
         self.__lib.Ogmacam_get_Hue(self.__h, ctypes.byref(x))
         return x.value
 
@@ -1311,7 +1332,7 @@ class Ogmacam:
         self.__lib.Ogmacam_put_Saturation(self.__h, ctypes.c_int(Saturation))
 
     def get_Saturation(self):
-        x = ctypes.c_int(0)
+        x = ctypes.c_int(OGMACAM_SATURATION_DEF)
         self.__lib.Ogmacam_get_Saturation(self.__h, ctypes.byref(x))
         return x.value
 
@@ -1319,12 +1340,12 @@ class Ogmacam:
         self.__lib.Ogmacam_put_Brightness(self.__h, ctypes.c_int(Brightness))
 
     def get_Brightness(self):
-        x = ctypes.c_int(0)
+        x = ctypes.c_int(OGMACAM_BRIGHTNESS_DEF)
         self.__lib.Ogmacam_get_Brightness(self.__h, ctypes.byref(x))
         return x.value
 
     def get_Contrast(self):
-        x = ctypes.c_int(0)
+        x = ctypes.c_int(OGMACAM_CONTRAST_DEF)
         self.__lib.Ogmacam_get_Contrast(self.__h, ctypes.byref(x))
         return x.value
 
@@ -1332,7 +1353,7 @@ class Ogmacam:
         self.__lib.Ogmacam_put_Contrast(self.__h, ctypes.c_int(Contrast))
 
     def get_Gamma(self):
-        x = ctypes.c_int(0)
+        x = ctypes.c_int(OGMACAM_GAMMA_DEF)
         self.__lib.Ogmacam_get_Gamma(self.__h, ctypes.byref(x))
         return x.value
 
@@ -1415,8 +1436,8 @@ class Ogmacam:
 
     def get_TempTint(self):
         """White Balance, Temp/Tint mode"""
-        x = ctypes.c_int(0)
-        y = ctypes.c_int(0)
+        x = ctypes.c_int(OGMACAM_TEMP_DEF)
+        y = ctypes.c_int(OGMACAM_TINT_DEF)
         self.__lib.Ogmacam_get_TempTint(self.__h, ctypes.byref(x), ctypes.byref(y))
         return (x.value, y.value)
 
@@ -1561,7 +1582,7 @@ class Ogmacam:
         else:
             raise HRESULTException(0x80070057)
 
-    def get_Temperature(self, nTemperature):
+    def get_Temperature(self):
         """get the temperature of the sensor, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)"""
         x = ctypes.c_short(0)
         self.__lib.Ogmacam_get_Temperature(self.__h, ctypes.byref(x))
@@ -1693,6 +1714,7 @@ class Ogmacam:
         return E_ACCESSDENIED if without UAC Administrator privileges
         for each device found, it will take about 3 seconds
         """
+        cls.__initlib()
         if sys.platform == 'win32':
             return cls.__lib.Ogmacam_Replug(camId)
         else:
@@ -1713,6 +1735,7 @@ class Ogmacam:
         Please do not unplug the camera or lost power during the upgrade process, this is very very important.
         Once an unplugging or power outage occurs during the upgrade process, the camera will no longer be available and can only be returned to the factory for repair.
         """
+        cls.__initlib()
         cls.__progress_fun = pFun
         cls.__progress_ctx = pCtx
         cls.__progress_cb = cls.__PROGRESS_CALLBACK(cls.__progressCallbackFun)
@@ -1720,6 +1743,25 @@ class Ogmacam:
             return cls.__lib.Ogmacam_Update(camId, filePath, __progress_cb, None)
         else:
             return cls.__lib.Ogmacam_Update(camId.encode('ascii'), filePath.encode('ascii'), __progress_cb, None)
+
+    @classmethod
+    def Gain2TempTint(cls, gain):
+        cls.__initlib()
+        if len(gain) == 3:
+            x = (ctypes.c_int * 3)(gain[0], gain[1], gain[2])
+            temp = ctypes.c_int(OGMACAM_TINT_DEF)
+            tint = ctypes.c_int(OGMACAM_TINT_DEF)
+            cls.__lib.Ogmacam_Gain2TempTint(x, ctypes.byref(temp), ctypes.byref(tint))
+            return (temp.value, tint.value)
+        else:
+            raise HRESULTException(0x80070057)
+
+    @classmethod
+    def TempTint2Gain(cls, temp, tint):
+        cls.__initlib()
+        x = (ctypes.c_int * 3)()
+        cls.__lib.Ogmacam_TempTint2Gain(ctypes.c_int(temp), ctypes.c_int(tint), x)
+        return (x[0], x[1], x[2])
 
     @classmethod
     def __initlib(cls):
@@ -1773,6 +1815,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_PullImageV3.restype = ctypes.c_int
             cls.__lib.Ogmacam_PullImageV3.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_PullImageV3.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]
+            cls.__lib.Ogmacam_WaitImageV3.restype = ctypes.c_int
+            cls.__lib.Ogmacam_WaitImageV3.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_WaitImageV3.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]       
             cls.__lib.Ogmacam_PullImageV2.restype = ctypes.c_int
             cls.__lib.Ogmacam_PullImageV2.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_PullImageV2.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV2)]
@@ -2057,10 +2102,10 @@ class Ogmacam:
             cls.__lib.Ogmacam_Flush.argtypes = [ctypes.c_void_p]
             cls.__lib.Ogmacam_put_Temperature.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_Temperature.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_put_Temperature.argtypes = [ctypes.c_void_p, ctypes.c_ushort]
+            cls.__lib.Ogmacam_put_Temperature.argtypes = [ctypes.c_void_p, ctypes.c_short]
             cls.__lib.Ogmacam_get_Temperature.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_Temperature.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_get_Temperature.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ushort)]
+            cls.__lib.Ogmacam_get_Temperature.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_short)]
             cls.__lib.Ogmacam_get_Revision.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_Revision.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_get_Revision.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ushort)]
@@ -2165,6 +2210,11 @@ class Ogmacam:
             cls.__lib.Ogmacam_GetHistogramV2.argtypes = [ctypes.c_void_p, cls.__HISTOGRAM_CALLBACK, ctypes.py_object]
             cls.__lib.Ogmacam_GigeEnable.restype = ctypes.c_int
             cls.__lib.Ogmacam_GigeEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p]
+            cls.__lib.Ogmacam_Gain2TempTint.restype = ctypes.c_int
+            cls.__lib.Ogmacam_Gain2TempTint.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_Gain2TempTint.argtypes = [ctypes.c_int * 3, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)];
+            cls.__lib.Ogmacam_TempTint2Gain.restype = None
+            cls.__lib.Ogmacam_TempTint2Gain.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int * 3];
             if sys.platform != 'win32' and sys.platform != 'android':
                 cls.__lib.Ogmacam_HotPlug.restype = None
                 cls.__lib.Ogmacam_HotPlug.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p]

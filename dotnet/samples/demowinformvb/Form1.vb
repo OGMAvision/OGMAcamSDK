@@ -76,6 +76,7 @@ Public Class Form1
         InitializeComponent()
         pictureBox1.Width = ClientRectangle.Right - pictureBox1.Left - button1.Top
         pictureBox1.Height = ClientRectangle.Height - 2 * button1.Top
+        Ogmacam.GigeEnable(Nothing)
     End Sub
 
     Private Sub Form_SizeChanged(sender As Object, e As EventArgs) Handles MyBase.SizeChanged
@@ -150,8 +151,8 @@ Public Class Form1
     End Sub
 
     Private Sub StartMenuClickedHandler(sender As Object, e As ToolStripItemClickedEventArgs)
-        Dim id As String = CType(e.ClickedItem.Tag, String)
-        startDevice(id)
+        Dim camId As String = CType(e.ClickedItem.Tag, String)
+        startDevice(camId)
     End Sub
 
     Private Sub OnStart(sender As Object, e As EventArgs) Handles button1.Click
@@ -174,8 +175,8 @@ Public Class Form1
         End If
     End Sub
 
-    Private Sub startDevice(id As String)
-        cam_ = Ogmacam.Open(id)
+    Private Sub startDevice(camId As String)
+        cam_ = Ogmacam.Open(camId)
         If cam_ IsNot Nothing Then
             checkBox1.Enabled = True
             comboBox1.Enabled = True

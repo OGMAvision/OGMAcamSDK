@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 54.22913.20230709
+    Version: 54.23312.20230910
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -75,13 +75,16 @@ internal class Ogmacam : IDisposable
         FLAG_LOW_NOISE           = 0x0000010000000000,  /* support low noise mode (Higher signal noise ratio, lower frame rate) */
         FLAG_LEVELRANGE_HARDWARE = 0x0000020000000000,  /* hardware level range, put(get)_LevelRangeV2 */
         FLAG_EVENT_HARDWARE      = 0x0000040000000000,  /* hardware event, such as exposure start & stop */
-        FLAG_LIGHTSOURCE         = 0x0000080000000000,  /* light source */
+        FLAG_LIGHTSOURCE         = 0x0000080000000000,  /* embedded light source */
         FLAG_FILTERWHEEL         = 0x0000100000000000,  /* astro filter wheel */
         FLAG_GIGE                = 0x0000200000000000,  /* 1 Gigabit GigE */
         FLAG_10GIGE              = 0x0000400000000000,  /* 10 Gigabit GigE */
         FLAG_5GIGE               = 0x0000800000000000,  /* 5 Gigabit GigE */
         FLAG_25GIGE              = 0x0001000000000000,  /* 2.5 Gigabit GigE */
-        FLAG_AUTOFOCUSER         = 0x0002000000000000   /* astro auto focuser */
+        FLAG_AUTOFOCUSER         = 0x0002000000000000,  /* astro auto focuser */
+        FLAG_LIGHT_SOURCE        = 0x0004000000000000,  /* stand alone light source */
+        FLAG_CAMERALINK          = 0x0008000000000000,  /* camera link */
+        FLAG_CXP                 = 0x0010000000000000   /* CXP: CoaXPress */
     };
     
     public enum eEVENT : uint
@@ -118,7 +121,7 @@ internal class Ogmacam : IDisposable
     {
         OPTION_NOFRAME_TIMEOUT        = 0x01,       /* no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable */
         OPTION_THREAD_PRIORITY        = 0x02,       /* set the priority of the internal thread which grab data from the usb device.
-                                                         Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
+                                                         Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                          Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
                                                     */
         OPTION_RAW                    = 0x04,       /* raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0 */
@@ -149,7 +152,7 @@ internal class Ogmacam : IDisposable
         OPTION_BINNING                = 0x17,       /* binning
                                                            0x01: (no binning)
                                                            n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
-                                                           0x40 | n: (unsaturated add in RAW mode, n*n), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
+                                                           0x40 | n: (unsaturated add, n*n, works only in RAW mode), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
                                                            0x80 | n: (average, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
                                                        The final image size is rounded down to an even number, such as 640/3 to get 212
                                                     */
@@ -296,9 +299,8 @@ internal class Ogmacam : IDisposable
                                                      */
         OPTION_HIGH_FULLWELL          = 0x55,        /* high fullwell capacity: 0 => disable, 1 => enable */
         OPTION_DYNAMIC_DEFECT         = 0x56,        /* dynamic defect pixel correction:
-                                                        threshold:
-                                                             t1 (high 16 bits): [1, 100]
-                                                             t2 (low 16 bits): [0, 100]
+                                                             threshold, t1: (high 16 bits): [10, 100], means: [1.0, 10.0]
+                                                             value, t2: (low 16 bits): [0, 100], means: [0.00, 1.00]
                                                      */
         OPTION_HDR_KB                 = 0x57,        /* HDR synthesize
                                                              K (high 16 bits): [1, 25500]
@@ -306,7 +308,7 @@ internal class Ogmacam : IDisposable
                                                              0xffffffff => set to default
                                                      */
         OPTION_HDR_THRESHOLD          = 0x58,        /* HDR synthesize
-                                                             threshold: [1, 4095]
+                                                             threshold: [1, 4094]
                                                              0xffffffff => set to default
                                                      */
         OPTION_GIGETIMEOUT            = 0x5a,        /* For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
@@ -320,7 +322,15 @@ internal class Ogmacam : IDisposable
         OPTION_EEPROM_SIZE            = 0x5b,        /* get EEPROM size */
         OPTION_OVERCLOCK_MAX          = 0x5c,        /* get overclock range: [0, max] */
         OPTION_OVERCLOCK              = 0x5d,        /* overclock, default: 0 */
-        OPTION_RESET_SENSOR           = 0x5e         /* reset sensor */
+        OPTION_RESET_SENSOR           = 0x5e,        /* reset sensor */
+        OPTION_ADC                    = 0x08000000,  /* Analog-Digital Conversion:
+                                                            get:
+                                                                (option | 'C'): get the current value
+                                                                (option | 'N'): get the supported ADC number
+                                                                (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
+                                                            set: val = ADC value, such as 11bits, 12bits, etc
+                                                     */
+        OPTION_ISP                    = 0x5f         /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */                                                    
     };
     
     /* HRESULT: error code */
@@ -370,11 +380,11 @@ internal class Ogmacam : IDisposable
     public const int WBGAIN_MIN               = -127;     /* white balance gain */
     public const int WBGAIN_MAX               = 127;      /* white balance gain */
     public const int BLACKLEVEL_MIN           = 0;        /* minimum black level */
-    public const int BLACKLEVEL8_MAX          = 31;       /* maximum black level for bit depth = 8 */
-    public const int BLACKLEVEL10_MAX         = 31 * 4;   /* maximum black level for bit depth = 10 */
-    public const int BLACKLEVEL12_MAX         = 31 * 16;  /* maximum black level for bit depth = 12 */
-    public const int BLACKLEVEL14_MAX         = 31 * 64;  /* maximum black level for bit depth = 14 */
-    public const int BLACKLEVEL16_MAX         = 31 * 256; /* maximum black level for bit depth = 16 */
+    public const int BLACKLEVEL8_MAX          = 31;       /* maximum black level for bitdepth = 8 */
+    public const int BLACKLEVEL10_MAX         = 31 * 4;   /* maximum black level for bitdepth = 10 */
+    public const int BLACKLEVEL12_MAX         = 31 * 16;  /* maximum black level for bitdepth = 12 */
+    public const int BLACKLEVEL14_MAX         = 31 * 64;  /* maximum black level for bitdepth = 14 */
+    public const int BLACKLEVEL16_MAX         = 31 * 256; /* maximum black level for bitdepth = 16 */
     public const int SHARPENING_STRENGTH_DEF  = 0;        /* sharpening strength */
     public const int SHARPENING_STRENGTH_MIN  = 0;        /* sharpening strength */
     public const int SHARPENING_STRENGTH_MAX  = 500;      /* sharpening strength */
@@ -394,7 +404,7 @@ internal class Ogmacam : IDisposable
     public const int DENOISE_MIN              = 0;        /* denoise */
     public const int DENOISE_MAX              = 100;      /* denoise */
     public const int TEC_TARGET_MIN           = -500;     /* TEC target: -50.0 degrees Celsius */
-    public const int TEC_TARGET_DEF           = 0;        /* TEC target: 0.0 degrees Celsius */
+    public const int TEC_TARGET_DEF           = 100;      /* TEC target: 0.0 degrees Celsius */
     public const int TEC_TARGET_MAX           = 400;      /* TEC target: 40.0 degrees Celsius */
     public const int HEARTBEAT_MIN            = 100;      /* millisecond */
     public const int HEARTBEAT_MAX            = 10000;    /* millisecond */
@@ -403,11 +413,11 @@ internal class Ogmacam : IDisposable
     public const int AE_PERCENT_DEF           = 10;
     public const int NOPACKET_TIMEOUT_MIN     = 500;      /* no packet timeout minimum: 500ms */
     public const int NOFRAME_TIMEOUT_MIN      = 500;      /* no frame timeout minimum: 500ms */
-    public const int DYNAMIC_DEFECT_T1_MIN    = 10;       /* dynamic defect pixel correction */
-    public const int DYNAMIC_DEFECT_T1_MAX    = 100;
-    public const int DYNAMIC_DEFECT_T1_DEF    = 13;
-    public const int DYNAMIC_DEFECT_T2_MIN    = 0;
-    public const int DYNAMIC_DEFECT_T2_MAX    = 100;
+    public const int DYNAMIC_DEFECT_T1_MIN    = 10;       /* dynamic defect pixel correction, threshold, means: 1.0 */
+    public const int DYNAMIC_DEFECT_T1_MAX    = 100;      /* means: 10.0 */
+    public const int DYNAMIC_DEFECT_T1_DEF    = 13;       /* means: 1.3 */
+    public const int DYNAMIC_DEFECT_T2_MIN    = 0;        /* dynamic defect pixel correction, value, means: 0.00 */
+    public const int DYNAMIC_DEFECT_T2_MAX    = 100;      /* means: 1.00 */
     public const int DYNAMIC_DEFECT_T2_DEF    = 100;
     public const int HDR_K_MIN                = 1;        /* HDR synthesize */
     public const int HDR_K_MAX                = 25500;
@@ -525,7 +535,8 @@ internal class Ogmacam : IDisposable
         IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE     = 0x35, /* exposure event: 0 => specified line, 1 => common exposure time */
         IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE     = 0x36,
         IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37, /* Output Counter Value, range: [0 ~ 65535] */
-        IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38
+        IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38,
+        IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a  /* Output pause: 1 => puase, 0 => unpause */
     };
     
     /* AAF: Astro Auto Focuser */
@@ -580,8 +591,8 @@ internal class Ogmacam : IDisposable
         public uint still;          /* number of still resolution, same as get_StillResolutionNumber() */
         public uint maxfanspeed;    /* maximum fan speed, fan speed range = [0, max], closed interval */
         public uint ioctrol;        /* number of input/output control */
-        public float xpixsz;        /* physical pixel size */
-        public float ypixsz;        /* physical pixel size */
+        public float xpixsz;        /* physical pixel size in micrometer */
+        public float ypixsz;        /* physical pixel size in micrometer */
         public Resolution[] res;
     };
     public struct DeviceV2
@@ -673,7 +684,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
     
-    /* get the version of this dll/so, which is: 54.22913.20230709 */
+    /* get the version of this dll/so, which is: 54.23312.20230910 */
     public static string Version()
     {
         return Ogmacam_Version();
@@ -885,7 +896,7 @@ internal class Ogmacam : IDisposable
         }
     }
     
-    /* get the max bit depth of this camera, such as 8, 10, 12, 14, 16 */
+    /* get the max bitdepth of this camera, such as 8, 10, 12, 14, 16 */
     public uint MaxBitDepth
     {
         get
@@ -1164,6 +1175,8 @@ internal class Ogmacam : IDisposable
     }
     
     /*
+       nWaitMS: The timeout interval, in milliseconds. If a non-zero value is specified, the function either successfully fetches the image or waits for a timeout.
+                If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImageV3.
        bStill: to pull still image, set to 1, otherwise 0
        bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
              In RAW mode, this parameter is ignored.
@@ -1184,7 +1197,7 @@ internal class Ogmacam : IDisposable
                | bits = 8           | Convert to 8  |       NA      | Convert to 8  |       8       |       NA      |       NA      |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
                | bits = 16          |      NA       | Convert to 16 |       NA      |       NA      |       16      | Convert to 16 |
-               |--------------------|---------------|-----------|-------------------|---------------|---------------|---------------|
+               |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
                | bits = 64          |      NA       | Convert to 64 |       NA      |       NA      | Convert to 64 |       64      |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
        rowPitch: The distance from one row to the next row. rowPitch = 0 means using the default row pitch. rowPitch = -1 means zero padding, see below:
@@ -1230,6 +1243,36 @@ internal class Ogmacam : IDisposable
             return false;
         }
         return CheckHResult(Ogmacam_PullImageV3(handle_, pImageData, bStill, bits, rowPitch, out pInfo));
+    }
+    
+    public bool WaitImageV3(uint nWaitMS, IntPtr pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            zeroInfo(out pInfo);
+            return false;
+        }
+        return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, out pInfo));
+    }
+    
+    public bool WaitImageV3(uint nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            zeroInfo(out pInfo);
+            return false;
+        }
+        return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, out pInfo));
+    }
+    
+    public bool WaitImageV3(uint nWaitMS, ushort[] pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            zeroInfo(out pInfo);
+            return false;
+        }
+        return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, out pInfo));
     }
     
     public bool PullImageWithRowPitch(IntPtr pImageData, int bits, int rowPitch, out uint pnWidth, out uint pnHeight)
@@ -1494,9 +1537,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_Size(out int nWidth, out int nHeight)
     {
-        nWidth = nHeight = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nWidth = nHeight = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Size(handle_, out nWidth, out nHeight));
     }
     
@@ -1518,9 +1563,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_eSize(out uint nResolutionIndex)
     {
-        nResolutionIndex = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nResolutionIndex = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_eSize(handle_, out nResolutionIndex));
     }
     
@@ -1529,17 +1576,21 @@ internal class Ogmacam : IDisposable
     */
     public bool get_FinalSize(out int nWidth, out int nHeight)
     {
-        nWidth = nHeight = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nWidth = nHeight = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_FinalSize(handle_, out nWidth, out nHeight));
     }
     
     public bool get_Resolution(uint nResolutionIndex, out int pWidth, out int pHeight)
     {
-        pWidth = pHeight = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            pWidth = pHeight = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Resolution(handle_, nResolutionIndex, out pWidth, out pHeight));
     }
     
@@ -1548,9 +1599,11 @@ internal class Ogmacam : IDisposable
     */
     public bool get_PixelSize(uint nResolutionIndex, out float x, out float y)
     {
-        x = y = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            x = y = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_PixelSize(handle_, nResolutionIndex, out x, out y));
     }
     
@@ -1559,9 +1612,11 @@ internal class Ogmacam : IDisposable
     */
     public bool get_ResolutionRatio(uint nResolutionIndex, out int pNumerator, out int pDenominator)
     {
-        pNumerator = pDenominator = 1;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            pNumerator = pDenominator = 1;
             return false;
+        }
         return CheckHResult(Ogmacam_get_ResolutionRatio(handle_, nResolutionIndex, out pNumerator, out pDenominator));
     }
     
@@ -1581,9 +1636,11 @@ internal class Ogmacam : IDisposable
     */
     public bool get_RawFormat(out uint nFourCC, out uint bitdepth)
     {
-        nFourCC = bitdepth = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nFourCC = bitdepth = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_RawFormat(handle_, out nFourCC, out bitdepth));
     }
     
@@ -1605,9 +1662,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_RealTime(out int val)
     {
-        val = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            val = 0;
             return false;
+        }
         
         return CheckHResult(Ogmacam_get_RealTime(handle_, out val));
     }
@@ -1628,9 +1687,11 @@ internal class Ogmacam : IDisposable
     */
     public bool get_AutoExpoEnable(out int bAutoExposure)
     {
-        bAutoExposure = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            bAutoExposure = 0;
             return false;
+        }
         
         return CheckHResult(Ogmacam_get_AutoExpoEnable(handle_, out bAutoExposure));
     }
@@ -1665,9 +1726,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_AutoExpoTarget(out ushort Target)
     {
-        Target = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Target = AETARGET_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_AutoExpoTarget(handle_, out Target));
     }
     
@@ -1687,10 +1750,12 @@ internal class Ogmacam : IDisposable
     
     public bool get_AutoExpoRange(out uint maxTime, out uint minTime, out ushort maxGain, out ushort minGain)
     {
-        maxTime = minTime = 0;
-        maxGain = minGain = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            maxTime = minTime = 0;
+            maxGain = minGain = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_AutoExpoRange(handle_, out maxTime, out minTime, out maxGain, out minGain));
     }
     
@@ -1703,10 +1768,12 @@ internal class Ogmacam : IDisposable
     
     public bool get_MaxAutoExpoTimeAGain(out uint maxTime, out ushort maxGain)
     {
-        maxTime = 0;
-        maxGain = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            maxTime = 0;
+            maxGain = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_MaxAutoExpoTimeAGain(handle_, out maxTime, out maxGain));
     }
     
@@ -1719,18 +1786,22 @@ internal class Ogmacam : IDisposable
     
     public bool get_MinAutoExpoTimeAGain(out uint minTime, out ushort minGain)
     {
-        minTime = 0;
-        minGain = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            minTime = 0;
+            minGain = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_MinAutoExpoTimeAGain(handle_, out minTime, out minGain));
     }
     
     public bool get_ExpoTime(out uint Time)/* in microseconds */
     {
-        Time = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Time = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_ExpoTime(handle_, out Time));
     }
     
@@ -1743,17 +1814,21 @@ internal class Ogmacam : IDisposable
     
     public bool get_ExpTimeRange(out uint nMin, out uint nMax, out uint nDef)
     {
-        nMin = nMax = nDef = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nMin = nMax = nDef = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_ExpTimeRange(handle_, out nMin, out nMax, out nDef));
     }
     
     public bool get_ExpoAGain(out ushort Gain)/* percent, such as 300 */
     {
-        Gain = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Gain = EXPOGAIN_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_ExpoAGain(handle_, out Gain));
     }
     
@@ -1766,9 +1841,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_ExpoAGainRange(out ushort nMin, out ushort nMax, out ushort nDef)
     {
-        nMin = nMax = nDef = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nMin = nMax = nDef = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_ExpoAGainRange(handle_, out nMin, out nMax, out nDef));
     }
     
@@ -1831,9 +1908,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_Hue(out int Hue)
     {
-        Hue = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Hue = HUE_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Hue(handle_, out Hue));
     }
     
@@ -1846,9 +1925,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_Saturation(out int Saturation)
     {
-        Saturation = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Saturation = SATURATION_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Saturation(handle_, out Saturation));
     }
     
@@ -1861,17 +1942,21 @@ internal class Ogmacam : IDisposable
     
     public bool get_Brightness(out int Brightness)
     {
-        Brightness = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Brightness = BRIGHTNESS_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Brightness(handle_, out Brightness));
     }
     
     public bool get_Contrast(out int Contrast)
     {
-        Contrast = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Contrast = CONTRAST_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Contrast(handle_, out Contrast));
     }
     
@@ -1884,9 +1969,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_Gamma(out int Gamma)
     {
-        Gamma = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            Gamma = GAMMA_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Gamma(handle_, out Gamma));
     }
     
@@ -1992,9 +2079,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_Speed(out ushort pSpeed)
     {
-        pSpeed = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            pSpeed = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Speed(handle_, out pSpeed));
     }
     
@@ -2012,9 +2101,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_HZ(out int nHZ)
     {
-        nHZ = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nHZ = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_HZ(handle_, out nHZ));
     }
     
@@ -2050,9 +2141,12 @@ internal class Ogmacam : IDisposable
     /* White Balance, Temp/Tint mode */
     public bool get_TempTint(out int nTemp, out int nTint)
     {
-        nTemp = nTint = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nTemp = TEMP_DEF;
+            nTint = TINT_DEF;
             return false;
+        }
         return CheckHResult(Ogmacam_get_TempTint(handle_, out nTemp, out nTint));
     }
     
@@ -2222,9 +2316,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_VignetAmountInt(out int nAmount)
     {
-        nAmount = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nAmount = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_VignetAmountInt(handle_, out nAmount));
     }
     
@@ -2237,9 +2333,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_VignetMidPointInt(out int nMidPoint)
     {
-        nMidPoint = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nMidPoint = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_VignetMidPointInt(handle_, out nMidPoint));
     }
     
@@ -2353,9 +2451,11 @@ internal class Ogmacam : IDisposable
     
     public bool get_Option(eOPTION iOption, out int iValue)
     {
-        iValue = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            iValue = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Option(handle_, iOption, out iValue));
     }
     
@@ -2394,9 +2494,11 @@ internal class Ogmacam : IDisposable
     /* get the temperature of the sensor, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius) */
     public bool get_Temperature(out short pTemperature)
     {
-        pTemperature = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            pTemperature = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_Temperature(handle_, out pTemperature));
     }
     
@@ -2429,9 +2531,11 @@ internal class Ogmacam : IDisposable
     */
     public bool get_FrameRate(out uint nFrame, out uint nTime, out uint nTotalFrame)
     {
-        nFrame = nTime = nTotalFrame = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            nFrame = nTime = nTotalFrame = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_get_FrameRate(handle_, out nFrame, out nTime, out nTotalFrame));
     }
     
@@ -2549,9 +2653,11 @@ internal class Ogmacam : IDisposable
 
     public bool AAF(eAAF action, int outVal, out int inVal)
     {
-        inVal = 0;
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+        {
+            inVal = 0;
             return false;
+        }
         return CheckHResult(Ogmacam_AAF(handle_, action, outVal, out inVal));
     }
 
@@ -2743,6 +2849,22 @@ internal class Ogmacam : IDisposable
     public static ModelV2 getModel(ushort idVendor, ushort idProduct)
     {
         return toModelV2(Ogmacam_get_Model(idVendor, idProduct));
+    }
+    
+    public static int Gain2TempTint(int[] gain, out int temp, out int tint)
+    {
+        if (gain.Length != 3)
+        {
+            temp = TEMP_DEF;
+            tint = TINT_DEF;
+            return E_INVALIDARG;
+        }
+        return Ogmacam_Gain2TempTint(gain, out temp, out tint);
+    }
+    
+    public static void TempTint2Gain(int temp, int tint, int[] gain)
+    {
+        Ogmacam_TempTint2Gain(temp, tint, gain);
     }
 
     public static ModelV2[] allModel()
@@ -3035,6 +3157,12 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_PullImageV3(SafeCamHandle h, ushort[] pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_WaitImageV3(SafeCamHandle h, uint nWaitMS, IntPtr pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_WaitImageV3(SafeCamHandle h, uint nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_WaitImageV3(SafeCamHandle h, uint nWaitMS, ushort[] pImageData, int bStill, int bits, int rowPitch, out FrameInfoV3 pInfo);   
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_PullImage(SafeCamHandle h, IntPtr pImageData, int bits, out uint pnWidth, out uint pnHeight);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_PullImage(SafeCamHandle h, byte[] pImageData, int bits, out uint pnWidth, out uint pnHeight);
@@ -3256,7 +3384,7 @@ internal class Ogmacam : IDisposable
     private static extern uint Ogmacam_get_MaxSpeed(SafeCamHandle h);/* get the maximum speed, "Frame Speed Level", speed range = [0, max] */
     
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern uint Ogmacam_get_MaxBitDepth(SafeCamHandle h);/* get the max bit depth of this camera, such as 8, 10, 12, 14, 16 */
+    private static extern uint Ogmacam_get_MaxBitDepth(SafeCamHandle h);/* get the max bitdepth of this camera, such as 8, 10, 12, 14, 16 */
     
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern uint Ogmacam_get_FanMaxSpeed(SafeCamHandle h);/* get the maximum fan speed, the fan speed range = [0, max], closed interval */
@@ -3446,4 +3574,9 @@ internal class Ogmacam : IDisposable
     private static extern IntPtr Ogmacam_get_Model(ushort idVendor, ushort idProduct);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern IntPtr Ogmacam_all_Model();
+    
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_Gain2TempTint(int[] gain, out int temp, out int tint);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern void Ogmacam_TempTint2Gain(int temp, int tint, [Out] int[] gain);
 }

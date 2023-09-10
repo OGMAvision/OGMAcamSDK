@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 54.22913.20230709
+'    Version: 54.23312.20230910
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -65,13 +65,16 @@ Friend Class Ogmacam
         FLAG_LOW_NOISE = &H10000000000            ' support low noise mode (Higher signal noise ratio, lower frame rate)
         FLAG_LEVELRANGE_HARDWARE = &H20000000000  ' hardware level range, put(get)_LevelRangeV2
         FLAG_EVENT_HARDWARE = &H40000000000       ' hardware event, such as exposure start & stop
-        FLAG_LIGHTSOURCE = &H80000000000          ' light source
+        FLAG_LIGHTSOURCE = &H80000000000          ' embedded light source
         FLAG_FILTERWHEEL = &H100000000000         ' astro filter wheel
         FLAG_GIGE = &H200000000000                ' 1 Gigabit GigE
         FLAG_10GIGE = &H400000000000              ' 10 Gigabit GigE
         FLAG_5GIGE = &H800000000000               ' 5 Gigabit GigE
         FLAG_25GIGE = &H1000000000000             ' 2.5 Gigabit GigE
         FLAG_AUTOFOCUSER = &H2000000000000        ' astro auto focuser
+        FLAG_LIGHT_SOURCE = &H4000000000000       ' stand alone light source
+        FLAG_CAMERALINK = &H8000000000000         ' camera link
+        FLAG_CXP = &H10000000000000               ' CXP: CoaXPress
     End Enum
 
     Public Enum eEVENT As UInteger
@@ -106,7 +109,7 @@ Friend Class Ogmacam
     Public Enum eOPTION As UInteger
         OPTION_NOFRAME_TIMEOUT = &H1               ' no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable
         OPTION_THREAD_PRIORITY = &H2               ' set the priority of the internal thread which grab data from the usb device.
-                                                   '   Win: iValue: 0 = THREAD_PRIORITY_NORMAL; 1 = THREAD_PRIORITY_ABOVE_NORMAL; 2 = THREAD_PRIORITY_HIGHEST; 3 = THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
+                                                   '   Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
                                                    '   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
                                                    '
         OPTION_RAW = &H4                           ' raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0
@@ -137,7 +140,7 @@ Friend Class Ogmacam
         OPTION_BINNING = &H17                      ' binning
                                                    '     0x01: (no binning)
                                                    '     n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
-                                                   '     0x40 | n: (unsaturated add in RAW mode, n*n), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
+                                                   '     0x40 | n: (unsaturated add, n*n, works only in RAW moden), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
                                                    '     0x80 | n: (average, n*n), 0x82(2*2), 0x83(3*3), 0x84(4*4), 0x85(5*5), 0x86(6*6), 0x87(7*7), 0x88(8*8). The Bitdepth of the data remains unchanged.
                                                    ' The final image size is rounded down to an even number, such as 640/3 to get 212
                                                    '
@@ -283,15 +286,14 @@ Friend Class Ogmacam
                                                    '         low 16 bits: min
         OPTION_HIGH_FULLWELL = &H55                ' high fullwell capacity: 0 => disable, 1 => enable
         OPTION_DYNAMIC_DEFECT = &H56               ' dynamic defect pixel correction:
-                                                   ' threshold:
-                                                   '         t1 (high 16 bits): [1, 100]
-                                                   '         t2 (low 16 bits): [0, 100]
+                                                   '         threshold, t1: (high 16 bits): [10, 100], means: [1.0, 10.0]
+                                                   '         value, t2: (low 16 bits): [0, 100], means: [0.00, 1.00]
         OPTION_HDR_KB = &H57                       ' HDR synthesize
                                                    '         K (high 16 bits): [1, 25500]
                                                    '         B (low 16 bits): [0, 65535]
                                                    '         0xffffffff => set to default
         OPTION_HDR_THRESHOLD = &H58                ' HDR synthesize
-                                                   '         threshold: [1, 4095]
+                                                   '         threshold: [1, 4094]
                                                    '         0xffffffff => set to default
         OPTION_GIGETIMEOUT = &H5A                  ' For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
                                                    ' If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
@@ -304,6 +306,13 @@ Friend Class Ogmacam
         OPTION_OVERCLOCK_MAX = &H5C                ' get overclock range: [0, max]
         OPTION_OVERCLOCK = &H5D                    ' overclock, default: 0
         OPTION_RESET_SENSOR = &H5E                 ' reset sensor
+        OPTION_ADC = &H08000000                    ' Analog-Digital Conversion:
+                                                   '    get:
+                                                   '        (option | 'C'): get the current value
+                                                   '        (option | 'N'): get the supported ADC number
+                                                   '        (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
+                                                   '    set: val = ADC value, such as 11bits, 12bits, etc
+        OPTION_ISP = &H5F                          ' Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
     End Enum
 
     ' HRESULT: Error code
@@ -353,11 +362,11 @@ Friend Class Ogmacam
     Public Const WBGAIN_MIN               = -127     ' white balance gain
     Public Const WBGAIN_MAX               = 127      ' white balance gain
     Public Const BLACKLEVEL_MIN           = 0        ' minimum black level
-    Public Const BLACKLEVEL8_MAX          = 31       ' maximum black level For bit depth = 8
-    Public Const BLACKLEVEL10_MAX         = 31 * 4   ' maximum black level For bit depth = 10
-    Public Const BLACKLEVEL12_MAX         = 31 * 16  ' maximum black level For bit depth = 12
-    Public Const BLACKLEVEL14_MAX         = 31 * 64  ' maximum black level For bit depth = 14
-    Public Const BLACKLEVEL16_MAX         = 31 * 256 ' maximum black level For bit depth = 16
+    Public Const BLACKLEVEL8_MAX          = 31       ' maximum black level For bitdepth = 8
+    Public Const BLACKLEVEL10_MAX         = 31 * 4   ' maximum black level For bitdepth = 10
+    Public Const BLACKLEVEL12_MAX         = 31 * 16  ' maximum black level For bitdepth = 12
+    Public Const BLACKLEVEL14_MAX         = 31 * 64  ' maximum black level For bitdepth = 14
+    Public Const BLACKLEVEL16_MAX         = 31 * 256 ' maximum black level For bitdepth = 16
     Public Const SHARPENING_STRENGTH_DEF  = 0        ' sharpening strength
     Public Const SHARPENING_STRENGTH_MIN  = 0        ' sharpening strength
     Public Const SHARPENING_STRENGTH_MAX  = 500      ' sharpening strength
@@ -377,7 +386,7 @@ Friend Class Ogmacam
     Public Const DENOISE_MIN              = 0        ' denoise
     Public Const DENOISE_MAX              = 100      ' denoise
     Public Const TEC_TARGET_MIN           = -500     ' TEC target: -50.0 degrees Celsius
-    Public Const TEC_TARGET_DEF           = 0        ' 0.0 degrees Celsius
+    Public Const TEC_TARGET_DEF           = 100      ' 0.0 degrees Celsius
     Public Const TEC_TARGET_MAX           = 400      ' TEC target: 40.0 degrees Celsius
     Public Const HEARTBEAT_MIN            = 100      ' millisecond
     Public Const HEARTBEAT_MAX            = 10000    ' millisecond
@@ -386,11 +395,11 @@ Friend Class Ogmacam
     Public Const AE_PERCENT_DEF           = 10
     Public Const NOPACKET_TIMEOUT_MIN     = 500      ' no packet timeout minimum: 500ms
     Public Const NOFRAME_TIMEOUT_MIN      = 500      ' no frame timeout minimum: 500ms
-    Public Const DYNAMIC_DEFECT_T1_MIN    = 10       ' dynamic defect pixel correction
-    Public Const DYNAMIC_DEFECT_T1_MAX    = 100
-    Public Const DYNAMIC_DEFECT_T1_DEF    = 13
-    Public Const DYNAMIC_DEFECT_T2_MIN    = 0
-    Public Const DYNAMIC_DEFECT_T2_MAX    = 100
+    Public Const DYNAMIC_DEFECT_T1_MIN    = 10       ' dynamic defect pixel correction, threshold, means: 1.0
+    Public Const DYNAMIC_DEFECT_T1_MAX    = 100      ' means: 10.0
+    Public Const DYNAMIC_DEFECT_T1_DEF    = 13       ' means: 1.3
+    Public Const DYNAMIC_DEFECT_T2_MIN    = 0        ' dynamic defect pixel correction, value, means: 0.00
+    Public Const DYNAMIC_DEFECT_T2_MAX    = 100      ' means: 1.00
     Public Const DYNAMIC_DEFECT_T2_DEF    = 100
     Public Const HDR_K_MIN                = 1        ' HDR synthesize
     Public Const HDR_K_MAX                = 25500
@@ -497,6 +506,7 @@ Friend Class Ogmacam
         IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE = &H36
         IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE = &H37    ' Output Counter Value, range: [0 ~ 65535]
         IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE = &H38
+        IOCONTROLTYPE_SET_OUTPUT_PAUSE = &H3A          ' Output pause: 1 => puase, 0 => unpause
     End Enum
 
     ' AAF: Astro Auto Focuser
@@ -547,8 +557,8 @@ Friend Class Ogmacam
         Public still As UInteger        ' number of still resolution, same as get_StillResolutionNumber()
         Public maxfanspeed As UInteger  ' maximum fan speed, fan speed range = [0, max], closed interval
         Public ioctrol As UInteger      ' number of input/output control
-        Public xpixsz As Single         ' physical pixel size
-        Public ypixsz As Single         ' physical pixel size
+        Public xpixsz As Single         ' physical pixel size in micrometer
+        Public ypixsz As Single         ' physical pixel size in micrometer
         Public res As Resolution()
     End Structure
     Public Structure DeviceV2
@@ -616,7 +626,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 54.22913.20230709
+    ' get the version of this dll, which is: 54.23312.20230910
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -735,7 +745,7 @@ Friend Class Ogmacam
         End Get
     End Property
 
-    ' get the max bit depth of this camera, such as 8, 10, 12, 14, 16
+    ' get the max bitdepth of this camera, such as 8, 10, 12, 14, 16
     Public ReadOnly Property MaxBitDepth() As UInteger
         Get
             If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
@@ -891,7 +901,6 @@ Friend Class Ogmacam
     '  bits: 24 (RGB24), 32 (RGB32), 8 (Grey), 16 (Grey), 48(RGB48), 64(RGB64)
     Public Function PullImage(pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -900,7 +909,6 @@ Friend Class Ogmacam
 
     Public Function PullImage(pImageData As Byte(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -909,7 +917,6 @@ Friend Class Ogmacam
 
     Public Function PullImage(pImageData As UShort(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -918,8 +925,6 @@ Friend Class Ogmacam
 
     Public Function PullImageV2(pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-            pInfo.timestamp = 0
             Return False
         End If
 
@@ -928,8 +933,6 @@ Friend Class Ogmacam
 
     Public Function PullImageV2(pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-            pInfo.timestamp = 0
             Return False
         End If
 
@@ -938,8 +941,6 @@ Friend Class Ogmacam
 
     Public Function PullImageV2(pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-            pInfo.timestamp = 0
             Return False
         End If
 
@@ -949,7 +950,6 @@ Friend Class Ogmacam
     ' bits: 24 (RGB24), 32 (RGB32), 8 (Grey), 16 (Grey), 48(RGB48), 64(RGB64)
     Public Function PullStillImage(pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -958,7 +958,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImage(pImageData As Byte(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -967,7 +966,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImage(pImageData As UShort(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -976,8 +974,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageV2(pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-            pInfo.timestamp = 0
             Return False
         End If
 
@@ -986,8 +982,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageV2(pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-            pInfo.timestamp = 0
             Return False
         End If
 
@@ -996,14 +990,14 @@ Friend Class Ogmacam
 
     Public Function PullStillImageV2(pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-            pInfo.timestamp = 0
             Return False
         End If
 
         Return CheckHResult(Ogmacam_PullStillImageV2(handle_, pImageData, bits, pInfo))
     End Function
 
+    ' nWaitMS: The timeout interval, in milliseconds. If a non-zero value is specified, the function either successfully fetches the image or waits for a timeout.
+    '          If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImageV3.
     ' bStill: to pull still image, set to 1, otherwise 0
     ' bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
     '       In RAW mode, this parameter is ignored.
@@ -1024,7 +1018,7 @@ Friend Class Ogmacam
     '         | bits = 8           | Convert to 8  |       NA      | Convert to 8  |       8       |       NA      |       NA      |
     '         |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
     '         | bits = 16          |      NA       | Convert to 16 |       NA      |       NA      |       16      | Convert to 16 |
-    '         |--------------------|---------------|-----------|-------------------|---------------|---------------|---------------|
+    '         |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
     '         | bits = 64          |      NA       | Convert to 64 |       NA      |       NA      | Convert to 64 |       64      |
     '         |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
     '
@@ -1045,7 +1039,6 @@ Friend Class Ogmacam
     '
     Public Function PullImageV3(pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1054,7 +1047,6 @@ Friend Class Ogmacam
 
     Public Function PullImageV3(pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1063,16 +1055,38 @@ Friend Class Ogmacam
 
     Public Function PullImageV3(pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
         Return CheckHResult(Ogmacam_PullImageV3(handle_, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
+    Public Function WaitImageV3(nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function WaitImageV3(nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function WaitImageV3(nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
     Public Function PullImageWithRowPitch(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -1081,7 +1095,6 @@ Friend Class Ogmacam
 
     Public Function PullImageWithRowPitch(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -1090,7 +1103,6 @@ Friend Class Ogmacam
 
     Public Function PullImageWithRowPitch(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -1099,7 +1111,6 @@ Friend Class Ogmacam
 
     Public Function PullImageWithRowPitchV2(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1108,7 +1119,6 @@ Friend Class Ogmacam
 
     Public Function PullImageWithRowPitchV2(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1117,7 +1127,6 @@ Friend Class Ogmacam
 
     Public Function PullImageWithRowPitchV2(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1126,7 +1135,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageWithRowPitch(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -1135,7 +1143,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageWithRowPitch(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -1144,7 +1151,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageWithRowPitch(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            pnWidth = pnHeight = 0
             Return False
         End If
 
@@ -1153,7 +1159,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageWithRowPitchV2(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1162,7 +1167,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageWithRowPitchV2(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1171,7 +1175,6 @@ Friend Class Ogmacam
 
     Public Function PullStillImageWithRowPitchV2(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1261,7 +1264,6 @@ Friend Class Ogmacam
     '
     Public Function TriggerSync(nTimeout As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1270,7 +1272,6 @@ Friend Class Ogmacam
 
     Public Function TriggerSync(nTimeout As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1279,7 +1280,6 @@ Friend Class Ogmacam
 
     Public Function TriggerSync(nTimeout As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            zeroInfo(pInfo)
             Return False
         End If
 
@@ -1318,7 +1318,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_eSize(ByRef nResolutionIndex As UInteger) As Boolean
-        nResolutionIndex = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1329,7 +1328,6 @@ Friend Class Ogmacam
     ' final size after ROI, rotate, binning
     '
     Public Function get_FinalSize(ByRef nWidth As Integer, ByRef nHeight As Integer) As Boolean
-        nWidth = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1337,7 +1335,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Resolution(nResolutionIndex As UInteger, ByRef pWidth As Integer, ByRef pHeight As Integer) As Boolean
-        pWidth = pHeight = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1348,7 +1345,6 @@ Friend Class Ogmacam
     ' get the sensor pixel size, such as: 2.4um x 2.4um
     '
     Public Function get_PixelSize(nResolutionIndex As UInteger, ByRef x As Single, ByRef y As Single) As Boolean
-        x = y = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1359,7 +1355,6 @@ Friend Class Ogmacam
     ' numerator/denominator, such as: 1/1, 1/2, 1/3
     '
     Public Function get_ResolutionRatio(nResolutionIndex As UInteger, ByRef pNumerator As Integer, ByRef pDenominator As Integer) As Boolean
-        pNumerator = pDenominator = 1
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1381,7 +1376,6 @@ Friend Class Ogmacam
     '     MAKEFOURCC('R', 'G', 'B', '8'), RGB888
     '
     Public Function get_RawFormat(ByRef nFourCC As UInteger, ByRef bitdepth As UInteger) As Boolean
-        nFourCC = bitdepth = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1404,7 +1398,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_RealTime(ByRef val As Integer) As Boolean
-        val = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1426,7 +1419,6 @@ Friend Class Ogmacam
     '   2: auto exposure once mode
     '
     Public Function get_AutoExpoEnable(ByRef bAutoExposure As Integer) As Boolean
-        bAutoExposure = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1441,7 +1433,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_AutoExpoEnable(ByRef bAutoExposure As Boolean) As Boolean
-        bAutoExposure = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1463,7 +1454,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_AutoExpoTarget(ByRef Target As UShort) As Boolean
-        Target = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1485,8 +1475,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_AutoExpoRange(ByRef maxTime As UInteger, ByRef minTime As UInteger, ByRef maxGain As UShort, ByRef minGain As UShort) As Boolean
-        minTime = 0
-        minGain = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1501,8 +1489,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_MaxAutoExpoTimeAGain(ByRef maxTime As UInteger, ByRef maxGain As UShort) As Boolean
-        maxTime = 0
-        maxGain = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1517,8 +1503,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_MinAutoExpoTimeAGain(ByRef minTime As UInteger, ByRef minGain As UShort) As Boolean
-        minTime = 0
-        minGain = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1527,7 +1511,6 @@ Friend Class Ogmacam
 
     Public Function get_ExpoTime(ByRef Time As UInteger) As Boolean
         ' in microseconds
-        Time = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1543,7 +1526,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_ExpTimeRange(ByRef nMin As UInteger, ByRef nMax As UInteger, ByRef nDef As UInteger) As Boolean
-        nMin = nMax = nDef = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1552,7 +1534,6 @@ Friend Class Ogmacam
 
     Public Function get_ExpoAGain(ByRef Gain As UShort) As Boolean
         ' percent, such as 300
-        Gain = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1568,7 +1549,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_ExpoAGainRange(ByRef nMin As UShort, ByRef nMax As UShort, ByRef nDef As UShort) As Boolean
-        nMin = nMax = nDef = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1611,8 +1591,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_LevelRangeV2(mode As UShort, ByRef roiX As Integer, ByRef roiY As Integer, ByRef roiWidth As Integer, ByRef roiHeight As Integer, aLow As UShort(), aHigh As UShort()) As Boolean
-        mode = 0
-        roiX = roiY = roiWidth = roiHeight = 0
         If aLow.Length <> 4 OrElse aHigh.Length <> 4 Then
             Return False
         End If
@@ -1640,7 +1618,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Hue(ByRef Hue As Integer) As Boolean
-        Hue = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1655,7 +1632,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Saturation(ByRef Saturation As Integer) As Boolean
-        Saturation = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1670,7 +1646,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Brightness(ByRef Brightness As Integer) As Boolean
-        Brightness = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1678,7 +1653,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Contrast(ByRef Contrast As Integer) As Boolean
-        Contrast = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1693,7 +1667,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Gamma(ByRef Gamma As Integer) As Boolean
-        Gamma = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1709,7 +1682,6 @@ Friend Class Ogmacam
 
     Public Function get_Chrome(ByRef bChrome As Boolean) As Boolean
         ' monochromatic mode
-        bChrome = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1732,7 +1704,6 @@ Friend Class Ogmacam
 
     Public Function get_VFlip(ByRef bVFlip As Boolean) As Boolean
         ' vertical flip
-        bVFlip = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1754,7 +1725,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_HFlip(ByRef bHFlip As Boolean) As Boolean
-        bHFlip = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1778,7 +1748,6 @@ Friend Class Ogmacam
 
     ' negative film
     Public Function get_Negative(ByRef bNegative As Boolean) As Boolean
-        bNegative = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1808,7 +1777,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Speed(ByRef pSpeed As UShort) As Boolean
-        pSpeed = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1823,7 +1791,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_HZ(ByRef nHZ As Integer) As Boolean
-        nHZ = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1839,7 +1806,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Mode(ByRef bSkip As Boolean) As Boolean
-        bSkip = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1863,7 +1829,6 @@ Friend Class Ogmacam
 
     ' White Balance, Temp/Tint mode
     Public Function get_TempTint(ByRef nTemp As Integer, ByRef nTint As Integer) As Boolean
-        nTemp = nTint = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1906,7 +1871,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_AWBAuxRect(ByRef X As Integer, ByRef Y As Integer, ByRef Width As Integer, ByRef Height As Integer) As Boolean
-        X = Y = Width = Height = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1957,7 +1921,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_ABBAuxRect(ByRef X As Integer, ByRef Y As Integer, ByRef Width As Integer, ByRef Height As Integer) As Boolean
-        X = Y = Width = Height = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1988,7 +1951,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_AEAuxRect(ByRef X As Integer, ByRef Y As Integer, ByRef Width As Integer, ByRef Height As Integer) As Boolean
-        X = Y = Width = Height = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2006,7 +1968,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_StillResolution(nResolutionIndex As UInteger, ByRef pWidth As Integer, ByRef pHeight As Integer) As Boolean
-        pWidth = pHeight = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2021,7 +1982,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_VignetEnable(ByRef bEnable As Boolean) As Boolean
-        bEnable = False
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2043,7 +2003,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_VignetAmountInt(ByRef nAmount As Integer) As Boolean
-        nAmount = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2058,7 +2017,6 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_VignetMidPointInt(ByRef nMidPoint As Integer) As Boolean
-        nMidPoint = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2179,8 +2137,8 @@ Friend Class Ogmacam
     End Function
 
     Public Function get_Option(iOption As eOPTION, ByRef iValue As Integer) As Boolean
-        iValue = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            iValue = 0
             Return False
         End If
         Return CheckHResult(Ogmacam_get_Option(handle_, iOption, iValue))
@@ -2222,7 +2180,6 @@ Friend Class Ogmacam
 
     ' get the temperature of the sensor, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)
     Public Function get_Temperature(ByRef pTemperature As Short) As Boolean
-        pTemperature = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2257,7 +2214,6 @@ Friend Class Ogmacam
 
     ' get the frame rate: framerate (fps) = Frame * 1000.0 / nTime
     Public Function get_FrameRate(ByRef nFrame As UInteger, ByRef nTime As UInteger, ByRef nTotalFrame As UInteger) As Boolean
-        nFrame = nTime = nTotalFrame = 0
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -2485,6 +2441,17 @@ Friend Class Ogmacam
         Return a.ToArray()
     End Function
 
+    Public Shared Function Gain2TempTint(gain As Integer(), ByRef temp As Integer, ByRef tint As Integer) As Integer
+        If gain.Length <> 3 Then
+            Return E_INVALIDARG
+        End If
+        Return Ogmacam_Gain2TempTint(gain, temp, tint)
+    End Function
+
+    Public Shared Sub TempTint2Gain(temp As Integer, tint As Integer, gain As Integer())
+        Ogmacam_TempTint2Gain(temp, tint, gain)
+    End Sub
+
     Public Shared Function HResult2String(ByVal hResult As Integer) As String
         Select Case (hResult)
             Case S_OK
@@ -2689,17 +2656,6 @@ Friend Class Ogmacam
         End If
     End Sub
 
-    Private Shared Sub zeroInfo(ByRef pInfo As FrameInfoV3)
-        pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = pInfo.shutterseq = pInfo.expotime = 0
-        pInfo.expogain = pInfo.blacklevel = 0
-        pInfo.timestamp = 0
-    End Sub
-
-    Private Shared Sub zeroInfo(ByRef pInfo As FrameInfoV2)
-        pInfo.width = pInfo.height = pInfo.flag = pInfo.seq = 0
-        pInfo.timestamp = 0
-    End Sub
-
 #If Not (NETFX_CORE OrElse NETCOREAPP OrElse WINDOWS_UWP) Then
     Private Class SafeCamHandle
         Inherits SafeHandleZeroOrMinusOneIsInvalid
@@ -2793,6 +2749,15 @@ Friend Class Ogmacam
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_PullImageV3(h As SafeCamHandle, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_WaitImageV3(h As SafeCamHandle, nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_WaitImageV3(h As SafeCamHandle, nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_WaitImageV3(h As SafeCamHandle, nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_PullImage(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
@@ -3369,4 +3334,11 @@ Friend Class Ogmacam
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_all_Model() As IntPtr
     End Function
+
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_Gain2TempTint(gain As Integer(), ByRef temp As Integer, ByRef tint As Integer) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Sub Ogmacam_TempTint2Gain(temp As Integer, tint As Integer, gain As Integer())
+    End Sub
 End Class

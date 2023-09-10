@@ -127,6 +127,7 @@ IMAGEPRO_API(void) imagepro_stitch_start(HImageproStitch handle);
 IMAGEPRO_API(void*) imagepro_stitch_stop(HImageproStitch handle, int normal, int crop);
 IMAGEPRO_API(void) imagepro_stitch_readdata(HImageproStitch handle, void* data, int w, int h, int roix = 0, int roiy = 0, int roiw = 0, int roih = 0);
 IMAGEPRO_API(HRESULT) imagepro_stitch_pull(HImageproStitch handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo);
+IMAGEPRO_API(HRESULT) imagepro_stitch_pullV3(HImageproStitch handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV3* pInfo);
 #endif
 
 enum eImageproEdfMethod {
@@ -158,6 +159,7 @@ IMAGEPRO_API(void) imagepro_edf_start(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_stop(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_readdata(HImageproEdf handle, void* data, int stride);
 IMAGEPRO_API(HRESULT) imagepro_edf_pull(HImageproEdf handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo);
+IMAGEPRO_API(HRESULT) imagepro_edf_pullV3(HImageproEdf handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV3* pInfo);
 #endif
 
 #define IMAGEPRO_LIVESTACK_NUM_MIN 1
@@ -166,24 +168,24 @@ IMAGEPRO_API(HRESULT) imagepro_edf_pull(HImageproEdf handle, HOgmacam h, int bFe
 
 typedef struct { unsigned unused; } *HLivestack;
 typedef enum {
-	eImageproLivestackErrorNONE,
-	eImageproLivestackErrorEVALFAIL,
-	eImageproLivestackErrorNOENOUGHSTARS,
-	eImageproLivestackErrorNOENOUGHMATCHES
+    eImageproLivestackErrorNONE,
+    eImageproLivestackErrorEVALFAIL,
+    eImageproLivestackErrorNOENOUGHSTARS,
+    eImageproLivestackErrorNOENOUGHMATCHES
 } eImageproLivestackError;
 
 typedef void (*IMAGEPRO_LIVESTACK_CALLBACK)(void* ctx, int width, int height, int type, eImageproLivestackError err, void* data);
 
 typedef enum {
-	eImageproLivestackModeNONE,
-	eImageproLivestackModeSTACK,
-	eImageproLivestackModeMEAN
+    eImageproLivestackModeNONE,
+    eImageproLivestackModeSTACK,
+    eImageproLivestackModeMEAN
 } eImageproLivestackMode;
 
 typedef enum {
-	eImageproLivestackTypeNONE,
-	eImageproLivestackTypePLANET,
-	eImageproLivestackTypeDEEPSKY
+    eImageproLivestackTypeNONE,
+    eImageproLivestackTypePLANET,
+    eImageproLivestackTypeDEEPSKY
 } eImageproLivestackType;
 
 IMAGEPRO_API(HLivestack) imagepro_livestack_new(eImageproLivestackMode mode, eImageproLivestackType type, IMAGEPRO_LIVESTACK_CALLBACK pfun, void* ctx);

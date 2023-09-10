@@ -17,5 +17,3 @@ protected:
 private:
 	void UpdateSnapRes();
 };
-
-

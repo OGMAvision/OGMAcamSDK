@@ -3,7 +3,7 @@ Signature="$WINDOWS NT$"
 Class=Image
 ClassGuid={6bdd1fc6-810f-11d0-bec7-08002be2092f}
 provider=%MFG%
-DriverVer=07/09/2023,1.0.0.22913
+DriverVer=08/20/2023,1.0.0.23207
 CatalogFile=ogmacam.cat
 
 [Manufacturer]

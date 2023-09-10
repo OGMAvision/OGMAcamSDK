@@ -1,7 +1,6 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-#include <QMainWindow>
 #include <QPushButton>
 #include <QComboBox>
 #include <QLabel>
@@ -10,13 +9,13 @@
 #include <QSlider>
 #include <QString>
 #include <QGroupBox>
-#include <QBoxLayout>
+#include <QGridLayout>
 #include <QVBoxLayout>
 #include <QMenu>
 #include <QMessageBox>
 #include <ogmacam.h>
 
-class MainWindow : public QMainWindow
+class MainWidget : public QWidget
 {
     Q_OBJECT
     OgmacamDeviceV2 m_cur;
@@ -45,7 +44,7 @@ class MainWindow : public QMainWindow
     int             m_tint;
     unsigned        m_count;
 public:
-    MainWindow(QWidget* parent = nullptr);
+    MainWidget(QWidget* parent = nullptr);
 protected:
     void closeEvent(QCloseEvent*) override;
 signals:

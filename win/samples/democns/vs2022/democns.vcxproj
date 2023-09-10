@@ -120,6 +120,15 @@
   <ItemGroup>
     <ResourceCompile Include="..\democns.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\hand1.cur" />
+    <None Include="..\hand2.cur" />
+    <None Include="..\move.cur" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\main.ico" />
+    <Image Include="..\toolbar.bmp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

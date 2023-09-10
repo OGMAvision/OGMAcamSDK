@@ -4,8 +4,6 @@ class CSettingPropertySheet;
 class CAutoTestDlg : public CDialog
 {
 	CComboBox m_camList;
-	CString m_camID;
-	CString m_camName;
 	DWORD m_dwHeartbeat;
 	BITMAPINFOHEADER m_header;
 	void* m_pImageData;

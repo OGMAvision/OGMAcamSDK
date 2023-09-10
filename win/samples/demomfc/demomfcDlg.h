@@ -5,6 +5,7 @@ class CdemomfcDlg : public CDialog
 	HOgmacam			m_hcam;
 	void*				m_pImageData;
 	BITMAPINFOHEADER	m_header;
+	CRectTracker		m_rectTracker;
 public:
 	CdemomfcDlg(CWnd* pParent = NULL);
 
@@ -23,6 +24,8 @@ public:
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void OnDestroy();
 	afx_msg LRESULT OnMsgCamevent(WPARAM wp, LPARAM lp);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 private:
 	void StartDevice();
 	void OnEventError();
@@ -31,4 +34,7 @@ private:
 	void OnEventExpo();
 	void OnEventTempTint();
 	void OnEventStillImage();
+	CRect GetDrawRect();
+	void GetAEAuxRect();
+	void SetAEAuxRect();
 };

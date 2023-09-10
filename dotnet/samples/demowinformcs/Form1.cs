@@ -179,9 +179,9 @@ namespace demowinformcs
             }
         }
 
-        private void startDevice(string id)
+        private void startDevice(string camId)
         {
-            cam_ = Ogmacam.Open(id);
+            cam_ = Ogmacam.Open(camId);
             if (cam_ != null)
             {
                 checkBox1.Enabled = true;

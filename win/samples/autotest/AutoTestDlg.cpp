@@ -252,7 +252,7 @@ void CAutoTestDlg::EnumCamera()
 	for (int i = 0; i < g_cameraCnt; ++i)
 	{
 		m_camList.AddString(g_cam[i].displayname);
-		if (0 == m_camID.Compare(g_cam[i].id))
+		if (0 == wcscmp(g_cur.id, g_cam[i].id))
 			index = i;
 	}
 
@@ -281,14 +281,13 @@ void CAutoTestDlg::OnBnClickedButtonStart()
 		if (g_cameraCnt <= 0)
 			return;
 
-		m_camID = g_cam[m_camList.GetCurSel()].id;
-		m_camName = g_cam[m_camList.GetCurSel()].displayname;
-		g_hcam = Ogmacam_Open(m_camID);
+		g_cur = g_cam[m_camList.GetCurSel()];
+		g_hcam = Ogmacam_Open(g_cur.id);
 		if (nullptr == g_hcam)
 			return;
 
 		m_dwHeartbeat = 0;
-		if (g_HeartbeatTimeout && (g_cam[m_camList.GetCurSel()].model->flag & OGMACAM_FLAG_EVENT_HARDWARE))
+		if (g_HeartbeatTimeout && (g_cur.model->flag & OGMACAM_FLAG_EVENT_HARDWARE))
 		{
 			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_EVENT_HARDWARE, 1);
 			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_EVENT_HARDWARE | OGMACAM_EVENT_HEARTBEAT, 1);
@@ -338,6 +337,7 @@ void CAutoTestDlg::CloseCamera()
 		Ogmacam_Close(g_hcam);
 		g_hcam = nullptr;
 	}
+	memset(&g_cur, 0, sizeof(g_cur));
 
 	if (m_pImageData)
 	{

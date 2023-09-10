@@ -1,157 +1,157 @@
 #include <QApplication>
 #include "demoqt.h"
 
-MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent)
-    , m_hcam(nullptr), m_count(0)
+MainWidget::MainWidget(QWidget* parent)
+    : QWidget(parent)
+    , m_hcam(nullptr)
     , m_timer(new QTimer(this))
     , m_imgWidth(0), m_imgHeight(0), m_pData(nullptr)
-    , m_res(0), m_temp(OGMACAM_TEMP_DEF), m_tint(OGMACAM_TINT_DEF)
+    , m_res(0), m_temp(OGMACAM_TEMP_DEF), m_tint(OGMACAM_TINT_DEF), m_count(0)
 {
-    setMinimumSize(1024, 768);
+    setMinimumSize(1024, 768);    
 
-    QGroupBox* gbox_res = new QGroupBox("Resolution");
-    m_cmb_res = new QComboBox();
-    m_cmb_res->setEnabled(false);
-    QVBoxLayout* vlyt_res = new QVBoxLayout();
-    vlyt_res->addWidget(m_cmb_res);
-    gbox_res->setLayout(vlyt_res);
-    connect(m_cmb_res, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index)
+    QGridLayout* gmain = new QGridLayout();
+
+    QGroupBox* gboxres = new QGroupBox("Resolution");
     {
-        if (m_hcam) //step 1: stop camera
-            Ogmacam_Stop(m_hcam);
-
-        m_res = index;
-        m_imgWidth = m_cur.model->res[index].width;
-        m_imgHeight = m_cur.model->res[index].height;
-
-        if (m_hcam) //step 2: restart camera
+        m_cmb_res = new QComboBox();
+        m_cmb_res->setEnabled(false);
+        connect(m_cmb_res, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index)
         {
-            Ogmacam_put_eSize(m_hcam, static_cast<unsigned>(m_res));
-            startCamera();
-        }
-    });
+            if (m_hcam) //step 1: stop camera
+                Ogmacam_Stop(m_hcam);
 
-    QGroupBox* gbox_exp = new QGroupBox("Exposure");
-    m_cbox_auto = new QCheckBox();
-    m_cbox_auto->setEnabled(false);
-    QLabel* lbl_auto = new QLabel("Auto exposure");
-    QHBoxLayout* hlyt_auto = new QHBoxLayout();
-    hlyt_auto->addWidget(m_cbox_auto);
-    hlyt_auto->addWidget(lbl_auto);
-    hlyt_auto->addStretch();
-    QLabel* lbl_time = new QLabel("Time(us):");
-    QLabel* lbl_gain = new QLabel("Gain(%):");
-    m_lbl_expoTime = new QLabel("0");
-    m_lbl_expoGain = new QLabel("0");
-    m_slider_expoTime = new QSlider(Qt::Horizontal);
-    m_slider_expoGain = new QSlider(Qt::Horizontal);
-    m_slider_expoTime->setEnabled(false);
-    m_slider_expoGain->setEnabled(false);
-    QVBoxLayout* vlyt_exp = new QVBoxLayout();
-    vlyt_exp->addLayout(hlyt_auto);
-    vlyt_exp->addLayout(makeLayout(lbl_time, m_slider_expoTime, m_lbl_expoTime, lbl_gain, m_slider_expoGain, m_lbl_expoGain));
-    gbox_exp->setLayout(vlyt_exp);
-    connect(m_cbox_auto, &QCheckBox::stateChanged, this, [this](bool state)
+            m_res = index;
+            m_imgWidth = m_cur.model->res[index].width;
+            m_imgHeight = m_cur.model->res[index].height;
+
+            if (m_hcam) //step 2: restart camera
+            {
+                Ogmacam_put_eSize(m_hcam, static_cast<unsigned>(m_res));
+                startCamera();
+            }
+        });
+
+        QVBoxLayout* v = new QVBoxLayout();
+        v->addWidget(m_cmb_res);
+        gboxres->setLayout(v);
+    }
+
+    QGroupBox* gboxexp = new QGroupBox("Exposure");
     {
-        if (m_hcam)
+        m_cbox_auto = new QCheckBox("Auto exposure");
+        m_cbox_auto->setEnabled(false);
+        m_lbl_expoTime = new QLabel("0");
+        m_lbl_expoGain = new QLabel("0");
+        m_slider_expoTime = new QSlider(Qt::Horizontal);
+        m_slider_expoGain = new QSlider(Qt::Horizontal);
+        m_slider_expoTime->setEnabled(false);
+        m_slider_expoGain->setEnabled(false);
+        connect(m_cbox_auto, &QCheckBox::stateChanged, this, [this](bool state)
         {
-            Ogmacam_put_AutoExpoEnable(m_hcam, state ? 1 : 0);
-            m_slider_expoTime->setEnabled(!state);
-            m_slider_expoGain->setEnabled(!state);
-        }
-    });
-    connect(m_slider_expoTime, &QSlider::valueChanged, this, [this](int value)
-    {
-        if (m_hcam)
+            if (m_hcam)
+            {
+                Ogmacam_put_AutoExpoEnable(m_hcam, state ? 1 : 0);
+                m_slider_expoTime->setEnabled(!state);
+                m_slider_expoGain->setEnabled(!state);
+            }
+        });
+        connect(m_slider_expoTime, &QSlider::valueChanged, this, [this](int value)
         {
-            m_lbl_expoTime->setText(QString::number(value));
-            if (!m_cbox_auto->isChecked())
-               Ogmacam_put_ExpoTime(m_hcam, value);
-        }
-    });
-    connect(m_slider_expoGain, &QSlider::valueChanged, this, [this](int value)
-    {
-        if (m_hcam)
+            if (m_hcam)
+            {
+                m_lbl_expoTime->setText(QString::number(value));
+                if (!m_cbox_auto->isChecked())
+                   Ogmacam_put_ExpoTime(m_hcam, value);
+            }
+        });
+        connect(m_slider_expoGain, &QSlider::valueChanged, this, [this](int value)
         {
-            m_lbl_expoGain->setText(QString::number(value));
-            if (!m_cbox_auto->isChecked())
-                Ogmacam_put_ExpoAGain(m_hcam, value);
-        }
-    });
+            if (m_hcam)
+            {
+                m_lbl_expoGain->setText(QString::number(value));
+                if (!m_cbox_auto->isChecked())
+                    Ogmacam_put_ExpoAGain(m_hcam, value);
+            }
+        });
 
-    QGroupBox* gbox_wb = new QGroupBox("White balance");
-    m_btn_autoWB = new QPushButton("White balance");
-    m_btn_autoWB->setEnabled(false);
-    connect(m_btn_autoWB, &QPushButton::clicked, this, [this]()
+        QVBoxLayout* v = new QVBoxLayout();
+        v->addWidget(m_cbox_auto);
+        v->addLayout(makeLayout(new QLabel("Time(us):"), m_slider_expoTime, m_lbl_expoTime, new QLabel("Gain(%):"), m_slider_expoGain, m_lbl_expoGain));
+        gboxexp->setLayout(v);
+    }
+
+    QGroupBox* gboxwb = new QGroupBox("White balance");
     {
-        Ogmacam_AwbOnce(m_hcam, nullptr, nullptr);
-    });
-    QLabel* lbl_temp = new QLabel("Temperature:");
-    QLabel* lbl_tint = new QLabel("Tint:");
-    m_lbl_temp = new QLabel(QString::number(OGMACAM_TEMP_DEF));
-    m_lbl_tint = new QLabel(QString::number(OGMACAM_TINT_DEF));
-    m_slider_temp = new QSlider(Qt::Horizontal);
-    m_slider_tint = new QSlider(Qt::Horizontal);
-    m_slider_temp->setRange(OGMACAM_TEMP_MIN, OGMACAM_TEMP_MAX);
-    m_slider_temp->setValue(OGMACAM_TEMP_DEF);
-    m_slider_tint->setRange(OGMACAM_TINT_MIN, OGMACAM_TINT_MAX);
-    m_slider_tint->setValue(OGMACAM_TINT_DEF);
-    m_slider_temp->setEnabled(false);
-    m_slider_tint->setEnabled(false);
-    QVBoxLayout* vlyt_wb = new QVBoxLayout();
-    vlyt_wb->addLayout(makeLayout(lbl_temp, m_slider_temp, m_lbl_temp, lbl_tint, m_slider_tint, m_lbl_tint));
-    vlyt_wb->addWidget(m_btn_autoWB);
-    gbox_wb->setLayout(vlyt_wb);
-    connect(m_slider_temp, &QSlider::valueChanged, this, [this](int value)
+        m_btn_autoWB = new QPushButton("White balance");
+        m_btn_autoWB->setEnabled(false);
+        connect(m_btn_autoWB, &QPushButton::clicked, this, [this]()
+        {
+            Ogmacam_AwbOnce(m_hcam, nullptr, nullptr);
+        });
+        m_lbl_temp = new QLabel(QString::number(OGMACAM_TEMP_DEF));
+        m_lbl_tint = new QLabel(QString::number(OGMACAM_TINT_DEF));
+        m_slider_temp = new QSlider(Qt::Horizontal);
+        m_slider_tint = new QSlider(Qt::Horizontal);
+        m_slider_temp->setRange(OGMACAM_TEMP_MIN, OGMACAM_TEMP_MAX);
+        m_slider_temp->setValue(OGMACAM_TEMP_DEF);
+        m_slider_tint->setRange(OGMACAM_TINT_MIN, OGMACAM_TINT_MAX);
+        m_slider_tint->setValue(OGMACAM_TINT_DEF);
+        m_slider_temp->setEnabled(false);
+        m_slider_tint->setEnabled(false);
+        connect(m_slider_temp, &QSlider::valueChanged, this, [this](int value)
+        {
+            m_temp = value;
+            if (m_hcam)
+                Ogmacam_put_TempTint(m_hcam, m_temp, m_tint);
+            m_lbl_temp->setText(QString::number(value));
+        });
+        connect(m_slider_tint, &QSlider::valueChanged, this, [this](int value)
+        {
+            m_tint = value;
+            if (m_hcam)
+                Ogmacam_put_TempTint(m_hcam, m_temp, m_tint);
+            m_lbl_tint->setText(QString::number(value));
+        });
+
+        QVBoxLayout* v = new QVBoxLayout();
+        v->addLayout(makeLayout(new QLabel("Temperature:"), m_slider_temp, m_lbl_temp, new QLabel("Tint:"), m_slider_tint, m_lbl_tint));
+        v->addWidget(m_btn_autoWB);
+        gboxwb->setLayout(v);
+    }
+
     {
-        m_temp = value;
-        if (m_hcam)
-            Ogmacam_put_TempTint(m_hcam, m_temp, m_tint);
-        m_lbl_temp->setText(QString::number(value));
-    });
-    connect(m_slider_tint, &QSlider::valueChanged, this, [this](int value)
+        m_btn_open = new QPushButton("Open");
+        connect(m_btn_open, &QPushButton::clicked, this, &MainWidget::onBtnOpen);
+        m_btn_snap = new QPushButton("Snap");
+        m_btn_snap->setEnabled(false);
+        connect(m_btn_snap, &QPushButton::clicked, this, &MainWidget::onBtnSnap);
+
+        QVBoxLayout* v = new QVBoxLayout();
+        v->addWidget(gboxres);
+        v->addWidget(gboxexp);
+        v->addWidget(gboxwb);
+        v->addWidget(m_btn_open);
+        v->addWidget(m_btn_snap);
+        v->addStretch();
+        gmain->addLayout(v, 0, 0);
+    }
+
     {
-        m_tint = value;
-        if (m_hcam)
-            Ogmacam_put_TempTint(m_hcam, m_temp, m_tint);
-        m_lbl_tint->setText(QString::number(value));
-    });
+        m_lbl_frame = new QLabel();
+        m_lbl_video = new QLabel();
 
-    m_btn_open = new QPushButton("Open");
-    connect(m_btn_open, &QPushButton::clicked, this, &MainWindow::onBtnOpen);
-    m_btn_snap = new QPushButton("Snap");
-    m_btn_snap->setEnabled(false);
-    connect(m_btn_snap, &QPushButton::clicked, this, &MainWindow::onBtnSnap);
+        QVBoxLayout* v = new QVBoxLayout();
+        v->addWidget(m_lbl_video, 1);
+        v->addWidget(m_lbl_frame);
+        gmain->addLayout(v, 0, 1);
+    }
 
-    QVBoxLayout* vlyt_ctrl = new QVBoxLayout();
-    vlyt_ctrl->addWidget(gbox_res);
-    vlyt_ctrl->addWidget(gbox_exp);
-    vlyt_ctrl->addWidget(gbox_wb);
-    vlyt_ctrl->addWidget(m_btn_open);
-    vlyt_ctrl->addWidget(m_btn_snap);
-    vlyt_ctrl->addStretch();
-    QWidget* wg_ctrl = new QWidget();
-    wg_ctrl->setLayout(vlyt_ctrl);
+    gmain->setColumnStretch(0, 1);
+    gmain->setColumnStretch(1, 4);
+    setLayout(gmain);
 
-    m_lbl_frame = new QLabel();
-    m_lbl_video = new QLabel();
-    QVBoxLayout* vlyt_show = new QVBoxLayout();
-    vlyt_show->addWidget(m_lbl_video, 1);
-    vlyt_show->addWidget(m_lbl_frame);
-    QWidget* wg_show = new QWidget();
-    wg_show->setLayout(vlyt_show);
-
-    QGridLayout* grid_main = new QGridLayout();
-    grid_main->setColumnStretch(0, 1);
-    grid_main->setColumnStretch(1, 4);
-    grid_main->addWidget(wg_ctrl);
-    grid_main->addWidget(wg_show);
-    QWidget* w_main = new QWidget();
-    w_main->setLayout(grid_main);
-    setCentralWidget(w_main);
-
-    connect(this, &MainWindow::evtCallback, this, [this](unsigned nEvent)
+    connect(this, &MainWidget::evtCallback, this, [this](unsigned nEvent)
     {
         /* this run in the UI thread */
         if (m_hcam)
@@ -185,7 +185,7 @@ MainWindow::MainWindow(QWidget* parent)
     });
 }
 
-void MainWindow::closeCamera()
+void MainWidget::closeCamera()
 {
     if (m_hcam)
     {
@@ -209,12 +209,12 @@ void MainWindow::closeCamera()
     m_cmb_res->clear();
 }
 
-void MainWindow::closeEvent(QCloseEvent*)
+void MainWidget::closeEvent(QCloseEvent*)
 {
     closeCamera();
 }
 
-void MainWindow::startCamera()
+void MainWidget::startCamera()
 {
     if (m_pData)
     {
@@ -235,7 +235,7 @@ void MainWindow::startCamera()
     {
         m_cmb_res->setEnabled(true);
         m_cbox_auto->setEnabled(true);
-        m_btn_autoWB->setEnabled(true);
+        m_btn_autoWB->setEnabled(0 == (m_cur.model->flag & OGMACAM_FLAG_MONO));
         m_slider_temp->setEnabled(0 == (m_cur.model->flag & OGMACAM_FLAG_MONO));
         m_slider_tint->setEnabled(0 == (m_cur.model->flag & OGMACAM_FLAG_MONO));
         m_btn_open->setText("Close");
@@ -254,7 +254,7 @@ void MainWindow::startCamera()
     }
 }
 
-void MainWindow::openCamera()
+void MainWidget::openCamera()
 {
     m_hcam = Ogmacam_Open(m_cur.id);
     if (m_hcam)
@@ -277,7 +277,7 @@ void MainWindow::openCamera()
     }
 }
 
-void MainWindow::onBtnOpen()
+void MainWidget::onBtnOpen()
 {
     if (m_hcam)
         closeCamera();
@@ -314,7 +314,7 @@ void MainWindow::onBtnOpen()
     }
 }
 
-void MainWindow::onBtnSnap()
+void MainWidget::onBtnSnap()
 {
     if (m_hcam)
     {
@@ -341,13 +341,13 @@ void MainWindow::onBtnSnap()
     }
 }
 
-void MainWindow::eventCallBack(unsigned nEvent, void* pCallbackCtx)
+void MainWidget::eventCallBack(unsigned nEvent, void* pCallbackCtx)
 {
-    MainWindow* pThis = reinterpret_cast<MainWindow*>(pCallbackCtx);
+    MainWidget* pThis = reinterpret_cast<MainWidget*>(pCallbackCtx);
     emit pThis->evtCallback(nEvent);
 }
 
-void MainWindow::handleImageEvent()
+void MainWidget::handleImageEvent()
 {
     unsigned width = 0, height = 0;
     if (SUCCEEDED(Ogmacam_PullImage(m_hcam, m_pData, 24, &width, &height)))
@@ -358,7 +358,7 @@ void MainWindow::handleImageEvent()
     }
 }
 
-void MainWindow::handleExpoEvent()
+void MainWidget::handleExpoEvent()
 {
     unsigned time = 0;
     unsigned short gain = 0;
@@ -376,7 +376,7 @@ void MainWindow::handleExpoEvent()
     m_lbl_expoGain->setText(QString::number(gain));
 }
 
-void MainWindow::handleTempTintEvent()
+void MainWidget::handleTempTintEvent()
 {
     int nTemp = 0, nTint = 0;
     if (SUCCEEDED(Ogmacam_get_TempTint(m_hcam, &nTemp, &nTint)))
@@ -394,7 +394,7 @@ void MainWindow::handleTempTintEvent()
     }
 }
 
-void MainWindow::handleStillImageEvent()
+void MainWidget::handleStillImageEvent()
 {
     unsigned width = 0, height = 0;
     if (SUCCEEDED(Ogmacam_PullStillImage(m_hcam, nullptr, 24, &width, &height))) // peek
@@ -402,34 +402,35 @@ void MainWindow::handleStillImageEvent()
         std::vector<uchar> vec(TDIBWIDTHBYTES(width * 24) * height);
         if (SUCCEEDED(Ogmacam_PullStillImage(m_hcam, &vec[0], 24, &width, &height)))
         {
-			QImage image(&vec[0], width, height, QImage::Format_RGB888);
-			image.save(QString::asprintf("demoqt_%u.jpg", ++m_count));
-		}
+            QImage image(&vec[0], width, height, QImage::Format_RGB888);
+            image.save(QString::asprintf("demoqt_%u.jpg", ++m_count));
+        }
     }
 }
 
-QVBoxLayout* MainWindow::makeLayout(QLabel* lbl_1, QSlider* sli_1, QLabel* val_1, QLabel* lbl_2, QSlider* sli_2, QLabel* val_2)
+QVBoxLayout* MainWidget::makeLayout(QLabel* lbl1, QSlider* sli1, QLabel* val1, QLabel* lbl2, QSlider* sli2, QLabel* val2)
 {
-    QHBoxLayout* hlyt_1 = new QHBoxLayout();
-    hlyt_1->addWidget(lbl_1);
-    hlyt_1->addStretch();
-    hlyt_1->addWidget(val_1);
-    QHBoxLayout* hlyt_2 = new QHBoxLayout();
-    hlyt_2->addWidget(lbl_2);
-    hlyt_2->addStretch();
-    hlyt_2->addWidget(val_2);
+    QHBoxLayout* hlyt1 = new QHBoxLayout();
+    hlyt1->addWidget(lbl1);
+    hlyt1->addStretch();
+    hlyt1->addWidget(val1);
+    QHBoxLayout* hlyt2 = new QHBoxLayout();
+    hlyt2->addWidget(lbl2);
+    hlyt2->addStretch();
+    hlyt2->addWidget(val2);
     QVBoxLayout* vlyt = new QVBoxLayout();
-    vlyt->addLayout(hlyt_1);
-    vlyt->addWidget(sli_1);
-    vlyt->addLayout(hlyt_2);
-    vlyt->addWidget(sli_2);
+    vlyt->addLayout(hlyt1);
+    vlyt->addWidget(sli1);
+    vlyt->addLayout(hlyt2);
+    vlyt->addWidget(sli2);
     return vlyt;
 }
 
 int main(int argc, char* argv[])
 {
+    Ogmacam_GigeEnable(nullptr, nullptr);
     QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
+    MainWidget mw;
+    mw.show();
     return a.exec();
 }

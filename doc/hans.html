@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:54.22913.20230709</li></ul>
+<ul><li>版本:54.23312.20230910</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -112,7 +112,7 @@
     <blockquote>***Linux区分平台的简便方法, 在目标平台执行file /bin/ls. 以下为某树莓派下的结果, 可以看出属于armhf:
     <table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>$ file /bin/ls
 /bin/ls: ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-<strong>armhf</strong>.so.3, for GNU/Linux 3.2.0, BuildID[sha1]=67a394390830ea3ab4e83b5811c66fea9784ee69, stripped</pre></td></tr></table>
-另外一个例子, 可以看出属于x64:
+另外一个示例, 可以看出属于x64:
     <table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>$ file /bin/ls
 /bin/ls: ELF 64-bit LSB executable, <strong>x86-64</strong>, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=c8ada1f7095f6b2bb7ddc848e088c2d615c3743e, stripped</pre></td></tr></table>
     </blockquote>
@@ -378,7 +378,7 @@
 	  <tr>
         <td>E_UNEXPECTED</td>
         <td>Catastrophic failure (灾难性故障)</td>
-		<td>&nbsp;</td>
+		<td>一般表示条件不符合, 如相机运行状态时调用put_Option设置某些不支持运行时修改的选项等等</td>
 		<td>0x8000ffff</td>
 	  </tr>
 	  <tr>
@@ -437,7 +437,8 @@
 	  <strong>由于执行以下操作时必须等待回调函数返回, 回调函数上下文有以下限制:<br/>
 	  (a)不要在回调函数上下文调用Ogmacam_Stop或Ogmacam_Close函数, 否则, 会死锁.<br/>
 	  (b)<a id="wrongthread1">不要在回调函数上下文调用Ogmacam_put_Option设置OGMACAM_OPTION_TRIGGER, OGMACAM_OPTION_BITDEPTH, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_OPTION_BINNING, OGMACAM_OPTION_ROTATE, 否则返回E_WRONG_THREAD.</a><br/>
-	  (c)<a id="wrongthread2">不要在回调函数上下文调用Ogmacam_put_Roi, 否则返回E_WRONG_THREAD.</a></strong>
+	  (c)<a id="wrongthread2">不要在回调函数上下文调用Ogmacam_put_Roi, 否则返回E_WRONG_THREAD.</a><br/>
+	  (d)如果执行以上操作时和回调函数时试图获取同一把锁, 会永远导致等待回调结束, 死锁</strong>
 </li></ul>
 <ul><li><h2><a id="cord"><font color="#0000FF">坐标</font></a></h2>
 <p>类似Ogmacam_put_Roi, Ogmacam_put_AEAuxRect等等这类带有坐标参数的, 其坐标<strong>永远是相对原始分辨率而言</strong>的, 即使视频已经执行过旋转, Flip, ROI, 数字Binning或它们的任意组合.</p>
@@ -467,6 +468,9 @@ typedef struct{
     unsigned           preview;  /* number of preview resolution, Ogmacam_get_ResolutionNumber */
     unsigned           still;    /* number of still resolution, Ogmacam_get_StillResolutionNumber */
     unsigned           maxfanspeed; /* maximum fan speed */
+    unsigned           ioctrol;     /* number of input/output control */
+    float              xpixsz;      /* physical pixel size in micrometer */
+    float              ypixsz;      /* physical pixel size in micrometer */
     OgmacamResolution  res[OGMACAM_MAX];
 }OgmacamModelV2;
 </pre></td></tr>
@@ -478,7 +482,7 @@ typedef struct{
    <td colspan="2">型号名称</td>
    </tr>
  <tr>
-   <td width="8%" rowspan="50">flag</td>
+   <td width="8%" rowspan="53">flag</td>
    <td colspan="2">位标记 (Bitwise flag)</td>
    </tr>
  <tr>
@@ -652,14 +656,6 @@ typedef struct{
     <td>支持硬件Level range</td>
   </tr>
   <tr>
-    <td>OGMACAM_FLAG_LIGHTSOURCE</td>
-    <td>支持光源控制</td>
-  </tr>
-  <tr>
-    <td>OGMACAM_FLAG_FILTERWHEEL</td>
-    <td>天文滤镜轮</td>
-  </tr>
-  <tr>
     <td>OGMACAM_FLAG_GIGE</td>
     <td>1 Gigabit GigE</td>
   </tr>
@@ -676,8 +672,28 @@ typedef struct{
     <td>2.5 Gigabit GigE</td>
   </tr>
   <tr>
+    <td>OGMACAM_FLAG_CAMERALINK</td>
+    <td>camera link</td>
+  </tr>
+  <tr>
+    <td>OGMACAM_FLAG_CXP</td>
+    <td>CXP: CoaXPress</td>
+  </tr>
+  <tr>
+    <td>OGMACAM_FLAG_FILTERWHEEL</td>
+    <td>天文滤镜轮</td>
+  </tr>
+  <tr>
     <td>OGMACAM_FLAG_AUTOFOCUSER</td>
     <td>天文电调焦</td>
+  </tr>
+  <tr>
+    <td>OGMACAM_FLAG_LIGHTSOURCE</td>
+    <td>嵌入式光源控制</td>
+  </tr>
+  <tr>
+    <td>OGMACAM_FLAG_LIGHT_SOURCE</td>
+    <td>独立式光源</td>
   </tr>
  <tr>
    <td width="8%">maxspeed</td>
@@ -690,6 +706,14 @@ typedef struct{
  <tr>
    <td width="8%">still</td>
    <td colspan="2">静态抓拍分辨率个数, 0表示不支持静态抓拍. 和函数Ogmacam_get_StillResolutionNumber返回值相同</td>
+   </tr>
+ <tr>
+   <td width="8%">ioctrol</td>
+   <td colspan="2">IO控制的数目</td>
+   </tr>
+ <tr>
+   <td width="8%">xpixsz<br/>ypixsz</td>
+   <td colspan="2">物理像元大小(微米), 见Ogmacam_get_PixelSize</td>
    </tr>
   <tr>
    <td width="8%">res</td>
@@ -826,12 +850,13 @@ for (UsbDevice usbDevice : deviceList.values()) {
     </blockquote>
     <p><strong>说明：</strong>很明显, Ogmacam_StartPullModeWithWndMsg只支持Windows系统</p>
 </li></ul>
-<ul><li><h2><font color="#0000FF"><a id="infov2">Ogmacam_PullImageV3<br/>Ogmacam_PullImageV2<br/>Ogmacam_PullStillImageV2<br/>Ogmacam_PullImageWithRowPitchV2<br/>Ogmacam_PullStillImageWithRowPitchV2</a><br/>
+<ul><li><h2><font color="#0000FF"><a id="infov2">Ogmacam_PullImageV3<br/>Ogmacam_WaitImageV3<br/>Ogmacam_PullImageV2<br/>Ogmacam_PullStillImageV2<br/>Ogmacam_PullImageWithRowPitchV2<br/>Ogmacam_PullStillImageWithRowPitchV2</a><br/>
 Ogmacam_PullImage<br/>Ogmacam_PullStillImage<br/><a id="rowpitch1">Ogmacam_PullImageWithRowPitch</a><br/><a id="rowpitch2">Ogmacam_PullStillImageWithRowPitch</a></font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败, <strong>不存在图像可供获取时返回E_PENDING</strong></p>
       <p><strong>参数：</strong></p>
   <blockquote>
     <p>HOgmacam h：相机实例句柄</p>
+	<p>nWaitMS: 超时值(毫秒). 如果指定非零值, 则该函数或者成功获取图像或者等待超时. 如果nWaitMS为零, 则没有图像可供获取时, 函数不会等待; 它总是立即返回; 相当于Ogmacam_PullImageV3.</p>
     <p>void* pImageData：数据缓冲区. 用户应用程序必须确保改缓冲区足够大以容纳图像数据. 缓冲区大小必须 &gt;= rowPitch * nHeight</p>
     <p>int bStill: 静态图像填1, 其它填0</p>
     <p>int bits：图像颜色位数, 支持24, 32, 48, 8, 16和64, 分别代表RGB24, RGB32, RGB48, 8位灰度, 16位灰度, RGB64图像. bits = 0表示使用基于<a href="#rgb">OGMACAM_OPTION_RGB</a>的默认值. 本参数在RAW模式下没有意义, 被忽略</p>
@@ -1007,7 +1032,7 @@ typedef struct {
       <p>HOgmacam h：相机实例句柄</p>
       <p>unsigned short nNumber: 0xffff(一直触发),0(取消触发), 其他值(触发图片的张数)</p>
     </blockquote>
-  <p><strong>说明：</strong>触发模式下, 调用本函数进行软件触发. 触发成功之后, 如果是Push Mode, 则通过OGMACAM_EVENT_IMAGE通知. 如果是Push Mode则通过POGMACAM_DATA_CALLBACK_V4/V3回调函数返回, 其中回调函数的参数BOOL bSnap设为FALSE.</p>
+  <p><strong>说明：</strong>触发模式下, 调用本函数进行软件触发. 触发成功之后, 如果是Pull Mode, 则通过OGMACAM_EVENT_IMAGE通知. 如果是Push Mode则通过POGMACAM_DATA_CALLBACK_V4/V3回调函数返回, 其中回调函数的参数BOOL bSnap设为FALSE.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_Size<br/>Ogmacam_get_Size<br/>Ogmacam_put_eSize<br/>Ogmacam_get_eSize</font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
@@ -1081,7 +1106,7 @@ typedef struct {
   <blockquote>
     <p>HOgmacam h：相机实例句柄</p>
     <p>unsigned* pFourCC：格式类型, 见下表</p>
-    <p>unsigned* pBitsPerPixel：bit depth, 如8, 10, 12, 14, 16</p>
+    <p>unsigned* pBitsPerPixel：bitdepth, 如8, 10, 12, 14, 16</p>
 <div align="center"><table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0">
   <tr>
    <td>#ifndef MAKEFOURCC<br/>
@@ -1145,9 +1170,16 @@ typedef struct {
 		<td>0</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr>
+      <tr>
+        <td><a id="rawo">OGMACAM_OPTION_ISP</a></td>
+        <td>启用/禁用硬件ISP:<br/>
+          0 =&gt; 自动 (RAW模式时禁用, 其它启用)<br/>1 =&gt; 启用<br/>-1 =&gt; 禁用</td>
+		<td>0(自动)</td>
+		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
+      </tr>
 	  <tr>
 	  	<td>OGMACAM_OPTION_BITDEPTH</td>
-		<td>一些型号的相机支持大于8Bits的位深度(Bit Depth), 如10,12,14,16等.<br/>
+		<td>一些型号的相机支持大于8Bits的位深度(bitdepth), 如10,12,14,16等.<br/>
 		  0表示使用8Bits位深度.<br/>1表示使用本相机支持的最高位深度</td>
 		<td>型号特定</td>
 		<td>是<br/>(相对比较“重型”的操作, 不建议在相机处于运行状态时太频繁修改)</td>
@@ -1249,7 +1281,7 @@ typedef struct {
       	<td>数字binning:<br/><br/>
 					0x01 (无binning)<br/><br/>
                     n: (饱和加法, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). 数据的Bitdepth保持不变.<br/><br/>
-                    0x40 | n: (<a href="#rawo">RAW</a>模式下非饱和加法, n*n), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). 数据的Bitdepth增加, 如Bitdepth为12的原始数据2*2 Binning之后Bitdepth增加2位变成14.<br/><br/>
+                    0x40 | n: (非饱和加法, n*n, 只在<a href="#rawo">RAW</a>模式下支持), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). 数据的Bitdepth增加, 如Bitdepth为12的原始数据2*2 Binning之后Bitdepth增加2位变成14.<br/><br/>
                     0x80 | n: (平均, n*n), 0x82(2*2), 0x83(3*3), 0x84(4*4), 0x85(5*5), 0x86(6*6), 0x87(7*7), 0x88(8*8). 数据的Bitdepth保持不变.<br/><br/>
                     最终图像尺寸向下圆整到偶数, 如640/3得到212</td>
       	<td>1</td>
@@ -1576,14 +1608,14 @@ typedef struct {
       </tr>
       <tr>
         <td>OGMACAM_OPTION_HDR_THRESHOLD</td>
-        <td>HDR合成<br/>阈值: [1, 4095]<br/>0xffffffff => 设置为默认值</td>
+        <td>HDR合成<br/>阈值: [1, 4094]<br/>0xffffffff => 设置为默认值</td>
 		<td>型号特定</td>
 		<td>是</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_DYNAMIC_DEFECT</td>
-        <td>动态坏点校正:<br/>阈值:<br/>t1(高16位): [10, 100]<br/>t2(低16位): [0, 100]</td>
-		<td>不启用(t1=0, t2=0)</td>
+        <td>动态坏点校正:<br/>阈值, t1(高16位): [10, 100], 表示[1.0, 10.0]<br/>值, t2: (低16位): [0, 100], 表示[0.00, 1.00]</td>
+		<td>不启用(t1=10, t2=0)</td>
 		<td>是</td>
       </tr>
       <tr>
@@ -1608,6 +1640,19 @@ typedef struct {
         <td>OGMACAM_OPTION_RESET_SENSOR</td>
         <td>传感器复位</td>
 		<td>NA</td>
+		<td>是</td>
+      </tr>
+	  <tr>
+        <td>OGMACAM_OPTION_ADC</td>
+        <td>ADC位数:<br/>
+			获取:<br/>
+				<blockquote>(option | 'C'): 获取当前ADC数<br/>
+                            (option | 'N'): 获取支持的ADC数目<br/>
+                            (option | n): 获取第n条支持的ADC数, 如11bits, 12bits, 等等<br/>
+				</blockquote>
+			设置: val = ADC数, 如11bits, 12bits, 等等
+		</td>
+		<td>型号特定<br/>(第0条为默认值)</td>
 		<td>是</td>
       </tr>
       <tr>
@@ -1975,7 +2020,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>说明：</strong>是否单色相机, 对应OgmacamModelV2的flag: OGMACAM_FLAG_MONO</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_MaxBitDepth</font></h2>
-    <p><strong>返回值：</strong>相机支持的最大位深度(Bit Depth)</p>
+    <p><strong>返回值：</strong>相机支持的最大位深度(bitdepth)</p>
     <p><strong>参数：</strong>HOgmacam h：相机实例句柄</p>
     <p><strong>说明：</strong>有些型号的相机支持比8bits更大的位深度, 如10, 12, 14, 16等.</p>
 </li></ul>
@@ -2000,7 +2045,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p>char pdate[10]: 存放生产日期的缓冲区. 如: 20150327</p>
 	<p>unsigned short pRevision: revision</p>
   </blockquote>
-  <p><strong>说明：</strong>每个相机都有一个唯一的31位的序列号.</p>
+  <p><strong>说明：</strong>每个相机都有一个唯一的31位的序列号(少量型号的相机只能在开启相机之后才能获取序列号).</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_PixelSize</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
@@ -2266,6 +2311,10 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
  <tr>
    <td>OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE</td>
  </tr>
+  <tr>
+   <td>OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE</td>
+   <td>输出暂停: 1 =&gt; 暂停, 0 =&gt; 继续</td>
+ </tr>
     </table>
   </div>
   </blockquote>
@@ -2529,7 +2578,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 </li></ul>
 <hr/><h1><font color="#0000FF"><a id="dotnet">5. .NET(C#和VB.NET)</a></font></h1><hr/>
 <p>Ogmacam支持.NET开发环境(C#和VB.NET).</p>
-<p>ogmacam.cs使用P/Invoke调用至ogmacam.dll. 把ogmacam.cs拷贝到你的C#工程中使用, 请参考例子代码.</p>
+<p>ogmacam.cs使用P/Invoke调用至ogmacam.dll. 把ogmacam.cs拷贝到你的C#工程中使用, 请参考示例代码.</p>
 <p>请主意<strong>Ogmacam C#包装类的实例通过静态方法Open或者OpenByIndex得到, 而不是通常的obj = new Ogmacam</strong>(构造函数特意是私有的).</p>
 <p>绝大多数Ogmacam类的方法和属性都P/Invoke调用至ogmacam.dll/so中对应的原生C/C++ Ogmacam_xxx函数. 所以, 关于Ogmacam_xxx的文档说明都适用于C#中对应的属性或方法, 比如, C#中的Snap方法调用Ogmacam_Snap函数, 关于Ogmacam_Snap函数的说明同样适用于C# Ogmacam类的Snap方法：</p>
 <table width="100%" border="0" bgcolor="#B0D0B0">
@@ -2544,13 +2593,13 @@ public bool Snap(uint nResolutionIndex)
 }</pre></td></tr></table>
 <p>VB.NET和C#是类似的, 不另说明.</p>
 <hr/><h1><font color="#0000FF"><a id="python">6. Python</a></font></h1><hr/>
-<p>Ogmacam支持Python(版本3.0及以上)开发, 请import ogmacam导入ogmacam.py, 参考例子代码simplest.py和qt.py.</p>
+<p>Ogmacam支持Python(版本3.0及以上)开发, 请import ogmacam导入ogmacam.py, 参考示例代码simplest.py和qt.py.</p>
 <p>请注意<strong>ogmacam.Ogmacam python包装类的实例通过类方法(classmethod)Open或者OpenByIndex得到, 而不是通常的obj = ogmacam.Ogmacam()</strong>.</p>
 <p>绝大多数Ogmacam类的方法都通过ctypes调用至ogmacam.dll/so/dylib中对应的原生C/C++ Ogmacam_xxx函数. 所以, 关于Ogmacam_xxx的文档说明都适用于python中的对应方法.</p>
 <p>参见ogmacam.py中的__errcheck, 原始的HRESULT返回值被映射成HRESULTException异常(win32平台从OSError继承).</p>
 <p>ogmacam dll/so/dylib库文件请和ogmacam.py存放在同一目录.</p>
 <hr/><h1><font color="#0000FF"><a id="java">7. Java</a></font></h1><hr/>
-<p>Ogmacam支持Java开发. ogmacam.java使用<a href="https://github.com/java-native-access/jna" target="_blank">JNA</a>调用至ogmacam.dll/so/dylib. 把ogmacam.java拷贝到你的JAVA工程中使用, 请参考例子代码simplest.java(控制台程序), javafx.java, swing.java.</p>
+<p>Ogmacam支持Java开发. ogmacam.java使用<a href="https://github.com/java-native-access/jna" target="_blank">JNA</a>调用至ogmacam.dll/so/dylib. 把ogmacam.java拷贝到你的JAVA工程中使用, 请参考示例代码simplest.java(控制台程序), javafx.java, swing.java.</p>
 <p>请注意<strong>ogmacam java包装类的实例通过静态方法Open或者OpenByIndex得到, 而不是通常的obj = new ogmacam()</strong>(构造函数特意是私有的).</p>
 <p>绝大多数ogmacam类的方法都通过<a href="https://github.com/java-native-access/jna" target="_blank">JNA</a>调用至ogmacam.dll/so/dylib中对应的原生C/C++ Ogmacam_xxx函数. 所以, 关于Ogmacam_xxx的文档说明都适用于java中的对应方法.</p>
 <p>参见ogmacam.java中的errcheck, 原始的HRESULT返回值被映射成HRESULTException异常.</p>
@@ -2568,31 +2617,39 @@ public bool Snap(uint nResolutionIndex)
       </tr>
 	  <tr>
 		<td colspan="2">demosimplest</td>
-		<td rowspan="8">Win32<br/>Linux<br/>macOS<br/>Android</td>
-		<td rowspan="16">C++</td>
-		<td rowspan="8">&nbsp;</td>
-		<td rowspan="8">console</td>
-		<td>最简单的例子, 大约70行代码. <a href="./images/demosimplest.png">截图</a>.</td>
+		<td rowspan="10">Win32<br/>Linux<br/>macOS<br/>Android</td>
+		<td rowspan="20">C++</td>
+		<td rowspan="10">&nbsp;</td>
+		<td rowspan="10">console</td>
+		<td>最简单的示例, 大约70行代码. <a href="./images/demosimplest.png">截图</a>.</td>
 	  </tr>
+      <tr>
+		<td colspan="2">demowait</td>
+		<td>不使用回调函数, 使用Ogmacam_WaitImageV3获取图像, 大约60行代码.</td>
+      </tr>
+      <tr>
+		<td colspan="2">demomulti</td>
+		<td>打开所有枚举到的相机(可能多台)并获取图像, 大约90行代码.</td>
+      </tr>
       <tr>
 		<td colspan="2">demostill</td>
 		<td>最简单的静态图像抓拍, 大约120行代码.</td>
       </tr>
       <tr>
 		<td colspan="2">demosofttrigger</td>
-		<td>最简单的软触发例子, 大约80行代码.</td>
+		<td>最简单的软触发示例, 大约80行代码.</td>
       </tr>
       <tr>
 		<td colspan="2">demotriggersync</td>
-		<td>同步软触发(TriggerSync)例子, 大约80行代码.</td>
+		<td>同步软触发(TriggerSync)示例, 大约80行代码.</td>
       </tr>
       <tr>
 		<td colspan="2">demoexternaltrigger</td>
-		<td>最简单的外部触发例子, 大约130行代码.</td>
+		<td>最简单的外部触发示例, 大约130行代码.</td>
       </tr>
       <tr>
 		<td colspan="2">demotriggerout</td>
-		<td>最简单的输出信号例子, 大约150行代码.</td>
+		<td>最简单的输出信号示例, 大约150行代码.</td>
       </tr>
 	  <tr>
 		<td colspan="2">demoraw</td>
@@ -2604,16 +2661,20 @@ public bool Snap(uint nResolutionIndex)
 	  </tr>
 	  <tr>
 		<td colspan="2">demoqt</td>
-		<td>Win32<br/>Linux<br/>macOS</td>
-		<td>Qt</td>
-		<td rowspan="14">GUI</td>
-		<td>Qt例子, <a href="./images/demoqt.png">截图</a>.<br/>枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 设置分辨率, 保存图像到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个例子使用Pull Mode机制, StartPullModeWithCallback</td>
+		<td rowspan="2">Win32<br/>Linux<br/>macOS</td>
+		<td rowspan="2">Qt</td>
+		<td rowspan="16">GUI</td>
+		<td>Qt示例, <a href="./images/demoqt.png">截图</a>.<br/>枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 设置分辨率, 保存图像到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个示例使用Pull Mode机制, StartPullModeWithCallback</td>
+	  </tr>
+	  <tr>
+		<td colspan="2">demotwoqt</td>
+		<td>Qt示例, <a href="./images/demotwoqt.png">截图</a>.<br/>同时打开2台相机</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">democpp</td>
-		<td rowspan="7">Win32</td>
-		<td rowspan="5">ATL/<a href="http://sourceforge.net/projects/wtl" target="_blank">WTL</a></td>
-		<td><a href="./images/democpp.png">截图</a>. 枚举设备(响应<a href="#hotplugnotify">设备插入/拔出通知</a>), <a href="#apigige">初始化支持GigE</a>, 打开设备, 预览视频, 抓拍图像, 设置分辨率, 触发, 多种图片格式(.bmp, .jpg, .png等)保存图像到文件, wmv格式录像, 触发模式, IO控制, 读写EEPROM/FLASH等等. 这个例子使用Pull Mode机制. 为了保持代码整洁, 例子使用的WTL库可以从这个链接下载<a href="http://sourceforge.net/projects/wtl" target="_blank">http://sourceforge.net/projects/wtl</a></td>
+		<td rowspan="8">Win32</td>
+		<td rowspan="6">ATL/<a href="http://sourceforge.net/projects/wtl" target="_blank">WTL</a></td>
+		<td><a href="./images/democpp.png">截图</a>. 枚举设备(响应<a href="#hotplugnotify">设备插入/拔出通知</a>), <a href="#apigige">初始化支持GigE</a>, 打开设备, 预览视频, 抓拍图像, 设置分辨率, 触发, 多种图片格式(.bmp, .jpg, .png等)保存图像到文件, wmv格式录像, 触发模式, IO控制, 读写EEPROM/FLASH等等. 这个示例使用Pull Mode机制. 为了保持代码整洁, 示例使用的WTL库可以从这个链接下载<a href="http://sourceforge.net/projects/wtl" target="_blank">http://sourceforge.net/projects/wtl</a></td>
 	  </tr>
 	  <tr>
 		<td colspan="2">democallback</td>
@@ -2632,9 +2693,13 @@ public bool Snap(uint nResolutionIndex)
 		<td><a href="./images/democns.png">截图</a>. 一致性测试: 图像平均划分成m*n个区域, 每个区域取中心的小块区域计算平均值, 把平均值连成线条, 查看线条上下波动幅度.</td>
 	  </tr>
 	  <tr>
+		<td colspan="2">triggertest</td>
+		<td><a href="./images/triggertest.png">截图</a>. 软触发测试, 使用后台线程保存图像文件到磁盘(推荐SSD, 否则当磁盘速度不足时, 会导致存盘速度跟不上, 队列中的图像越攒越多, 消耗内存也越来越大).</td>
+	  </tr>
+	  <tr>
 		<td colspan="2">demomfc</td>
 		<td rowspan="2">MFC</td>
-		<td><a href="./images/demomfc.png">截图</a>. 打开设备, 预览视频, 抓拍图像, 设置分辨率, 多种图片格式(.bmp, .jpg, .png等)保存图像到文件, 等等. 这个例子使用Pull Mode机制</td>
+		<td><a href="./images/demomfc.png">截图</a>. 打开设备, 预览视频, 抓拍图像, 设置分辨率, 多种图片格式(.bmp, .jpg, .png等)保存图像到文件, 等等. 这个示例使用Pull Mode机制</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">autotest</td>
@@ -2645,28 +2710,28 @@ public bool Snap(uint nResolutionIndex)
 		<td rowspan="4">.NET</td>
 		<td rowspan="3">C#</td>
 		<td>WPF</td>
-		<td>winwpf例子, <a href="./images/demowpf.png">截图</a>.<br/>支持枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 保存图片到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个例子使用Pull Mode机制, StartPullModeWithCallback</td>
+		<td>winwpf示例, <a href="./images/demowpf.png">截图</a>.<br/>支持枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 保存图片到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个示例使用Pull Mode机制, StartPullModeWithCallback</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">demowinformcs</td>
 		<td rowspan="3">WinForm</td>
-		<td>winform例子, <a href="./images/demowinformcs.png">截图</a>.<br/>支持枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 保存图片到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个例子使用Pull Mode机制, StartPullModeWithCallback</td>
+		<td>winform示例, <a href="./images/demowinformcs.png">截图</a>.<br/>支持枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 保存图片到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个示例使用Pull Mode机制, StartPullModeWithCallback</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">demotwocs</td>
-		<td>winform例子, <a href="./images/demotwocs.png">截图</a>.<br/>同时打开2台相机, 使用Pull Mode机制, StartPullModeWithCallback</td>
+		<td>winform示例, <a href="./images/demotwocs.png">截图</a>.<br/>同时打开2台相机, 使用Pull Mode机制, StartPullModeWithCallback</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">demowinformvb</td>
 		<td>VB.NET</td>
-		<td>winform例子, <a href="./images/demowinformvb.png">截图</a>.<br/>支持枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 保存图片到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个例子使用Pull Mode机制, StartPullModeWithCallback</td>
+		<td>winform示例, <a href="./images/demowinformvb.png">截图</a>.<br/>支持枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 保存图片到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个示例使用Pull Mode机制, StartPullModeWithCallback</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">demouwp</td>
 		<td>WinRT</td>
 		<td>C#</td>
 		<td rowspan="2">&nbsp;</td>
-		<td>UWP(Universal Windows Platform)简单例子, <a href="./images/demouwp.png">截图</a><br/>编译运行例子之前请注意文件Package.appxmanifest中的DeviceCapability下的vid</td>
+		<td>UWP(Universal Windows Platform)简单示例, <a href="./images/demouwp.png">截图</a><br/>编译运行示例之前请注意文件Package.appxmanifest中的DeviceCapability下的vid</td>
 	  </tr>
 	  <tr>
 		<td colspan="2">demoandroid</td>
@@ -2703,7 +2768,7 @@ public bool Snap(uint nResolutionIndex)
 	  <tr>
 		<td>qt</td>
 		<td>PyQt</td>
-		<td rowspan="5">GUI</td>
+		<td rowspan="9">GUI</td>
 		<td>PyQt示例, <a href="./images/pyqt.png">截图</a>.</td>
 	  </tr>
 	  <tr>
@@ -2716,7 +2781,7 @@ public bool Snap(uint nResolutionIndex)
 	  <tr>
 		<td colspan="2">amcap</td>
 		<td>&nbsp;</td>
-		<td>微软directshow例子, <a href="https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap" target="_blank">https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap</a></td>
+		<td>微软directshow示例, <a href="https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap" target="_blank">https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap</a></td>
 	  </tr>
 	  <tr>
 		<td colspan="2">LVDemo1</td>
@@ -2728,6 +2793,30 @@ public bool Snap(uint nResolutionIndex)
 	  <tr>
 		<td colspan="2">LVDemo2</td>
 		<td>Labview示例同时打开两台相机</td>
+	  </tr>
+	  <tr>
+		<td rowspan="4">imagepro</td>
+		<td rowspan="2">liveedf</td>
+		<td rowspan="4">Win32</td>
+		<td>C++</td>
+		<td>Qt</td>
+		<td>Qt示例, <a href="./images/liveedfqt.png">snapshot</a>.</td>
+	  </tr>
+	  <tr>
+		<td>C#</td>
+		<td>WinForm</td>
+		<td>C#示例, <a href="./images/liveedfcs.png">snapshot</a>.</td>
+	  </tr>
+	  <tr>
+		<td rowspan="2">livestack</td>
+		<td>C++</td>
+		<td>Qt</td>
+		<td>Qt示例, <a href="./images/livestackqt.png">snapshot</a>.</td>
+	  </tr>
+	  <tr>
+		<td>C#</td>
+		<td>WinForm</td>
+		<td>C#示例, <a href="./images/livestackcs.png">snapshot</a>.</td>
 	  </tr>
 	</table>
 </div>
@@ -2788,7 +2877,7 @@ public bool Snap(uint nResolutionIndex)
 <p>v6: 支持触发(Trigger)模式, 请参阅<a href="#trigger">这里</a></p>
 <p>v5: 白平衡的两种模式: Temp/Tint模式 vs RGB Gain模式, 请参阅<a href="#wb">这里</a></p>
 <p>v4: 支持ROI (Region Of Interest), 请参阅<a href="#roi">这里</a></p>
-<p>v3: 支持更多的位深度(bit depth): 10bits, 12bits, 14bits, 16bits</p>
+<p>v3: 支持更多的位深度(bitdepth): 10bits, 12bits, 14bits, 16bits</p>
 <p>v2: 支持RAW模式, 请参阅<a href="#raw">这里</a>和<a href="#rawo">这里</a>；增加对Linux和macOS的支持</p>
 <p>v1: 初始发布</p>
 </body>
