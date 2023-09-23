@@ -83,6 +83,48 @@ static BOOL SaveImageByWIC(const wchar_t* strFilename, const void* pData, const 
 	return TRUE;
 }
 
+CRectTrackerEx::CRectTrackerEx()
+{
+}
+
+void CRectTrackerEx::SetRectLimit(CRect rect)
+{
+	m_rectLimit.left = rect.left + 1;
+	m_rectLimit.right = rect.right - 1;
+	m_rectLimit.top = rect.top + 1;
+	m_rectLimit.bottom = rect.bottom - 1;
+}
+
+void CRectTrackerEx::OnChangedRect(const CRect& rectOld)
+{
+	if (!IsRectEmpty(m_rectLimit))
+	{
+		if (m_rect.Height() == rectOld.Height() && m_rect.Width() == rectOld.Width())
+		{
+			if (m_rect.left < m_rectLimit.left)
+				m_rect.left = m_rectLimit.left, m_rect.right = m_rect.left + rectOld.Width();
+			else if (m_rect.right > m_rectLimit.right)
+				m_rect.right = m_rectLimit.right, m_rect.left = m_rect.right - rectOld.Width();
+			if (m_rect.top < m_rectLimit.top)
+				m_rect.top = m_rectLimit.top, m_rect.bottom = m_rect.top + rectOld.Height();
+			else if (m_rect.bottom > m_rectLimit.bottom)
+				m_rect.bottom = m_rectLimit.bottom, m_rect.top = m_rect.bottom - rectOld.Height();
+		}
+		else
+		{
+			if (m_rect.left < m_rectLimit.left)
+				m_rect.left = m_rectLimit.left, m_rect.right = rectOld.right;
+			else if (m_rect.right > m_rectLimit.right)
+				m_rect.right = m_rectLimit.right, m_rect.left = rectOld.left;
+			if (m_rect.top < m_rectLimit.top)
+				m_rect.top = m_rectLimit.top, m_rect.bottom = rectOld.bottom;
+			else if (m_rect.bottom > m_rectLimit.bottom)
+				m_rect.bottom = m_rectLimit.bottom, m_rect.top = rectOld.top;
+		}
+	}
+	CRectTracker::OnChangedRect(m_rect);
+}
+
 CdemomfcDlg::CdemomfcDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CdemomfcDlg::IDD, pParent), m_hcam(NULL), m_pImageData(NULL)
 {
@@ -90,7 +132,8 @@ CdemomfcDlg::CdemomfcDlg(CWnd* pParent /*=NULL*/)
 	m_header.biSize = sizeof(m_header);
 	m_header.biPlanes = 1;
 	m_header.biBitCount = 24;
-	m_rectTracker.m_nStyle = CRectTracker::resizeInside | CRectTracker::dottedLine;
+	m_rectTracker = new CRectTrackerEx();
+	m_rectTracker->m_nStyle = CRectTracker::resizeInside | CRectTracker::dottedLine;
 }
 
 BEGIN_MESSAGE_MAP(CdemomfcDlg, CDialog)
@@ -180,7 +223,9 @@ void CdemomfcDlg::StartDevice()
 	CheckDlgButton(IDC_CHECK1, bEnableAutoExpo ? 1 : 0);
 	GetDlgItem(IDC_SLIDER1)->EnableWindow(!bEnableAutoExpo);
 	GetAEAuxRect();
-
+	const CRect rc = GetDrawRect();
+	m_rectTracker->SetRectLimit(rc);
+	
 	unsigned nMinExpoTime, nMaxExpoTime, nDefExpoTime;
 	Ogmacam_get_ExpTimeRange(m_hcam, &nMinExpoTime, &nMaxExpoTime, &nDefExpoTime);
 	((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->SetRange(nMinExpoTime / 1000, nMaxExpoTime / 1000);
@@ -256,15 +301,15 @@ LRESULT CdemomfcDlg::OnMsgCamevent(WPARAM wp, LPARAM /*lp*/)
 
 void CdemomfcDlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
-	m_rectTracker.SetCursor(this, m_rectTracker.HitTest(point));
-	if (m_rectTracker.HitTest(point) < 0)
+	m_rectTracker->SetCursor(this, m_rectTracker->HitTest(point));
+	if (m_rectTracker->HitTest(point) < 0)
 	{
 		CRectTracker tempRectTracker;
 		tempRectTracker.TrackRubberBand(this, point);
 		tempRectTracker.m_rect.NormalizeRect();
 		Invalidate();
 	}
-	else if (m_rectTracker.Track(this, point))
+	else if (m_rectTracker->Track(this, point))
 	{
 		Invalidate();
 		SetAEAuxRect();
@@ -274,7 +319,7 @@ void CdemomfcDlg::OnLButtonDown(UINT nFlags, CPoint point)
 
 BOOL CdemomfcDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
-	if ((pWnd == this) && (m_rectTracker.SetCursor(this, nHitTest)))
+	if ((pWnd == this) && (m_rectTracker->SetCursor(this, nHitTest)))
 		return TRUE;
 	return CDialog::OnSetCursor(pWnd, nHitTest, message);
 }
@@ -341,8 +386,7 @@ void CdemomfcDlg::OnEventImage()
 		StretchDIBits(dc, rc.left, rc.top, rc.Width(), rc.Height(), 0, 0, m_header.biWidth, m_header.biHeight, m_pImageData, (BITMAPINFO*)&m_header, DIB_RGB_COLORS, SRCCOPY);
 		dc.SetStretchBltMode(m);
 		if (IsDlgButtonChecked(IDC_CHECK1))
-			m_rectTracker.Draw(&dc);
-		Invalidate(FALSE);
+			m_rectTracker->Draw(&dc);
 	}
 }
 
@@ -378,17 +422,17 @@ void CdemomfcDlg::GetAEAuxRect()
 	rect.right = rect.right * rc.Width() / m_header.biWidth + rc.left;
 	rect.top = rect.top * rc.Height() / m_header.biHeight + rc.top;
 	rect.bottom = rect.bottom * rc.Height() / m_header.biHeight + rc.top;
-	m_rectTracker.m_rect.SetRect(CPoint(rect.left, rect.top), CPoint(rect.right, rect.bottom));
+	m_rectTracker->m_rect.SetRect(CPoint(rect.left, rect.top), CPoint(rect.right, rect.bottom));
 }
 
 void CdemomfcDlg::SetAEAuxRect()
 {
 	const CRect rc = GetDrawRect();
 	RECT rect;
-	rect.left = (m_rectTracker.m_rect.left - rc.left) * m_header.biWidth / rc.Width();
-	rect.right = (m_rectTracker.m_rect.right - rc.left) * m_header.biWidth / rc.Width();
-	rect.bottom = (m_rectTracker.m_rect.bottom - rc.top) * m_header.biHeight / rc.Height();
-	rect.top = (m_rectTracker.m_rect.top - rc.top) * m_header.biHeight / rc.Height();
+	rect.left = (m_rectTracker->m_rect.left - rc.left) * m_header.biWidth / rc.Width();
+	rect.right = (m_rectTracker->m_rect.right - rc.left) * m_header.biWidth / rc.Width();
+	rect.bottom = (m_rectTracker->m_rect.bottom - rc.top) * m_header.biHeight / rc.Height();
+	rect.top = (m_rectTracker->m_rect.top - rc.top) * m_header.biHeight / rc.Height();
 	Ogmacam_put_AEAuxRect(m_hcam, &rect);
 }
 
@@ -404,6 +448,7 @@ void CdemomfcDlg::OnDestroy()
 		free(m_pImageData);
 		m_pImageData = NULL;
 	}
+    delete m_rectTracker;
 
 	CDialog::OnDestroy();
 }

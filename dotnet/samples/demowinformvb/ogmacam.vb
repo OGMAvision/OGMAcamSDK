@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 54.23312.20230910
+'    Version: 54.23385.20230918
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -626,7 +626,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 54.23312.20230910
+    ' get the version of this dll, which is: 54.23385.20230918
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function

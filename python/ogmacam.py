@@ -1,4 +1,4 @@
-"""Version: 54.23312.20230910
+"""Version: 54.23385.20230918
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -720,7 +720,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 54.23312.20230910"""
+        """get the version of this dll, which is: 54.23385.20230918"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -1187,7 +1187,7 @@ class Ogmacam:
         self.__lib.Ogmacam_get_RealTime(self.__h, b)
         return b.value
 
-    def Flush():
+    def Flush(self):
         """Flush is obsolete, recommend using put_Option(h, OGMACAM_OPTION_FLUSH, 3)"""
         self.__lib.Ogmacam_Flush(self.__h)
 
@@ -1648,25 +1648,25 @@ class Ogmacam:
     def DfcOnePush(self):
         DfcOnce(self)
 
-    def DfcExport(filepath):
+    def DfcExport(self, filepath):
         if sys.platform == 'win32':
             self.__lib.Ogmacam_DfcExport(self.__h, filepath)
         else:
             self.__lib.Ogmacam_DfcExport(self.__h, filepath.encode())
 
-    def FfcExport(filepath):
+    def FfcExport(self, filepath):
         if sys.platform == 'win32':
             self.__lib.Ogmacam_FfcExport(self.__h, filepath)
         else:
             self.__lib.Ogmacam_FfcExport(self.__h, filepath.encode())
 
-    def DfcImport(filepath):
+    def DfcImport(self, filepath):
         if sys.platform == 'win32':
             self.__lib.Ogmacam_DfcImport(self.__h, filepath)
         else:
             self.__lib.Ogmacam_DfcImport(self.__h, filepath.encode())
 
-    def FfcImport(filepath):
+    def FfcImport(self, filepath):
         if sys.platform == 'win32':
             self.__lib.Ogmacam_FfcImport(self.__h, filepath)
         else:

@@ -32,10 +32,12 @@ IMAGEPRO_API(void) imagepro_init(pfun_imagepro_malloc pfun);
 
 /* inputImage, outputImage: pointer to BITMAPINFOHEADER
     method:
-        LINEAR    =1,
-        CUBIC     =2,
-        AREA      =3,
-        LANCZOS4  =4
+        AUTO      = -1, (AREA for shrink, CUBIC for enlarge)
+        NN        = 0,
+        LINEAR    = 1,
+        CUBIC     = 2,
+        AREA      = 3,
+        LANCZOS4  = 4
 */
 IMAGEPRO_API(HRESULT) imagepro_resize(void* inputImage, void* outputImage, int method);
 

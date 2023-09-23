@@ -1,11 +1,21 @@
 #pragma once
 
+class CRectTrackerEx : public CRectTracker
+{
+    CRect m_rectLimit;
+public:
+    CRectTrackerEx();
+    void SetRectLimit(CRect rect);
+private:
+    virtual void OnChangedRect(const CRect& rectOld);
+};
+
 class CdemomfcDlg : public CDialog
 {
 	HOgmacam			m_hcam;
 	void*				m_pImageData;
 	BITMAPINFOHEADER	m_header;
-	CRectTracker		m_rectTracker;
+	CRectTrackerEx*		m_rectTracker;
 public:
 	CdemomfcDlg(CWnd* pParent = NULL);
 
