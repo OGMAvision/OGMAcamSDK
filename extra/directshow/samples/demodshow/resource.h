@@ -11,6 +11,7 @@
 #define IDC_EDIT4                       1003
 #define ID_EXAMPLE_FLIPVERTICAL         32772
 #define ID_EXAMPLE_FLIPHORIZONTAL       32773
+#define IDS_FRAMERATE                   32774
 #define ID_SETUP_SETUP0                 32791
 #define ID_SETUP_SETUP1                 32792
 #define ID_SETUP_SETUP2                 32793
@@ -19,7 +20,6 @@
 #define ID_EXAMPLE_SIZE                 32796
 #define ID_EXAMPLE_PREVIEW_SNAPSHOT     32798
 #define ID_EXAMPLE_STILLIMAGE_SNAPSHOT  32799
-#define ID_EXAMPLE_FRAMERATE            32801
 #define ID_EXAMPLE_SN                   32802
 #define ID_EXAMPLE_CAPTURE              32803
 #define ID_EXAMPLE_STOPCAPTURE          32806

@@ -32,8 +32,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_UPDATE_COMMAND_UI(ID_EXAMPLE_STILLIMAGE_SNAPSHOT, OnUpdateStillimageSnapshot)
 	ON_UPDATE_COMMAND_UI(ID_EXAMPLE_CAPTURE, OnUpdateCapture)
 	ON_UPDATE_COMMAND_UI(ID_EXAMPLE_STOPCAPTURE, OnUpdateStopCapture)
-	ON_COMMAND(ID_EXAMPLE_FRAMERATE, OnFramerate)
 	ON_COMMAND(ID_EXAMPLE_SN, OnSn)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 CMainFrame::CMainFrame()
@@ -46,6 +46,20 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CFrameWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
+	if (!m_statusBar.Create(this))
+	{
+		TRACE0("Failed to create statusbar\n");
+		return -1;
+	}
+	{
+		UINT indicators[] = { ID_SEPARATOR, IDS_FRAMERATE };
+		UINT style[] = { SBPS_STRETCH, SBPS_NORMAL };
+		UINT width[] = { 200, 480 };
+		m_statusBar.SetIndicators(indicators, sizeof(indicators) / sizeof(UINT));
+		for (size_t i = 0; i < _countof(indicators); ++i)
+			m_statusBar.SetPaneInfo(i, indicators[i], style[i] | SBPS_POPOUT, width[i]);
+	}
+
 	if (!m_wndView.Create(NULL, NULL, AFX_WS_DEFAULT_VIEW, CRect(0, 0, 0, 0), this, AFX_IDW_PANE_FIRST, NULL))
 	{
 		TRACE0("Failed to create view window\n");
@@ -56,6 +70,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	while (pMenu->GetMenuItemCount())
 		pMenu->RemoveMenu(0, MF_BYPOSITION);
 
+	SetTimer(1, 1000, NULL);
 	return 0;
 }
 
@@ -327,14 +342,23 @@ void CMainFrame::OnStillimageSnapshot()
 		m_pDshowContext->stillimage_snapshot(L"stillimage.bmp");
 }
 
-void CMainFrame::OnFramerate()
+void CMainFrame::OnTimer(UINT_PTR nIDEvent)
 {
-	if (m_pDshowContext)
+	if (1 == nIDEvent)
 	{
-		double fr = m_pDshowContext->get_framerate();
-		wchar_t txt[32];
-		swprintf(txt, L"Frame rate: %.1f", fr);
-		AfxMessageBox(txt);
+		if (NULL == m_pDshowContext)
+			m_statusBar.SetPaneText(1, L"Frame rate: NA");
+		else
+		{
+			double fr = m_pDshowContext->get_framerate();
+			wchar_t txt[32];
+			swprintf(txt, L"Frame rate: %.1f", fr);
+			m_statusBar.SetPaneText(1, txt);
+		}
+	}
+	else
+	{
+		CFrameWnd::OnTimer(nIDEvent);
 	}
 }
 

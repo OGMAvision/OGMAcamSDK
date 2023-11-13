@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 54.23385.20230918
+    Version: 54.23860.20231112
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -71,6 +71,7 @@ public class ogmacam implements AutoCloseable {
     public final static long FLAG_LIGHT_SOURCE            = 0x0004000000000000L;  /* stand alone light source */
     public final static long FLAG_CAMERALINK              = 0x0008000000000000L;  /* camera link */
     public final static long FLAG_CXP                     = 0x0010000000000000L;  /* CXP: CoaXPress */
+    public final static logn FLAG_RAW12PACK               = 0x0020000000000000L;  /* pixel format, RAW 12bits packed */
     
     public final static int EVENT_EXPOSURE                = 0x0001; /* exposure time or gain changed */
     public final static int EVENT_TEMPTINT                = 0x0002; /* white balance changed, Temp/Tint mode */
@@ -259,9 +260,9 @@ public class ogmacam implements AutoCloseable {
                                                                         */
     public final static int OPTION_AUTOEXPOSURE_PERCENT   = 0x4a;       /* auto exposure percent to average:
                                                                               1~99: peak percent average
-                                                                              0 or 100: full roi average
+                                                                              0 or 100: full roi average, means "disabled"
                                                                         */
-    public final static int OPTION_ANTI_SHUTTER_EFFECT    = 0x4b;       /* anti shutter effect: 1 => disable, 0 => disable; default: 1 */
+    public final static int OPTION_ANTI_SHUTTER_EFFECT    = 0x4b;       /* anti shutter effect: 1 => disable, 0 => disable; default: 0 */
     public final static int OPTION_CHAMBER_HT             = 0x4c;       /* get chamber humidity & temperature:
                                                                               high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
                                                                               low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
@@ -311,6 +312,13 @@ public class ogmacam implements AutoCloseable {
                                                                                 set: val = ADC value, such as 11bits, 12bits, etc
                                                                         */
     public final static int OPTION_ISP                    = 0x5f;       /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
+    public final static int OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60;       /* Auto exposure: time step (thousandths) */
+    public final static int OPTION_AUTOEXP_GAIN_STEP      = 0x61;       /* Auto exposure: gain step (thousandths) */
+    public final static int OPTION_MOTOR_NUMBER           = 0x62;       /* range: [1, 20] */
+    public final static int OPTION_MOTOR_POS              = 0x10000000; /* range: [1, 702] */
+    public final static int OPTION_PSEUDO_COLOR_START     = 0x63;       /* Pseudo: start color, BGR format */
+    public final static int OPTION_PSEUDO_COLOR_END       = 0x64;       /* Pseudo: end color, BGR format */
+    public final static int OPTION_PSEUDO_COLOR_ENABLE    = 0x65;       /* Pseudo: 1 => enable, 0 => disable */
     
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -321,17 +329,18 @@ public class ogmacam implements AutoCloseable {
     public final static int PIXELFORMAT_VUYY              = 0x06;
     public final static int PIXELFORMAT_YUV444            = 0x07;
     public final static int PIXELFORMAT_RGB888            = 0x08;
-    public final static int PIXELFORMAT_GMCY8             = 0x09;
-    public final static int PIXELFORMAT_GMCY12            = 0x0a;
+    public final static int PIXELFORMAT_GMCY8             = 0x09;   /* map to RGGB 8 bits */
+    public final static int PIXELFORMAT_GMCY12            = 0x0a;   /* map to RGGB 12 bits */
     public final static int PIXELFORMAT_UYVY              = 0x0b;
+    public final static int PIXELFORMAT_RAW12PACK         = 0x0c;
     
-    public final static int FRAMEINFO_FLAG_SEQ            = 0x0001; /* frame sequence number */
-    public final static int FRAMEINFO_FLAG_TIMESTAMP      = 0x0002; /* timestamp */
-    public final static int FRAMEINFO_FLAG_EXPOTIME       = 0x0004; /* exposure time */
-    public final static int FRAMEINFO_FLAG_EXPOGAIN       = 0x0008; /* exposure gain */
-    public final static int FRAMEINFO_FLAG_BLACKLEVEL     = 0x0010; /* black level */
-    public final static int FRAMEINFO_FLAG_SHUTTERSEQ     = 0x0020; /* sequence shutter counter */
-    public final static int FRAMEINFO_FLAG_STILL          = 0x8000; /* still image */
+    public final static int FRAMEINFO_FLAG_SEQ            = 0x00000001; /* frame sequence number */
+    public final static int FRAMEINFO_FLAG_TIMESTAMP      = 0x00000002; /* timestamp */
+    public final static int FRAMEINFO_FLAG_EXPOTIME       = 0x00000004; /* exposure time */
+    public final static int FRAMEINFO_FLAG_EXPOGAIN       = 0x00000008; /* exposure gain */
+    public final static int FRAMEINFO_FLAG_BLACKLEVEL     = 0x00000010; /* black level */
+    public final static int FRAMEINFO_FLAG_SHUTTERSEQ     = 0x00000020; /* sequence shutter counter */
+    public final static int FRAMEINFO_FLAG_STILL          = 0x00008000; /* still image */
     
     public final static int IOCONTROLTYPE_GET_SUPPORTEDMODE         = 0x01; /* 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output */
     public final static int IOCONTROLTYPE_GET_GPIODIR               = 0x03; /* 0x00 => Input, 0x01 => Output */
@@ -496,6 +505,9 @@ public class ogmacam implements AutoCloseable {
     public final static int AUTOEXPO_THRESHOLD_DEF   = 5;        /* auto exposure threshold */
     public final static int AUTOEXPO_THRESHOLD_MIN   = 2;        /* auto exposure threshold */
     public final static int AUTOEXPO_THRESHOLD_MAX   = 15;       /* auto exposure threshold */
+    public final static int AUTOEXPO_STEP_DEF        = 1000;     /* auto exposure step: thousandths */
+    public final static int AUTOEXPO_STEP_MIN        = 1;        /* auto exposure step: thousandths */
+    public final static int AUTOEXPO_STEP_MAX        = 1000;     /* auto exposure step: thousandths */   
     public final static int BANDWIDTH_DEF            = 100;      /* bandwidth */
     public final static int BANDWIDTH_MIN            = 1;        /* bandwidth */
     public final static int BANDWIDTH_MAX            = 100;      /* bandwidth */
@@ -507,9 +519,9 @@ public class ogmacam implements AutoCloseable {
     public final static int TEC_TARGET_MAX           = 400;      /* TEC target: 40.0 degrees Celsius */
     public final static int HEARTBEAT_MIN            = 100;      /* millisecond */
     public final static int HEARTBEAT_MAX            = 10000;    /* millisecond */
-    public final static int AE_PERCENT_MIN           = 0;        /* auto exposure percent, 0 => full roi average */
+    public final static int AE_PERCENT_MIN           = 0;        /* auto exposure percent; 0 or 100 => full roi average, means "disabled" */
     public final static int AE_PERCENT_MAX           = 100;
-    public final static int AE_PERCENT_DEF           = 10;
+    public final static int AE_PERCENT_DEF           = 10;       /* auto exposure percent: enabled, percentage = 10% */
     public final static int NOPACKET_TIMEOUT_MIN     = 500;      /* no packet timeout minimum: 500ms */
     public final static int NOFRAME_TIMEOUT_MIN      = 500;      /* no frame timeout minimum: 500ms */
     public final static int DYNAMIC_DEFECT_T1_MIN    = 10;       /* dynamic defect pixel correction, threshold, means: 1.0 */
@@ -971,7 +983,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 54.23385.20230918 */
+    /* get the version of this dll/so/dylib, which is: 54.23860.20231112 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);

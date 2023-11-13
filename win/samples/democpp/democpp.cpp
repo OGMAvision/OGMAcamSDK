@@ -124,7 +124,7 @@ static BOOL SaveImageByWIC(const wchar_t* strFilename, const void* pData, const 
 
 class CExposureTimeDlg : public CDialogImpl<CExposureTimeDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 
 	BEGIN_MSG_MAP(CExposureTimeDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
@@ -133,8 +133,8 @@ class CExposureTimeDlg : public CDialogImpl<CExposureTimeDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_EXPOSURETIME };
-	CExposureTimeDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CExposureTimeDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 private:
@@ -143,13 +143,13 @@ private:
 		CenterWindow(GetParent());
 
 		unsigned nMin = 0, nMax = 0, nDef = 0, nTime = 0;
-		if (SUCCEEDED(Ogmacam_get_ExpTimeRange(m_hCam, &nMin, &nMax, &nDef)))
+		if (SUCCEEDED(Ogmacam_get_ExpTimeRange(m_hcam, &nMin, &nMax, &nDef)))
 		{
 			CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
 			ctrl.SetRangeMin(nMin);
 			ctrl.SetRangeMax(nMax);
 
-			if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hCam, &nTime)))
+			if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hcam, &nTime)))
 				ctrl.SetPos(nTime);
 		}
 		
@@ -159,7 +159,7 @@ private:
 	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
-		Ogmacam_put_ExpoTime(m_hCam, ctrl.GetPos());
+		Ogmacam_put_ExpoTime(m_hcam, ctrl.GetPos());
 
 		EndDialog(wID);
 		return 0;
@@ -174,7 +174,7 @@ private:
 
 class CSpeedDlg : public CDialogImpl<CSpeedDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 
 	BEGIN_MSG_MAP(CSpeedDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
@@ -183,8 +183,8 @@ class CSpeedDlg : public CDialogImpl<CSpeedDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_SPEED };
-	CSpeedDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CSpeedDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 private:
@@ -194,10 +194,10 @@ private:
 
 		CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
 		ctrl.SetRangeMin(0);
-		ctrl.SetRangeMax(Ogmacam_get_MaxSpeed(m_hCam));
+		ctrl.SetRangeMax(Ogmacam_get_MaxSpeed(m_hcam));
 
 		unsigned short nSpeed = 0;
-		if (SUCCEEDED(Ogmacam_get_Speed(m_hCam, &nSpeed)))
+		if (SUCCEEDED(Ogmacam_get_Speed(m_hcam, &nSpeed)))
 			ctrl.SetPos(nSpeed);
 
 		return TRUE;
@@ -206,7 +206,7 @@ private:
 	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
-		Ogmacam_put_Speed(m_hCam, ctrl.GetPos());
+		Ogmacam_put_Speed(m_hcam, ctrl.GetPos());
 
 		EndDialog(wID);
 		return 0;
@@ -221,7 +221,7 @@ private:
 
 class CMaxAEDlg : public CDialogImpl<CMaxAEDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 	BEGIN_MSG_MAP(CMaxAEDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_HANDLER(IDOK, BN_CLICKED, OnOK)
@@ -229,8 +229,8 @@ class CMaxAEDlg : public CDialogImpl<CMaxAEDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_MAXAE };
-	CMaxAEDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CMaxAEDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 private:
@@ -248,7 +248,7 @@ private:
 		const UINT nTime = GetDlgItemInt(IDC_EDIT1, &bTran1, FALSE);
 		const UINT nGain = GetDlgItemInt(IDC_EDIT2, &bTran2, FALSE);
 		if (bTran1 && bTran2)
-			Ogmacam_put_MaxAutoExpoTimeAGain(m_hCam, nTime, nGain);
+			Ogmacam_put_MaxAutoExpoTimeAGain(m_hcam, nTime, nGain);
 		EndDialog(wID);
 		return 0;
 	}
@@ -262,7 +262,7 @@ private:
 
 class CLedDlg : public CDialogImpl<CLedDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 	BEGIN_MSG_MAP(CLedDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_HANDLER(IDC_BUTTON1, BN_CLICKED, OnButton1)
@@ -272,8 +272,8 @@ class CLedDlg : public CDialogImpl<CLedDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_LED };
-	CLedDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CLedDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 private:
@@ -286,7 +286,7 @@ private:
 	LRESULT OnButton1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		const UINT nIndex = GetDlgItemInt(IDC_EDIT1);
-		Ogmacam_put_LEDState(m_hCam, nIndex, 1, 0);
+		Ogmacam_put_LEDState(m_hcam, nIndex, 1, 0);
 		return 0;
 	}
 
@@ -294,14 +294,14 @@ private:
 	{
 		const UINT nIndex = GetDlgItemInt(IDC_EDIT1);
 		const UINT nPeriod = GetDlgItemInt(IDC_EDIT2);
-		Ogmacam_put_LEDState(m_hCam, nIndex, 2, nPeriod);
+		Ogmacam_put_LEDState(m_hcam, nIndex, 2, nPeriod);
 		return 0;
 	}
 
 	LRESULT OnButton3(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		const UINT nIndex = GetDlgItemInt(IDC_EDIT1);
-		Ogmacam_put_LEDState(m_hCam, nIndex, 0, 0);
+		Ogmacam_put_LEDState(m_hcam, nIndex, 0, 0);
 		return 0;
 	}
 
@@ -315,20 +315,21 @@ private:
 class CPixelFormatDlg : public CDialogImpl<CPixelFormatDlg>
 {
 	const OgmacamDeviceV2&	m_inst;
-	HOgmacam				m_hCam;
+	HOgmacam				m_hcam;
 
 	BEGIN_MSG_MAP(CPixelFormatDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_HANDLER(IDC_RADIO1, BN_CLICKED, OnRadio1)
 		COMMAND_HANDLER(IDC_RADIO2, BN_CLICKED, OnRadio2)
 		COMMAND_HANDLER(IDC_RADIO3, BN_CLICKED, OnRadio3)
+		COMMAND_HANDLER(IDC_RADIO4, BN_CLICKED, OnRadio4)
 		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_PIXELFORMAT };
 
-	CPixelFormatDlg(const OgmacamDeviceV2& tdev, HOgmacam hCam)
-	: m_inst(tdev), m_hCam(hCam)
+	CPixelFormatDlg(const OgmacamDeviceV2& tdev, HOgmacam hcam)
+	: m_inst(tdev), m_hcam(hcam)
 	{
 	}
 private:
@@ -359,48 +360,59 @@ private:
 
 		if (0 == (m_inst.model->flag & (OGMACAM_FLAG_VUYY | OGMACAM_FLAG_UYVY)))
 			GetDlgItem(IDC_RADIO3).EnableWindow(FALSE);
+		if (0 == (m_inst.model->flag & OGMACAM_FLAG_RAW12PACK))
+			GetDlgItem(IDC_RADIO4).EnableWindow(FALSE);
 
 		int val = 0;
-		Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, &val);
+		Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, &val);
 		if ((OGMACAM_PIXELFORMAT_RAW8 == val) || (OGMACAM_PIXELFORMAT_GMCY8 == val))
 			CheckDlgButton(IDC_RADIO1, 1);
 		else if ((OGMACAM_PIXELFORMAT_RAW10 == val) || (OGMACAM_PIXELFORMAT_RAW12 == val) || (OGMACAM_PIXELFORMAT_RAW14 == val) || (OGMACAM_PIXELFORMAT_RAW16 == val) || (OGMACAM_PIXELFORMAT_GMCY12 == val))
 			CheckDlgButton(IDC_RADIO2, 1);
 		else if ((OGMACAM_PIXELFORMAT_VUYY == val) || (OGMACAM_PIXELFORMAT_UYVY == val))
 			CheckDlgButton(IDC_RADIO3, 1);
+		else if (OGMACAM_PIXELFORMAT_RAW12PACK == val)
+			CheckDlgButton(IDC_RADIO4, 1);
 		return TRUE;
 	}
 
 	LRESULT OnRadio1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		if (m_inst.model->flag & OGMACAM_FLAG_RAW8)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW8);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW8);
 		else if (m_inst.model->flag & OGMACAM_FLAG_GMCY8)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_GMCY8);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_GMCY8);
 		return 0;
 	}
 
 	LRESULT OnRadio2(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		if (m_inst.model->flag & OGMACAM_FLAG_RAW10)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW10);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW10);
 		else if (m_inst.model->flag & OGMACAM_FLAG_RAW12)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW12);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW12);
 		else if (m_inst.model->flag & OGMACAM_FLAG_RAW14)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW14);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW14);
 		else if (m_inst.model->flag & OGMACAM_FLAG_RAW16)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW16);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW16);
 		else if (m_inst.model->flag & OGMACAM_FLAG_GMCY12)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_GMCY12);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_GMCY12);
 		return 0;
 	}
 
 	LRESULT OnRadio3(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		if (m_inst.model->flag & OGMACAM_FLAG_VUYY)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_VUYY);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_VUYY);
 		else if (m_inst.model->flag & OGMACAM_FLAG_UYVY)
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_UYVY);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_UYVY);
+		return 0;
+	}
+
+	LRESULT OnRadio4(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		if (m_inst.model->flag & OGMACAM_FLAG_RAW12PACK)
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW12PACK);
 		return 0;
 	}
 
@@ -523,7 +535,7 @@ private:
 
 class CTECTargetDlg : public CDialogImpl<CTECTargetDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 
 	BEGIN_MSG_MAP(CTECTargetDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
@@ -532,8 +544,8 @@ class CTECTargetDlg : public CDialogImpl<CTECTargetDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_TECTARGET };
-	CTECTargetDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CTECTargetDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 private:
@@ -542,7 +554,7 @@ private:
 		CenterWindow(GetParent());
 
 		int val = 0;
-		Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_TECTARGET, &val);
+		Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TECTARGET, &val);
 
 		wchar_t str[256];
 		swprintf(str, L"%d.%d", val / 10, val % 10);
@@ -556,7 +568,7 @@ private:
 		GetDlgItemText(IDC_EDIT1, str);
 		wchar_t* endptr;
 		const double d = _tcstod((LPCTSTR)str, &endptr);
-		Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TECTARGET, (int)(d * 10));
+		Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TECTARGET, (int)(d * 10));
 
 		EndDialog(wID);
 		return 0;
@@ -609,7 +621,7 @@ private:
 
 class CEEPROMDlg : public CDialogImpl<CEEPROMDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 
 	BEGIN_MSG_MAP(CEEPROMDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
@@ -621,8 +633,8 @@ class CEEPROMDlg : public CDialogImpl<CEEPROMDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_EEPROM };
-	CEEPROMDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CEEPROMDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 private:
@@ -645,7 +657,7 @@ private:
 			if (uLength)
 			{
 				unsigned char* tmpBuffer = (unsigned char*)alloca(uLength);
-				HRESULT hr = Ogmacam_read_EEPROM(m_hCam, uAddr, tmpBuffer, uLength);
+				HRESULT hr = Ogmacam_read_EEPROM(m_hcam, uAddr, tmpBuffer, uLength);
 				if (FAILED(hr))
 					AtlMessageBox(m_hWnd, L"Failed to read EEPROM.");
 				else if (0 == hr)
@@ -692,7 +704,7 @@ private:
 					else if (strData[i + 1] >= 'A' && strData[i + 1] <= 'F')
 						tmpBuffer[i / 2] |= (strData[i + 1] - 'A' + 10);
 				}
-				const HRESULT hr = Ogmacam_write_EEPROM(m_hCam, uAddr, tmpBuffer, uLength);
+				const HRESULT hr = Ogmacam_write_EEPROM(m_hcam, uAddr, tmpBuffer, uLength);
 				wchar_t strMessage[256];
 				swprintf(strMessage, L"Write EEPROM, length = %u, result = 0x%08x", uLength, hr);
 				AtlMessageBox(m_hWnd, strMessage);
@@ -716,8 +728,8 @@ private:
 				srand(GetTickCount());
 				for (unsigned i = 0; i < uLength; ++i)
 					tmpWriteBuffer[i] = (unsigned char)rand();
-				const HRESULT hrWrite = Ogmacam_write_EEPROM(m_hCam, uAddr, tmpWriteBuffer, uLength);
-				const HRESULT hrRead = Ogmacam_read_EEPROM(m_hCam, uAddr, tmpReadBuffer, uLength);
+				const HRESULT hrWrite = Ogmacam_write_EEPROM(m_hcam, uAddr, tmpWriteBuffer, uLength);
+				const HRESULT hrRead = Ogmacam_read_EEPROM(m_hcam, uAddr, tmpReadBuffer, uLength);
 				if ((hrWrite == uLength) && (hrRead == uLength))
 				{
 					if (0 == memcmp(tmpWriteBuffer, tmpReadBuffer, uLength))
@@ -747,7 +759,7 @@ private:
 			{
 				unsigned char* tmpWriteBuffer = (unsigned char*)alloca(uLength);
 				memset(tmpWriteBuffer, 0xff, uLength);
-				const HRESULT hr = Ogmacam_write_EEPROM(m_hCam, uAddr, tmpWriteBuffer, uLength);
+				const HRESULT hr = Ogmacam_write_EEPROM(m_hcam, uAddr, tmpWriteBuffer, uLength);
 				if (hr == uLength)
 				{
 					AtlMessageBox(m_hWnd, L"Erase OK");
@@ -769,7 +781,7 @@ private:
 
 class CWaitDlg : public CDialogImpl<CWaitDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 	DWORD		m_tick;
 
 	BEGIN_MSG_MAP(CWaitDlg)
@@ -779,8 +791,8 @@ class CWaitDlg : public CDialogImpl<CWaitDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_WAIT };
-	CWaitDlg(HOgmacam hCam)
-	: m_hCam(hCam), m_tick(GetTickCount())
+	CWaitDlg(HOgmacam hcam)
+	: m_hcam(hcam), m_tick(GetTickCount())
 	{
 	}
 private:
@@ -796,7 +808,7 @@ private:
 	{
 		if (1 == wParam)
 		{
-			if (S_OK == Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_STATUS, 0, 0, NULL))
+			if (S_OK == Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_STATUS, 0, 0, NULL))
 				EndDialog(IDOK);
 			else
 				SetDlgItemInt(IDC_STATIC1, GetTickCount() - m_tick, FALSE);
@@ -813,7 +825,7 @@ private:
 
 class CFlashDlg : public CDialogImpl<CFlashDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 	int m_totalSize, m_eBlock, m_rwBlock;
 
 	BEGIN_MSG_MAP(CFlashDlg)
@@ -826,11 +838,11 @@ class CFlashDlg : public CDialogImpl<CFlashDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_FLASH };
-	CFlashDlg(HOgmacam hCam)
-	: m_hCam(hCam)
-	, m_totalSize(Ogmacam_rwc_Flash(hCam, OGMACAM_FLASH_SIZE, 0, 0, NULL))
-	, m_eBlock(Ogmacam_rwc_Flash(hCam, OGMACAM_FLASH_EBLOCK, 0, 0, NULL))
-	, m_rwBlock(Ogmacam_rwc_Flash(hCam, OGMACAM_FLASH_RWBLOCK, 0, 0, NULL))
+	CFlashDlg(HOgmacam hcam)
+	: m_hcam(hcam)
+	, m_totalSize(Ogmacam_rwc_Flash(hcam, OGMACAM_FLASH_SIZE, 0, 0, NULL))
+	, m_eBlock(Ogmacam_rwc_Flash(hcam, OGMACAM_FLASH_EBLOCK, 0, 0, NULL))
+	, m_rwBlock(Ogmacam_rwc_Flash(hcam, OGMACAM_FLASH_RWBLOCK, 0, 0, NULL))
 	{
 	}
 private:
@@ -865,9 +877,9 @@ private:
 				else
 				{
 					unsigned char* tmpBuffer = (unsigned char*)alloca(uLength);
-					HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_READ, uAddr, uLength, tmpBuffer);
+					HRESULT hr = Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_READ, uAddr, uLength, tmpBuffer);
 					if (FAILED(hr))
-					{						
+					{
 						wchar_t strText[256];
 						swprintf(strText, L"Read failed, hr = 0x%08x", hr);
 						AtlMessageBox(m_hWnd, strText, MB_OK | MB_ICONERROR);
@@ -921,7 +933,7 @@ private:
 						else if (strData[i + 1] >= 'A' && strData[i + 1] <= 'F')
 							tmpBuffer[i / 2] |= (strData[i + 1] - 'A' + 10);
 					}
-					const HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_WRITE, uAddr, uLength, tmpBuffer);
+					const HRESULT hr = Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_WRITE, uAddr, uLength, tmpBuffer);
 					if (FAILED(hr))
 					{
 						wchar_t strText[256];
@@ -930,7 +942,7 @@ private:
 					}
 					else
 					{
-						CWaitDlg dlg(m_hCam);
+						CWaitDlg dlg(m_hcam);
 						dlg.DoModal();
 					}
 				}
@@ -958,7 +970,7 @@ private:
 					srand(GetTickCount());
 					for (unsigned i = 0; i < uLength; ++i)
 						tmpWriteBuffer[i] = (unsigned char)rand();
-					HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_WRITE, uAddr, uLength, tmpWriteBuffer);
+					HRESULT hr = Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_WRITE, uAddr, uLength, tmpWriteBuffer);
 					if (FAILED(hr))
 					{
 						swprintf(strText, L"Write failed, hr = 0x%08x", hr);
@@ -966,10 +978,10 @@ private:
 					}
 					else
 					{
-						CWaitDlg dlg(m_hCam);
+						CWaitDlg dlg(m_hcam);
 						if (IDOK == dlg.DoModal())
 						{
-							hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_READ, uAddr, uLength, tmpReadBuffer);
+							hr = Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_READ, uAddr, uLength, tmpReadBuffer);
 							if (FAILED(hr))
 							{
 								swprintf(strText, L"Read failed, hr = 0x%08x", hr);
@@ -1003,12 +1015,12 @@ private:
 			const unsigned uAddr = _tcstoul(strAddr, &endptr, 16);
 			const unsigned uLength = _tcstoul(strLength, &endptr, 16);
 			if (uLength)
-			{				
+			{
 				if ((uAddr % m_eBlock) || (uLength % m_eBlock))
 					AtlMessageBox(m_hWnd, L"Address and length must be an integer multiple of erase block.");
 				else
 				{
-					const HRESULT hr = Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_ERASE, uAddr, uLength, NULL);
+					const HRESULT hr = Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_ERASE, uAddr, uLength, NULL);
 					if (FAILED(hr))
 					{
 						wchar_t strText[256];
@@ -1017,7 +1029,7 @@ private:
 					}
 					else
 					{
-						CWaitDlg dlg(m_hCam);
+						CWaitDlg dlg(m_hcam);
 						dlg.DoModal();
 					}
 				}
@@ -1035,7 +1047,7 @@ private:
 
 class CUARTDlg : public CDialogImpl<CUARTDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 	BEGIN_MSG_MAP(CUARTDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_HANDLER(IDC_BUTTON1, BN_CLICKED, OnButton1)
@@ -1044,8 +1056,8 @@ class CUARTDlg : public CDialogImpl<CUARTDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_UART };
-	CUARTDlg(HOgmacam hCam)
-		: m_hCam(hCam)
+	CUARTDlg(HOgmacam hcam)
+		: m_hcam(hcam)
 	{
 	}
 private:
@@ -1065,7 +1077,7 @@ private:
 			if (uLength)
 			{
 				unsigned char* tmpBuffer = (unsigned char*)alloca(uLength);
-				HRESULT hr = Ogmacam_read_UART(m_hCam, tmpBuffer, uLength);
+				HRESULT hr = Ogmacam_read_UART(m_hcam, tmpBuffer, uLength);
 				if (FAILED(hr))
 					AtlMessageBox(m_hWnd, L"Failed to read UART.");
 				else if (0 == hr)
@@ -1111,7 +1123,7 @@ private:
 					else if (strData[i + 1] >= 'A' && strData[i + 1] <= 'F')
 						tmpBuffer[i / 2] |= (strData[i + 1] - 'A' + 10);
 				}
-				HRESULT hr = Ogmacam_write_UART(m_hCam, tmpBuffer, uLength);
+				HRESULT hr = Ogmacam_write_UART(m_hcam, tmpBuffer, uLength);
 				wchar_t strMessage[256];
 				swprintf(strMessage, L"Write UART, length = %u, result = 0x%08x", uLength, hr);
 				AtlMessageBox(m_hWnd, strMessage);
@@ -1129,7 +1141,7 @@ private:
 
 class CIocontrolDlg : public CDialogImpl<CIocontrolDlg>
 {
-	HOgmacam				m_hCam;
+	HOgmacam				m_hcam;
 	const OgmacamDeviceV2&	m_tdev;
 
 	BEGIN_MSG_MAP(CIocontrolDlg)
@@ -1140,8 +1152,8 @@ class CIocontrolDlg : public CDialogImpl<CIocontrolDlg>
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_IOCONTROL };
-	CIocontrolDlg(HOgmacam hCam, const OgmacamDeviceV2& tdev)
-	: m_hCam(hCam), m_tdev(tdev)
+	CIocontrolDlg(HOgmacam hcam, const OgmacamDeviceV2& tdev)
+	: m_hcam(hcam), m_tdev(tdev)
 	{
 	}
 private:
@@ -1244,7 +1256,7 @@ private:
 
 	LRESULT OnCounterReset(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER, 0, NULL);
+		Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER, 0, NULL);
 		return 0;
 	}
 
@@ -1258,17 +1270,17 @@ private:
 		{
 			CComboBox box(GetDlgItem(IDC_GPIODIR));
 			if (0 == box.GetCurSel())
-				Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_GPIODIR, 0x00, NULL);
+				Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_GPIODIR, 0x00, NULL);
 			else
-				Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_GPIODIR, 0x01, NULL);
+				Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_GPIODIR, 0x01, NULL);
 		}
 		{
 			CComboBox box(GetDlgItem(IDC_OUTPUTINVERTER));
-			Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER, box.GetCurSel(), NULL);
+			Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER, box.GetCurSel(), NULL);
 		}
 		{
 			CComboBox box(GetDlgItem(IDC_INPUTACTIVATION));
-			Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION, box.GetCurSel(), NULL);
+			Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION, box.GetCurSel(), NULL);
 		}
 		{
 			CString str;
@@ -1277,7 +1289,7 @@ private:
 			if (!str.IsEmpty())
 			{
 				const int val = _ttoi((LPCTSTR)str);
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION, val, NULL);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION, val, NULL);
 			}
 		}
 		{
@@ -1287,7 +1299,7 @@ private:
 			if (!str.IsEmpty())
 			{
 				const int val = _ttoi((LPCTSTR)str);
-				Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME, val, NULL);
+				Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME, val, NULL);
 			}
 		}
 		{
@@ -1297,12 +1309,12 @@ private:
 			if (!str.IsEmpty())
 			{
 				const int val = _ttoi((LPCTSTR)str);
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE, val, NULL);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE, val, NULL);
 			}
 		}
 		{
 			CComboBox box(GetDlgItem(IDC_OUTPUTMODE));
-			Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE, box.GetCurSel(), NULL);
+			Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE, box.GetCurSel(), NULL);
 		}
 		{
 			CString str;
@@ -1311,12 +1323,12 @@ private:
 			if (!str.IsEmpty())
 			{
 				const int val = _ttoi((LPCTSTR)str);
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_USERVALUE, val, NULL);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_USERVALUE, val, NULL);
 			}
 		}
 		{
 			CComboBox box(GetDlgItem(IDC_STROBEDELAYMODE));
-			Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE, box.GetCurSel(), NULL);
+			Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE, box.GetCurSel(), NULL);
 		}
 		{
 			CString str;
@@ -1325,7 +1337,7 @@ private:
 			if (!str.IsEmpty())
 			{
 				const int val = _ttoi((LPCTSTR)str);
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME, val, NULL);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME, val, NULL);
 			}
 		}
 		{
@@ -1335,12 +1347,12 @@ private:
 			if (!str.IsEmpty())
 			{
 				const int val = _ttoi((LPCTSTR)str);
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY, val, NULL);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY, val, NULL);
 			}
 		}
 		{
 			CComboBox box(GetDlgItem(IDC_PWMSOURCE));
-			Ogmacam_IoControl(m_hCam, index, OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE, box.GetCurSel(), NULL);
+			Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE, box.GetCurSel(), NULL);
 		}
 		return 0;
 	}
@@ -1627,7 +1639,7 @@ private:
 
 class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFrame>
 {
-	HOgmacam		m_hCam;
+	HOgmacam		m_hcam;
 	CMainView		m_view;
 	OgmacamDeviceV2	m_arrDev[OGMACAM_MAX], m_dev;
 	BOOL			m_bPaused;
@@ -1747,7 +1759,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	END_UPDATE_UI_MAP()
 public:
 	CMainFrame()
-	: m_hCam(NULL), m_bPaused(FALSE), m_nSnapType(0), m_nSnapSeq(0), m_nSnapFile(0), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pWmvRecord(NULL), m_pData(NULL), m_view(this)
+	: m_hcam(NULL), m_bPaused(FALSE), m_nSnapType(0), m_nSnapSeq(0), m_nSnapFile(0), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pWmvRecord(NULL), m_pData(NULL), m_view(this)
 	{
 		m_bTriggerMode = false;
 		m_nTriggerNumber = 1;
@@ -1797,7 +1809,7 @@ private:
 		case OGMACAM_EVENT_IMAGE:
 			OnEventImage();
 			if (eTriggerLoop == m_eTriggerType)
-				Ogmacam_Trigger(m_hCam, 1);
+				Ogmacam_Trigger(m_hcam, 1);
 			break;
 		case OGMACAM_EVENT_STILLIMAGE:
 			OnEventSnap();
@@ -1864,19 +1876,19 @@ private:
 
 	void OnWhiteBalance(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
-			Ogmacam_AwbOnce(m_hCam, NULL, NULL);
+		if (m_hcam)
+			Ogmacam_AwbOnce(m_hcam, NULL, NULL);
 	}
 
 	void OnAutoExposure(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			int bAutoExposure = 0;
-			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hCam, &bAutoExposure)))
+			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &bAutoExposure)))
 			{
 				bAutoExposure = !bAutoExposure;
-				Ogmacam_put_AutoExpoEnable(m_hCam, bAutoExposure);
+				Ogmacam_put_AutoExpoEnable(m_hcam, bAutoExposure);
 				UISetCheck(ID_CONFIG_AUTOEXPOSURE, bAutoExposure ? 1 : 0);
 				UIEnable(ID_CONFIG_EXPOSURETIME, !bAutoExposure);
 			}
@@ -1885,13 +1897,13 @@ private:
 
 	void OnVerticalFlip(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			BOOL b = FALSE;
-			if (SUCCEEDED(Ogmacam_get_VFlip(m_hCam, &b)))
+			if (SUCCEEDED(Ogmacam_get_VFlip(m_hcam, &b)))
 			{
 				b = !b;
-				Ogmacam_put_VFlip(m_hCam, b);
+				Ogmacam_put_VFlip(m_hcam, b);
 				UISetCheck(ID_CONFIG_VERTICALFLIP, b ? 1 : 0);
 			}
 		}
@@ -1899,13 +1911,13 @@ private:
 
 	void OnHorizontalFlip(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			BOOL b = FALSE;
-			if (SUCCEEDED(Ogmacam_get_HFlip(m_hCam, &b)))
+			if (SUCCEEDED(Ogmacam_get_HFlip(m_hcam, &b)))
 			{
 				b = !b;
-				Ogmacam_put_HFlip(m_hCam, b);
+				Ogmacam_put_HFlip(m_hcam, b);
 				UISetCheck(ID_CONFIG_HORIZONTALFLIP, b ? 1 : 0);
 			}
 		}
@@ -1913,10 +1925,10 @@ private:
 
 	void OnPause(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			m_bPaused = !m_bPaused;
-			Ogmacam_Pause(m_hCam, m_bPaused);
+			Ogmacam_Pause(m_hcam, m_bPaused);
 			
 			UISetCheck(ID_ACTION_PAUSE, m_bPaused ? 1 : 0);
 			UIEnable(ID_ACTION_STARTRECORD, !m_bPaused);
@@ -1925,9 +1937,9 @@ private:
 
 	void OnExposureTime(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CExposureTimeDlg dlg(m_hCam);
+			CExposureTimeDlg dlg(m_hcam);
 			if (IDOK == dlg.DoModal())
 				UpdateExposureTimeText();
 		}
@@ -1935,54 +1947,54 @@ private:
 
 	void OnMaxAE(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CMaxAEDlg dlg(m_hCam);
+			CMaxAEDlg dlg(m_hcam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnLed(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CLedDlg dlg(m_hCam);
+			CLedDlg dlg(m_hcam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnPixelFormat(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CPixelFormatDlg dlg(m_dev, m_hCam);
+			CPixelFormatDlg dlg(m_dev, m_hcam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnTECTarget(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam && (m_dev.model->flag & OGMACAM_FLAG_TEC_ONOFF)) // support set the tec target
+		if (m_hcam && (m_dev.model->flag & OGMACAM_FLAG_TEC_ONOFF)) // support set the tec target
 		{
-			CTECTargetDlg dlg(m_hCam);
+			CTECTargetDlg dlg(m_hcam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnSpeed(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CSpeedDlg dlg(m_hCam);
+			CSpeedDlg dlg(m_hcam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnEEPROM(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CEEPROMDlg dlg(m_hCam);
+			CEEPROMDlg dlg(m_hcam);
 			dlg.DoModal();
 		}
 	}
@@ -1990,13 +2002,13 @@ private:
 
 	void OnFlash(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			if (Ogmacam_rwc_Flash(m_hCam, OGMACAM_FLASH_SIZE, 0, 0, NULL) <= 0)
+			if (Ogmacam_rwc_Flash(m_hcam, OGMACAM_FLASH_SIZE, 0, 0, NULL) <= 0)
 				AtlMessageBox(m_hWnd, L"No Flash available");
 			else
 			{
-				CFlashDlg dlg(m_hCam);
+				CFlashDlg dlg(m_hcam);
 				dlg.DoModal();
 			}
 		}
@@ -2004,24 +2016,24 @@ private:
 
 	void OnUART(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CUARTDlg dlg(m_hCam);
+			CUARTDlg dlg(m_hcam);
 			dlg.DoModal();
 		}
 	}
 
 	void OnRoi(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			CRoiDlg dlg;
-			Ogmacam_get_Roi(m_hCam, &dlg.xOffset_, &dlg.yOffset_, &dlg.xWidth_, &dlg.yHeight_);
+			Ogmacam_get_Roi(m_hcam, &dlg.xOffset_, &dlg.yOffset_, &dlg.xWidth_, &dlg.yHeight_);
 			if (IDOK == dlg.DoModal())
 			{
-				if (SUCCEEDED(Ogmacam_put_Roi(m_hCam, dlg.xOffset_, dlg.yOffset_, dlg.xWidth_, dlg.yHeight_)))
+				if (SUCCEEDED(Ogmacam_put_Roi(m_hcam, dlg.xOffset_, dlg.yOffset_, dlg.xWidth_, dlg.yHeight_)))
 				{
-					Ogmacam_get_Roi(m_hCam, NULL, NULL, (unsigned*)&m_header.biWidth, (unsigned*)&m_header.biHeight);
+					Ogmacam_get_Roi(m_hcam, NULL, NULL, (unsigned*)&m_header.biWidth, (unsigned*)&m_header.biHeight);
 					m_header.biSizeImage = TDIBWIDTHBYTES(m_header.biWidth * m_header.biBitCount) * m_header.biHeight;
 					UpdateResolutionText();
 				}
@@ -2047,7 +2059,7 @@ private:
 	void OnFwVer(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
 		char ver[16] = { 0 };
-		if (SUCCEEDED(Ogmacam_get_FwVersion(m_hCam, ver)))
+		if (SUCCEEDED(Ogmacam_get_FwVersion(m_hcam, ver)))
 		{
 			CA2T a2t(ver);
 			AtlMessageBox(m_hWnd, a2t.m_psz, L"FwVer");
@@ -2057,7 +2069,7 @@ private:
 	void OnHwVer(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
 		char ver[16] = { 0 };
-		if (SUCCEEDED(Ogmacam_get_HwVersion(m_hCam, ver)))
+		if (SUCCEEDED(Ogmacam_get_HwVersion(m_hcam, ver)))
 		{
 			CA2T a2t(ver);
 			AtlMessageBox(m_hWnd, a2t.m_psz, L"HwVer");
@@ -2066,13 +2078,13 @@ private:
 
 	void OnIoControl(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			if (m_dev.model->ioctrol <= 0)
 				AtlMessageBox(m_hWnd, L"No IoControl");
 			else
 			{
-				CIocontrolDlg dlg(m_hCam, m_dev);
+				CIocontrolDlg dlg(m_hcam, m_dev);
 				dlg.DoModal();
 			}
 		}
@@ -2081,7 +2093,7 @@ private:
 	void OnFpgaVer(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
 		char ver[16] = { 0 };
-		if (SUCCEEDED(Ogmacam_get_FpgaVersion(m_hCam, ver)))
+		if (SUCCEEDED(Ogmacam_get_FpgaVersion(m_hcam, ver)))
 		{
 			CA2T a2t(ver);
 			AtlMessageBox(m_hWnd, a2t.m_psz, L"FPGAVer");
@@ -2090,18 +2102,18 @@ private:
 
 	void OnTestPattern(UINT /*uNotifyCode*/, int nID, HWND /*wndCtl*/)
 	{
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 			return;
 		int val = nID - ID_TESTPATTERN0;
 		if (val)
 			val = val * 2 + 1;
-		Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TESTPATTERN, val);
+		Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TESTPATTERN, val);
 	}
 
 	void OnProductionDate(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
 		char pdate[10] = { 0 };
-		if (SUCCEEDED(Ogmacam_get_ProductionDate(m_hCam, pdate)))
+		if (SUCCEEDED(Ogmacam_get_ProductionDate(m_hcam, pdate)))
 		{
 			CA2T a2t(pdate);
 			AtlMessageBox(m_hWnd, a2t.m_psz, L"ProductionDate");
@@ -2111,7 +2123,7 @@ private:
 	void OnSn(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
 		char sn[32] = { 0 };
-		if (SUCCEEDED(Ogmacam_get_SerialNumber(m_hCam, sn)))
+		if (SUCCEEDED(Ogmacam_get_SerialNumber(m_hcam, sn)))
 		{
 			CA2T a2t(sn);
 			AtlMessageBox(m_hWnd, a2t.m_psz, L"Serial Number");
@@ -2121,7 +2133,7 @@ private:
 	void OnRawformat(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
 		unsigned nFourCC = 0, bitsperpixel = 0;
-		if (SUCCEEDED(Ogmacam_get_RawFormat(m_hCam, &nFourCC, &bitsperpixel)))
+		if (SUCCEEDED(Ogmacam_get_RawFormat(m_hcam, &nFourCC, &bitsperpixel)))
 		{
 			wchar_t str[257];
 			swprintf(str, L"FourCC:0x%08x, %c%c%c%c\nBits per Pixel: %u", nFourCC, (char)(nFourCC & 0xff), (char)((nFourCC >> 8) & 0xff), (char)((nFourCC >> 16) & 0xff), (char)((nFourCC >> 24) & 0xff), bitsperpixel);
@@ -2133,16 +2145,16 @@ private:
 	{
 		m_bTriggerMode = !m_bTriggerMode;
 		UISetCheck(ID_TRIGGER_MODE, m_bTriggerMode ? 1 : 0);
-		if (m_hCam)
+		if (m_hcam)
 		{
 			int val = 0;
-			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_TRIGGER, &val);
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TRIGGER, &val);
 			if (val == 0)
 				val = (m_dev.model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL) ? 2 : 1;
 			else
 				val = 0;
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, val);
-			UIEnable(ID_ACTION_STOPRECORD, (m_hCam && val) ? TRUE : FALSE);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TRIGGER, val);
+			UIEnable(ID_ACTION_STOPRECORD, (m_hcam && val) ? TRUE : FALSE);
 			UIEnable(ID_TRIGGER_TRIGGER, val ? 1 : 0);
 			UIEnable(ID_TRIGGER_LOOP, val ? 1 : 0);
 			UIEnable(ID_TRIGGER_IOCONFIG, (2 == val) ? 1 : 0);
@@ -2157,21 +2169,21 @@ private:
 		{
 			m_nTriggerNumber = dlg.number_;
 			if (m_dev.model->ioctrol > 0)
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER, m_nTriggerNumber, NULL);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER, m_nTriggerNumber, NULL);
 		}
 	}
 
 	void OnTriggerTrigger(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			int val = 0;
-			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_TRIGGER, &val);
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TRIGGER, &val);
 			if (val == 2)
 			{
 				m_eTriggerType = eTriggerNumber;
-				Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 5, NULL);
-				const HRESULT hr = Ogmacam_Trigger(m_hCam, m_nTriggerNumber);
+				Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 5, NULL);
+				const HRESULT hr = Ogmacam_Trigger(m_hcam, m_nTriggerNumber);
 				if (E_INVALIDARG == hr)
 				{
 					if (m_nTriggerNumber > 1)
@@ -2183,24 +2195,24 @@ private:
 
 	void OnTriggerLoop(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			int val = 0;
-			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_TRIGGER, &val);
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TRIGGER, &val);
 			if (val == 2)
 			{
 				if (eTriggerLoop == m_eTriggerType)
 				{
 					m_eTriggerType = eTriggerNumber;
 					UIEnable(ID_TRIGGER_TRIGGER, TRUE);
-					Ogmacam_Trigger(m_hCam, 0);
+					Ogmacam_Trigger(m_hcam, 0);
 				}
 				else
 				{
 					UIEnable(ID_TRIGGER_TRIGGER, FALSE);
 					m_eTriggerType = eTriggerLoop;
-					Ogmacam_IoControl(m_hCam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 5, NULL);
-					Ogmacam_Trigger(m_hCam, 1);
+					Ogmacam_IoControl(m_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 5, NULL);
+					Ogmacam_Trigger(m_hcam, 1);
 				}
 			}
 		}
@@ -2208,15 +2220,15 @@ private:
 
 	void OnPreviewResolution(UINT /*uNotifyCode*/, int nID, HWND /*wndCtl*/)
 	{
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 			return;
 
 		unsigned eSize = 0;
-		if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
+		if (SUCCEEDED(Ogmacam_get_eSize(m_hcam, &eSize)))
 		{
 			if (eSize != nID - ID_PREVIEW_RESOLUTION0)
 			{
-				if (SUCCEEDED(Ogmacam_Stop(m_hCam)))
+				if (SUCCEEDED(Ogmacam_Stop(m_hcam)))
 				{
 					OnStopRecord(0, 0, NULL);
 
@@ -2227,11 +2239,11 @@ private:
 					m_nFrameCount = 0;
 					m_dwStartTick = m_dwLastTick = 0;
 
-					Ogmacam_put_eSize(m_hCam, nID - ID_PREVIEW_RESOLUTION0);
+					Ogmacam_put_eSize(m_hcam, nID - ID_PREVIEW_RESOLUTION0);
 					for (unsigned i = 0; i < m_dev.model->preview; ++i)
 						UISetCheck(ID_PREVIEW_RESOLUTION0 + i, (nID - ID_PREVIEW_RESOLUTION0 == i) ? 1 : 0);
 					UpdateSnapMenu();
-					if (SUCCEEDED(Ogmacam_get_Size(m_hCam, (int*)&m_header.biWidth, (int*)&m_header.biHeight)))
+					if (SUCCEEDED(Ogmacam_get_Size(m_hcam, (int*)&m_header.biWidth, (int*)&m_header.biHeight)))
 					{
 						UpdateResolutionText();
 						UpdateFrameText(L"");
@@ -2244,7 +2256,7 @@ private:
 							m_pData = NULL;
 						}
 						m_pData = (BYTE*)malloc(m_header.biSizeImage);
-						if (SUCCEEDED(Ogmacam_StartPullModeWithWndMsg(m_hCam, m_hWnd, MSG_CAMEVENT)))
+						if (SUCCEEDED(Ogmacam_StartPullModeWithWndMsg(m_hcam, m_hWnd, MSG_CAMEVENT)))
 						{
 							UIEnable(ID_ACTION_PAUSE, TRUE);
 							UIEnable(ID_ACTION_STARTRECORD, TRUE);
@@ -2261,14 +2273,14 @@ private:
 
 	void OnSnapResolution(UINT /*uNotifyCode*/, int nID, HWND /*wndCtl*/)
 	{
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 			return;
 
 		CFileDialog dlg(FALSE, L"jpg");
 		if (IDOK == dlg.DoModal())
 		{
 			wcscpy(m_szFilePath, dlg.m_szFileName);
-			if (SUCCEEDED(Ogmacam_Snap(m_hCam, nID - ID_SNAP_RESOLUTION0)))
+			if (SUCCEEDED(Ogmacam_Snap(m_hcam, nID - ID_SNAP_RESOLUTION0)))
 			{
 				m_nSnapType = 1;
 				m_nSnapSeq = 0;
@@ -2279,13 +2291,13 @@ private:
 
 	void OnSnapnResolution(UINT /*uNotifyCode*/, int nID, HWND /*wndCtl*/)
 	{
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 			return;
 
 		CSnapnDlg dlg;
 		if ((IDOK == dlg.DoModal()) && (dlg.m_nNum > 0))
 		{
-			if (SUCCEEDED(Ogmacam_SnapN(m_hCam, nID - ID_SNAPN_RESOLUTION0, dlg.m_nNum)))
+			if (SUCCEEDED(Ogmacam_SnapN(m_hcam, nID - ID_SNAPN_RESOLUTION0, dlg.m_nNum)))
 			{
 				m_nSnapType = 2;
 				m_nSnapSeq = dlg.m_nNum;
@@ -2307,27 +2319,27 @@ private:
 		m_nFrameCount = 0;
 		m_dwStartTick = m_dwLastTick = 0;
 		const int idx = nID - ID_DEVICE_DEVICE0;
-		m_hCam = Ogmacam_Open(m_arrDev[idx].id);
-		if (m_hCam)
+		m_hcam = Ogmacam_Open(m_arrDev[idx].id);
+		if (m_hcam)
 		{
 			m_dev = m_arrDev[idx];
 			/* just to demo put roi befor the camera is started */
 			if (m_xRoiWidth && m_yRoiHeight)
 			{
-				Ogmacam_put_Roi(m_hCam, m_xRoiOffset, m_yRoiOffset, m_xRoiWidth, m_yRoiHeight);
-				Ogmacam_get_Roi(m_hCam, NULL, NULL, (unsigned*)&m_header.biWidth, (unsigned*)&m_header.biHeight);
+				Ogmacam_put_Roi(m_hcam, m_xRoiOffset, m_yRoiOffset, m_xRoiWidth, m_yRoiHeight);
+				Ogmacam_get_Roi(m_hcam, NULL, NULL, (unsigned*)&m_header.biWidth, (unsigned*)&m_header.biHeight);
 			}
 			else
 			{
-				Ogmacam_get_Size(m_hCam, (int*)&m_header.biWidth, (int*)&m_header.biHeight);
+				Ogmacam_get_Size(m_hcam, (int*)&m_header.biWidth, (int*)&m_header.biHeight);
 			}
 
 			if (m_bTriggerMode)
 			{
 				if (m_dev.model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL)
-					Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, 2);
+					Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TRIGGER, 2);
 				else if (m_dev.model->flag & OGMACAM_FLAG_TRIGGER_EXTERNAL)
-					Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, 1);
+					Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TRIGGER, 1);
 			}
 
 			OnDeviceChanged();
@@ -2338,12 +2350,12 @@ private:
 				m_header.biSizeImage = TDIBWIDTHBYTES(m_header.biWidth * m_header.biBitCount) * m_header.biHeight;
 				m_pData = (BYTE*)malloc(m_header.biSizeImage);
 				unsigned eSize = 0;
-				if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
+				if (SUCCEEDED(Ogmacam_get_eSize(m_hcam, &eSize)))
 				{
 					for (unsigned i = 0; i < m_dev.model->preview; ++i)
 						UISetCheck(ID_PREVIEW_RESOLUTION0 + i, (eSize == i) ? 1 : 0);
 				}
-				if (SUCCEEDED(Ogmacam_StartPullModeWithWndMsg(m_hCam, m_hWnd, MSG_CAMEVENT)))
+				if (SUCCEEDED(Ogmacam_StartPullModeWithWndMsg(m_hcam, m_hWnd, MSG_CAMEVENT)))
 				{
 					UIEnable(ID_ACTION_PAUSE, TRUE);
 					UIEnable(ID_ACTION_STARTRECORD, TRUE);
@@ -2382,14 +2394,14 @@ private:
 	{
 		StopRecord();
 
-		UIEnable(ID_ACTION_STARTRECORD, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_STARTRECORD, m_hcam ? TRUE : FALSE);
 		UIEnable(ID_ACTION_STOPRECORD, FALSE);
 	}
 
 	void OnEventImage()
 	{
 		OgmacamFrameInfoV3 info = { 0 };
-		HRESULT hr = Ogmacam_PullImageV3(m_hCam, m_pData, 0, m_header.biBitCount, 0, &info);
+		HRESULT hr = Ogmacam_PullImageV3(m_hcam, m_pData, 0, m_header.biBitCount, 0, &info);
 		if (FAILED(hr))
 			return;
 		if ((info.width != m_header.biWidth) || (info.height != m_header.biHeight))
@@ -2414,7 +2426,7 @@ private:
 		header.biPlanes = 1;
 		header.biBitCount = 24;
 		OgmacamFrameInfoV3 info = { 0 };
-		HRESULT hr = Ogmacam_PullImageV3(m_hCam, NULL, 1, 24, 0, &info); //first, peek the width and height
+		HRESULT hr = Ogmacam_PullImageV3(m_hcam, NULL, 1, 24, 0, &info); //first, peek the width and height
 		if (SUCCEEDED(hr))
 		{
 			header.biWidth = info.width;
@@ -2423,7 +2435,7 @@ private:
 			void* pSnapData = malloc(header.biSizeImage);
 			if (pSnapData)
 			{
-				hr = Ogmacam_PullImageV3(m_hCam, pSnapData, 1, 24, 0, NULL);
+				hr = Ogmacam_PullImageV3(m_hcam, pSnapData, 1, 24, 0, NULL);
 				if (SUCCEEDED(hr))
 				{
 					if (2 == m_nSnapType)
@@ -2483,7 +2495,7 @@ private:
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		int nTemp = OGMACAM_TEMP_DEF, nTint = OGMACAM_TINT_DEF;
-		Ogmacam_get_TempTint(m_hCam, &nTemp, &nTint);
+		Ogmacam_get_TempTint(m_hcam, &nTemp, &nTint);
 		swprintf(res, L"Temp = %d, Tint = %d", nTemp, nTint);
 		statusbar.SetText(2, res);
 	}
@@ -2494,7 +2506,7 @@ private:
 		wchar_t res[128];
 		unsigned nTime = 0;
 		unsigned short Gain = 0;
-		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hCam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hCam, &Gain)))
+		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hcam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hcam, &Gain)))
 		{
 			swprintf(res, L"ExposureTime = %u, Gain = %hu", nTime, Gain);
 			statusbar.SetText(1, res);
@@ -2505,10 +2517,10 @@ private:
 	{
 		OnStopRecord(0, 0, NULL);
 
-		if (m_hCam)
+		if (m_hcam)
 		{
-			Ogmacam_Close(m_hCam);
-			m_hCam = NULL;
+			Ogmacam_Close(m_hcam);
+			m_hcam = NULL;
 
 			if (m_pData)
 			{
@@ -2535,7 +2547,7 @@ private:
 
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
 
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 		{
 			previewsubmenu.AppendMenu(MF_STRING | MF_GRAYED, ID_PREVIEW_RESOLUTION0, L"Empty");
 			snapsubmenu.AppendMenu(MF_STRING | MF_GRAYED, ID_SNAP_RESOLUTION0, L"Empty");
@@ -2553,7 +2565,7 @@ private:
 		else
 		{
 			unsigned eSize = 0;
-			Ogmacam_get_eSize(m_hCam, &eSize);
+			Ogmacam_get_eSize(m_hcam, &eSize);
 
 			wchar_t res[128];
 			for (unsigned i = 0; i < m_dev.model->preview; ++i)
@@ -2571,14 +2583,14 @@ private:
 			UpdateExposureTimeText();
 
 			int nTemp = OGMACAM_TEMP_DEF, nTint = OGMACAM_TINT_DEF;
-			if (SUCCEEDED(Ogmacam_get_TempTint(m_hCam, &nTemp, &nTint)))
+			if (SUCCEEDED(Ogmacam_get_TempTint(m_hcam, &nTemp, &nTint)))
 			{
 				swprintf(res, L"Temp = %d, Tint = %d", nTemp, nTint);
 				statusbar.SetText(2, res);
 			}
 
 			BOOL bAutoExposure = TRUE;
-			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hCam, &bAutoExposure)))
+			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &bAutoExposure)))
 			{
 				UISetCheck(ID_CONFIG_AUTOEXPOSURE, bAutoExposure ? 1 : 0);
 				UIEnable(ID_CONFIG_EXPOSURETIME, !bAutoExposure);
@@ -2588,30 +2600,30 @@ private:
 		UIEnable(ID_ACTION_PAUSE, FALSE);
 		UIEnable(ID_ACTION_STARTRECORD, FALSE);
 		UIEnable(ID_ACTION_STOPRECORD, FALSE);
-		UIEnable(ID_CONFIG_AUTOEXPOSURE, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_CONFIG_HORIZONTALFLIP, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_CONFIG_VERTICALFLIP, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_CONFIG_WHITEBALANCE, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_LED, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_PIXELFORMAT, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_EEPROM, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_FLASH, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_UART, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_FWVER, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_HWVER, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_FPGAVER, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_PRODUCTIONDATE, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_SN, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_ACTION_RAWFORMAT, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_CONFIG_AUTOEXPOSURE, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_CONFIG_HORIZONTALFLIP, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_CONFIG_VERTICALFLIP, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_CONFIG_WHITEBALANCE, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_LED, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_PIXELFORMAT, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_EEPROM, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_FLASH, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_UART, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_FWVER, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_HWVER, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_FPGAVER, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_PRODUCTIONDATE, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_SN, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_RAWFORMAT, m_hcam ? TRUE : FALSE);
 		UISetCheck(ID_ACTION_PAUSE, 0);
 		UISetCheck(ID_CONFIG_HORIZONTALFLIP, 0);
 		UISetCheck(ID_CONFIG_VERTICALFLIP, 0);
-		UIEnable(ID_ACTION_STOPRECORD, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_TECTARGET, (m_hCam && (m_dev.model->flag & OGMACAM_FLAG_TEC_ONOFF)) ? TRUE : FALSE);
-		UIEnable(ID_SPEED, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_MAXAE, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_ACTION_STOPRECORD, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_TECTARGET, (m_hcam && (m_dev.model->flag & OGMACAM_FLAG_TEC_ONOFF)) ? TRUE : FALSE);
+		UIEnable(ID_SPEED, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_MAXAE, m_hcam ? TRUE : FALSE);
 
-		UIEnable(ID_TRIGGER_NUMBER, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_TRIGGER_NUMBER, m_hcam ? TRUE : FALSE);
 		UIEnable(ID_TRIGGER_TRIGGER, FALSE);
 		UIEnable(ID_TRIGGER_LOOP, FALSE);
 		UIEnable(ID_TRIGGER_IOCONFIG, FALSE);
@@ -2634,7 +2646,7 @@ private:
 		}
 
 		unsigned eSize = 0;
-		if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
+		if (SUCCEEDED(Ogmacam_get_eSize(m_hcam, &eSize)))
 		{
 			for (unsigned i = 0; i < m_dev.model->preview; ++i)
 			{
@@ -2670,7 +2682,7 @@ private:
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		unsigned xOffset = 0, yOffset = 0, nWidth = 0, nHeight = 0;
-		if (SUCCEEDED(Ogmacam_get_Roi(m_hCam, &xOffset, &yOffset, &nWidth, &nHeight)))
+		if (SUCCEEDED(Ogmacam_get_Roi(m_hcam, &xOffset, &yOffset, &nWidth, &nHeight)))
 		{
 			swprintf(res, L"%u, %u, %u * %u", xOffset, yOffset, nWidth, nHeight);
 			statusbar.SetText(0, res);
@@ -2709,7 +2721,7 @@ private:
 		wchar_t res[128];
 		unsigned nTime = 0;
 		unsigned short Gain = 0;
-		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hCam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hCam, &Gain)))
+		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hcam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hcam, &Gain)))
 		{
 			swprintf(res, L"ExposureTime = %u, Gain = %hu", nTime, Gain);
 			statusbar.SetText(1, res);

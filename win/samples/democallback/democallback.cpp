@@ -43,12 +43,12 @@ static BOOL SaveImageBmp(const wchar_t* strFilename, const void* pData, const BI
 
 class CExposureTimeDlg : public CDialogImpl<CExposureTimeDlg>
 {
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 public:
 	enum { IDD = IDD_EXPOSURETIME };
 
-	CExposureTimeDlg(HOgmacam hCam)
-	: m_hCam(hCam)
+	CExposureTimeDlg(HOgmacam hcam)
+	: m_hcam(hcam)
 	{
 	}
 
@@ -63,13 +63,13 @@ public:
 		CenterWindow(GetParent());
 
 		unsigned nMin = 0, nMax = 0, nDef = 0, nTime = 0;
-		if (SUCCEEDED(Ogmacam_get_ExpTimeRange(m_hCam, &nMin, &nMax, &nDef)))
+		if (SUCCEEDED(Ogmacam_get_ExpTimeRange(m_hcam, &nMin, &nMax, &nDef)))
 		{
 			CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
 			ctrl.SetRangeMin(nMin);
 			ctrl.SetRangeMax(nMax);
 
-			if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hCam, &nTime)))
+			if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hcam, &nTime)))
 				ctrl.SetPos(nTime);
 		}
 		
@@ -79,7 +79,7 @@ public:
 	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
 		CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
-		Ogmacam_put_ExpoTime(m_hCam, ctrl.GetPos());
+		Ogmacam_put_ExpoTime(m_hcam, ctrl.GetPos());
 
 		EndDialog(wID);
 		return 0;
@@ -127,7 +127,7 @@ public:
 
 class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFrame>
 {
-	HOgmacam			m_hCam;
+	HOgmacam			m_hcam;
 	CMainView			m_view;
 	OgmacamDeviceV2		m_dev[OGMACAM_MAX];
 	unsigned			m_nIndex;
@@ -200,7 +200,7 @@ public:
 	}
 
 	CMainFrame()
-		: m_hCam(NULL), m_nIndex(0), m_bSnap(false), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pData(NULL), m_view(this), m_nOldWidth(0), m_nOldHeight(0)
+		: m_hcam(NULL), m_nIndex(0), m_bSnap(false), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pData(NULL), m_view(this), m_nOldWidth(0), m_nOldHeight(0)
 	{
 		memset(m_dev, 0, sizeof(m_dev));
 		memset(m_szFilePath, 0, sizeof(m_szFilePath));
@@ -242,19 +242,19 @@ public:
 
 	void OnWhiteBalance(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
-			Ogmacam_AwbOnce(m_hCam, NULL, NULL);
+		if (m_hcam)
+			Ogmacam_AwbOnce(m_hcam, NULL, NULL);
 	}
 
 	void OnAutoExposure(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
 			int bAutoExposure = 0;
-			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hCam, &bAutoExposure)))
+			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &bAutoExposure)))
 			{
 				bAutoExposure = !bAutoExposure;
-				Ogmacam_put_AutoExpoEnable(m_hCam, bAutoExposure);
+				Ogmacam_put_AutoExpoEnable(m_hcam, bAutoExposure);
 				UISetCheck(ID_CONFIG_AUTOEXPOSURE, bAutoExposure ? 1 : 0);
 				UIEnable(ID_CONFIG_EXPOSURETIME, !bAutoExposure);
 			}
@@ -263,9 +263,9 @@ public:
 
 	void OnExposureTime(UINT /*uNotifyCode*/, int /*nID*/, HWND /*wndCtl*/)
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			CExposureTimeDlg dlg(m_hCam);
+			CExposureTimeDlg dlg(m_hcam);
 			if (IDOK == dlg.DoModal())
 				UpdateExposureTimeText();
 		}
@@ -296,7 +296,7 @@ public:
 		if (bSnap)
 		{
 			OgmacamFrameInfoV3 info = { 0 };
-			Ogmacam_PullImageV3(m_hCam, NULL, 1, 24, 0, &info);
+			Ogmacam_PullImageV3(m_hcam, NULL, 1, 24, 0, &info);
 			BITMAPINFOHEADER header = { 0 };
 			header.biSize = sizeof(header);
 			header.biPlanes = 1;
@@ -307,7 +307,7 @@ public:
 			void* pSnapData = malloc(header.biSizeImage);
 			if (pSnapData)
 			{
-				Ogmacam_PullImageV3(m_hCam, pSnapData, 1, 24, 0, NULL);
+				Ogmacam_PullImageV3(m_hcam, pSnapData, 1, 24, 0, NULL);
 				SaveImageBmp(m_szFilePath, pSnapData, &header);
 
 				free(pSnapData);
@@ -318,7 +318,7 @@ public:
 		{
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
-				Ogmacam_PullImageV3(m_hCam, m_pData, 0, 24, 0, NULL);
+				Ogmacam_PullImageV3(m_hcam, m_pData, 0, 24, 0, NULL);
 			}
 			PostMessage(MSG_CAMIMAGE);
 		}
@@ -343,26 +343,26 @@ public:
 
 	void OnPreviewResolution(UINT /*uNotifyCode*/, int nID, HWND /*wndCtl*/)
 	{
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 			return;
 
 		unsigned eSize = 0;
-		if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
+		if (SUCCEEDED(Ogmacam_get_eSize(m_hcam, &eSize)))
 		{
 			if (eSize != nID - ID_PREVIEW_RESOLUTION0)
 			{
-				if (SUCCEEDED(Ogmacam_Stop(m_hCam)))
+				if (SUCCEEDED(Ogmacam_Stop(m_hcam)))
 				{
 					m_nFrameCount = 0;
 					m_bSnap = false;
 					m_dwStartTick = m_dwLastTick = 0;
 					m_nOldWidth = m_nOldHeight = 0;
 
-					Ogmacam_put_eSize(m_hCam, nID - ID_PREVIEW_RESOLUTION0);
+					Ogmacam_put_eSize(m_hcam, nID - ID_PREVIEW_RESOLUTION0);
 					for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
 						UISetCheck(ID_PREVIEW_RESOLUTION0 + i, (nID - ID_PREVIEW_RESOLUTION0 == i) ? 1 : 0);
 					UpdateSnapMenu();
-					if (SUCCEEDED(Ogmacam_get_Size(m_hCam, (int*)&m_header.biWidth, (int*)&m_header.biHeight)))
+					if (SUCCEEDED(Ogmacam_get_Size(m_hcam, (int*)&m_header.biWidth, (int*)&m_header.biHeight)))
 					{
 						UpdateResolutionText();
 						UpdateFrameText(L"");
@@ -375,7 +375,7 @@ public:
 							m_pData = NULL;
 						}
 						m_pData = (BYTE*)malloc(m_header.biSizeImage);
-						Ogmacam_StartPullModeWithCallback(m_hCam, StaticOnEventCallback, this);
+						Ogmacam_StartPullModeWithCallback(m_hcam, StaticOnEventCallback, this);
 					}
 				}
 			}
@@ -384,14 +384,14 @@ public:
 
 	void OnSnapResolution(UINT /*uNotifyCode*/, int nID, HWND /*wndCtl*/)
 	{
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 			return;
 
 		CFileDialog dlg(FALSE, L"bmp");
 		if (IDOK == dlg.DoModal())
 		{
 			wcscpy(m_szFilePath, dlg.m_szFileName);
-			if (SUCCEEDED(Ogmacam_Snap(m_hCam, nID - ID_SNAP_RESOLUTION0)))
+			if (SUCCEEDED(Ogmacam_Snap(m_hcam, nID - ID_SNAP_RESOLUTION0)))
 			{
 				m_bSnap = true;
 				UpdateSnapMenu();
@@ -410,10 +410,10 @@ public:
 		m_dwStartTick = m_dwLastTick = 0;
 		m_nOldWidth = m_nOldHeight = 0;
 		m_nIndex = nID - ID_DEVICE_DEVICE0;
-		m_hCam = Ogmacam_Open(m_dev[m_nIndex].id);
-		if (m_hCam)
+		m_hcam = Ogmacam_Open(m_dev[m_nIndex].id);
+		if (m_hcam)
 		{
-			Ogmacam_get_Size(m_hCam, (int*)&m_header.biWidth, (int*)&m_header.biHeight);
+			Ogmacam_get_Size(m_hcam, (int*)&m_header.biWidth, (int*)&m_header.biHeight);
 
 			OnDeviceChanged();
 			UpdateFrameText(L"");
@@ -423,12 +423,12 @@ public:
 				m_header.biSizeImage = TDIBWIDTHBYTES(m_header.biWidth * m_header.biBitCount) * m_header.biHeight;
 				m_pData = (BYTE*)malloc(m_header.biSizeImage);
 				unsigned eSize = 0;
-				if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
+				if (SUCCEEDED(Ogmacam_get_eSize(m_hcam, &eSize)))
 				{
 					for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
 						UISetCheck(ID_PREVIEW_RESOLUTION0 + i, (eSize == i) ? 1 : 0);
 				}
-				Ogmacam_StartPullModeWithCallback(m_hCam, StaticOnEventCallback, this);
+				Ogmacam_StartPullModeWithCallback(m_hcam, StaticOnEventCallback, this);
 			}
 		}
 	}
@@ -458,7 +458,7 @@ public:
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		int nTemp = OGMACAM_TEMP_DEF, nTint = OGMACAM_TINT_DEF;
-		Ogmacam_get_TempTint(m_hCam, &nTemp, &nTint);
+		Ogmacam_get_TempTint(m_hcam, &nTemp, &nTint);
 		swprintf(res, L"Temp = %d, Tint = %d", nTemp, nTint);
 		statusbar.SetText(2, res);
 	}
@@ -469,7 +469,7 @@ public:
 		wchar_t res[128];
 		unsigned nTime = 0;
 		unsigned short Gain = 0;
-		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hCam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hCam, &Gain)))
+		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hcam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hcam, &Gain)))
 		{
 			swprintf(res, L"ExposureTime = %u, Gain = %hu", nTime, Gain);
 			statusbar.SetText(1, res);
@@ -507,10 +507,10 @@ private:
 	void CloseDevice()
 	{
 		m_bSnap = false;
-		if (m_hCam)
+		if (m_hcam)
 		{
-			Ogmacam_Close(m_hCam);
-			m_hCam = NULL;
+			Ogmacam_Close(m_hcam);
+			m_hcam = NULL;
 
 			if (m_pData)
 			{
@@ -534,7 +534,7 @@ private:
 
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
 
-		if (NULL == m_hCam)
+		if (NULL == m_hcam)
 		{
 			previewsubmenu.AppendMenu(MF_STRING | MF_GRAYED, ID_PREVIEW_RESOLUTION0, L"Empty");
 			snapsubmenu.AppendMenu(MF_STRING | MF_GRAYED, ID_SNAP_RESOLUTION0, L"Empty");
@@ -551,7 +551,7 @@ private:
 		else
 		{
 			unsigned eSize = 0;
-			Ogmacam_get_eSize(m_hCam, &eSize);
+			Ogmacam_get_eSize(m_hcam, &eSize);
 
 			wchar_t res[128];
 			for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
@@ -568,22 +568,22 @@ private:
 			UpdateExposureTimeText();
 
 			int nTemp = OGMACAM_TEMP_DEF, nTint = OGMACAM_TINT_DEF;
-			if (SUCCEEDED(Ogmacam_get_TempTint(m_hCam, &nTemp, &nTint)))
+			if (SUCCEEDED(Ogmacam_get_TempTint(m_hcam, &nTemp, &nTint)))
 			{
 				swprintf(res, L"Temp = %d, Tint = %d", nTemp, nTint);
 				statusbar.SetText(2, res);
 			}
 
 			BOOL bAutoExposure = TRUE;
-			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hCam, &bAutoExposure)))
+			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &bAutoExposure)))
 			{
 				UISetCheck(ID_CONFIG_AUTOEXPOSURE, bAutoExposure ? 1 : 0);
 				UIEnable(ID_CONFIG_EXPOSURETIME, !bAutoExposure);
 			}
 		}
 
-		UIEnable(ID_CONFIG_AUTOEXPOSURE, m_hCam ? TRUE : FALSE);
-		UIEnable(ID_CONFIG_WHITEBALANCE, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_CONFIG_AUTOEXPOSURE, m_hcam ? TRUE : FALSE);
+		UIEnable(ID_CONFIG_WHITEBALANCE, m_hcam ? TRUE : FALSE);
 	}
 
 	void UpdateSnapMenu()
@@ -596,7 +596,7 @@ private:
 		}
 
 		unsigned eSize = 0;
-		if (SUCCEEDED(Ogmacam_get_eSize(m_hCam, &eSize)))
+		if (SUCCEEDED(Ogmacam_get_eSize(m_hcam, &eSize)))
 		{
 			for (unsigned i = 0; i < m_dev[m_nIndex].model->preview; ++i)
 			{
@@ -620,7 +620,7 @@ private:
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		unsigned xOffset = 0, yOffset = 0, nWidth = 0, nHeight = 0;
-		if (SUCCEEDED(Ogmacam_get_Roi(m_hCam, &xOffset, &yOffset, &nWidth, &nHeight)))
+		if (SUCCEEDED(Ogmacam_get_Roi(m_hcam, &xOffset, &yOffset, &nWidth, &nHeight)))
 		{
 			swprintf(res, L"%u, %u, %u * %u", xOffset, yOffset, nWidth, nHeight);
 			statusbar.SetText(0, res);
@@ -649,7 +649,7 @@ private:
 		wchar_t res[128];
 		unsigned nTime = 0;
 		unsigned short Gain = 0;
-		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hCam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hCam, &Gain)))
+		if (SUCCEEDED(Ogmacam_get_ExpoTime(m_hcam, &nTime)) && SUCCEEDED(Ogmacam_get_ExpoAGain(m_hcam, &Gain)))
 		{
 			swprintf(res, L"ExposureTime = %u, Gain = %hu", nTime, Gain);
 			statusbar.SetText(1, res);

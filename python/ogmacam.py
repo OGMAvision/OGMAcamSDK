@@ -1,4 +1,4 @@
-"""Version: 54.23385.20230918
+"""Version: 54.23860.20231112
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -63,6 +63,7 @@ OGMACAM_FLAG_AUTOFOCUSER         = 0x0002000000000000  # astro auto focuser
 OGMACAM_FLAG_LIGHT_SOURCE        = 0x0004000000000000  # stand alone light source
 OGMACAM_FLAG_CAMERALINK          = 0x0008000000000000  # camera link
 OGMACAM_FLAG_CXP                 = 0x0010000000000000  # CXP: CoaXPress
+OGMACAM_FLAG_RAW12PACK           = 0x0020000000000000  # pixel format, RAW 12bits packed
 
 OGMACAM_EVENT_EXPOSURE           = 0x0001          # exposure time or gain changed
 OGMACAM_EVENT_TEMPTINT           = 0x0002          # white balance changed, Temp/Tint mode
@@ -251,9 +252,9 @@ OGMACAM_OPTION_FILTERWHEEL_POSITION   = 0x49       # filter wheel position:
                                                    #
 OGMACAM_OPTION_AUTOEXPOSURE_PERCENT   = 0x4a       # auto exposure percent to average:
                                                    #     1~99: peak percent average
-                                                   #     0 or 100: full roi average
+                                                   #     0 or 100: full roi average, means "disabled"
                                                    #
-OGMACAM_OPTION_ANTI_SHUTTER_EFFECT    = 0x4b       # anti shutter effect: 1 => disable, 0 => disable; default: 1
+OGMACAM_OPTION_ANTI_SHUTTER_EFFECT    = 0x4b       # anti shutter effect: 1 => disable, 0 => disable; default: 0
 OGMACAM_OPTION_CHAMBER_HT             = 0x4c       # get chamber humidity & temperature:
                                                    #     high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
                                                    #     low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
@@ -298,6 +299,13 @@ OGMACAM_OPTION_ADC                    = 0x08000000 # Analog-Digital Conversion:
                                                    #        (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
                                                    #    set: val = ADC value, such as 11bits, 12bits, etc                                                     
 OGMACAM_OPTION_ISP                    = 0x5f       # Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
+OGMACAM_OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60       # Auto exposure: time step (thousandths)
+OGMACAM_OPTION_AUTOEXP_GAIN_STEP      = 0x61       # Auto exposure: gain step (thousandths)
+OGMACAM_OPTION_MOTOR_NUMBER           = 0x62       # range: [1, 20]
+OGMACAM_OPTION_MOTOR_POS              = 0x10000000 # range: [1, 702]
+OGMACAM_OPTION_PSEUDO_COLOR_START     = 0x63       # Pseudo: start color, BGR format
+OGMACAM_OPTION_PSEUDO_COLOR_END       = 0x64       # Pseudo: end color, BGR format
+OGMACAM_OPTION_PSEUDO_COLOR_ENABLE    = 0x65       # Pseudo: 1 => enable, 0 => disable
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -308,17 +316,18 @@ OGMACAM_PIXELFORMAT_YUV411            = 0x05
 OGMACAM_PIXELFORMAT_VUYY              = 0x06
 OGMACAM_PIXELFORMAT_YUV444            = 0x07
 OGMACAM_PIXELFORMAT_RGB888            = 0x08
-OGMACAM_PIXELFORMAT_GMCY8             = 0x09
-OGMACAM_PIXELFORMAT_GMCY12            = 0x0a
+OGMACAM_PIXELFORMAT_GMCY8             = 0x09   # map to RGGB 8 bits
+OGMACAM_PIXELFORMAT_GMCY12            = 0x0a   # map to RGGB 12 bits
 OGMACAM_PIXELFORMAT_UYVY              = 0x0b
+OGMACAM_PIXELFORMAT_RAW12PACK         = 0x0c
 
-OGMACAM_FRAMEINFO_FLAG_SEQ            = 0x0001   # frame sequence number
-OGMACAM_FRAMEINFO_FLAG_TIMESTAMP      = 0x0002   # timestamp
-OGMACAM_FRAMEINFO_FLAG_EXPOTIME       = 0x0004   # exposure time
-OGMACAM_FRAMEINFO_FLAG_EXPOGAIN       = 0x0008   # exposure gain
-OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL     = 0x0010   # black level
-OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ     = 0x0020   # sequence shutter counter
-OGMACAM_FRAMEINFO_FLAG_STILL          = 0x8000   # still image
+OGMACAM_FRAMEINFO_FLAG_SEQ            = 0x00000001   # frame sequence number
+OGMACAM_FRAMEINFO_FLAG_TIMESTAMP      = 0x00000002   # timestamp
+OGMACAM_FRAMEINFO_FLAG_EXPOTIME       = 0x00000004   # exposure time
+OGMACAM_FRAMEINFO_FLAG_EXPOGAIN       = 0x00000008   # exposure gain
+OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL     = 0x00000010   # black level
+OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ     = 0x00000020   # sequence shutter counter
+OGMACAM_FRAMEINFO_FLAG_STILL          = 0x00008000   # still image
 
 OGMACAM_IOCONTROLTYPE_GET_SUPPORTEDMODE         = 0x01  # 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output
 OGMACAM_IOCONTROLTYPE_GET_GPIODIR               = 0x03  # 0x01 => Input, 0x02 => Output
@@ -498,6 +507,9 @@ OGMACAM_SHARPENING_THRESHOLD_MAX = 255      # sharpening threshold
 OGMACAM_AUTOEXPO_THRESHOLD_DEF   = 5        # auto exposure threshold
 OGMACAM_AUTOEXPO_THRESHOLD_MIN   = 2        # auto exposure threshold
 OGMACAM_AUTOEXPO_THRESHOLD_MAX   = 15       # auto exposure threshold
+OGMACAM_AUTOEXPO_STEP_DEF        = 1000     # auto exposure step: thousandths
+OGMACAM_AUTOEXPO_STEP_MIN        = 1        # auto exposure step: thousandths
+OGMACAM_AUTOEXPO_STEP_MAX        = 1000     # auto exposure step: thousandths
 OGMACAM_BANDWIDTH_DEF            = 100      # bandwidth
 OGMACAM_BANDWIDTH_MIN            = 1        # bandwidth
 OGMACAM_BANDWIDTH_MAX            = 100      # bandwidth
@@ -509,9 +521,9 @@ OGMACAM_TEC_TARGET_DEF           = 100      # TEC target: 0.0 degrees Celsius
 OGMACAM_TEC_TARGET_MAX           = 400      # TEC target: 40.0 degrees Celsius
 OGMACAM_HEARTBEAT_MIN            = 100      # millisecond
 OGMACAM_HEARTBEAT_MAX            = 10000    # millisecond
-OGMACAM_AE_PERCENT_MIN           = 0        # auto exposure percent, 0 => full roi average
+OGMACAM_AE_PERCENT_MIN           = 0        # auto exposure percent; 0 or 100 => full roi average, means "disabled"
 OGMACAM_AE_PERCENT_MAX           = 100
-OGMACAM_AE_PERCENT_DEF           = 10
+OGMACAM_AE_PERCENT_DEF           = 10       # auto exposure percent: enabled, percentage = 10%
 OGMACAM_NOPACKET_TIMEOUT_MIN     = 500      # no packet timeout minimum: 500ms
 OGMACAM_NOFRAME_TIMEOUT_MIN      = 500      # no frame timeout minimum: 500ms
 OGMACAM_DYNAMIC_DEFECT_T1_MIN    = 10       # dynamic defect pixel correction, threshold, means: 1.0
@@ -720,7 +732,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 54.23385.20230918"""
+        """get the version of this dll, which is: 54.23860.20231112"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 

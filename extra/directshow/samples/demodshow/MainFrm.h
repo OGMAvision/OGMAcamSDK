@@ -18,6 +18,7 @@ public:
 	virtual BOOL OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo);
 protected:
 	CChildView	m_wndView;
+	CStatusBar	m_statusBar;
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSetFocus(CWnd *pOldWnd);
@@ -36,7 +37,6 @@ protected:
 	afx_msg void OnStillimageSnapshot();
 	afx_msg void OnCapture();
 	afx_msg void OnStopCapture();
-	afx_msg void OnFramerate();
 	afx_msg void OnSn();
 	afx_msg void OnUpdateExampleSize(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateExampleRoi(CCmdUI* pCmdUI);
@@ -46,6 +46,7 @@ protected:
 	afx_msg void OnUpdateStillimageSnapshot(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateCapture(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateStopCapture(CCmdUI* pCmdUI);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	DECLARE_MESSAGE_MAP()
 private:
 	void MenuCamera(CMenu* pMenu);

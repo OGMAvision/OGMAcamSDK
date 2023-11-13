@@ -49,12 +49,12 @@ private:
     {
         if (!_fInitialized)
         {
-            HDC hdc = GetDC(nullptr);
+            HDC hdc = GetDC(NULL);
             if (hdc)
             {
                 _dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
                 _dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
-                ReleaseDC(nullptr, hdc);
+                ReleaseDC(NULL, hdc);
             }
             _fInitialized = true;
         }

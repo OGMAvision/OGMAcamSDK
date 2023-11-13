@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 54.23385.20230918
+'    Version: 54.23860.20231112
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -75,6 +75,7 @@ Friend Class Ogmacam
         FLAG_LIGHT_SOURCE = &H4000000000000       ' stand alone light source
         FLAG_CAMERALINK = &H8000000000000         ' camera link
         FLAG_CXP = &H10000000000000               ' CXP: CoaXPress
+        FLAG_RAW12PACK = &H20000000000000         ' pixel format, RAW 12bits packed
     End Enum
 
     Public Enum eEVENT As UInteger
@@ -267,9 +268,9 @@ Friend Class Ogmacam
                                                    '
         OPTION_AUTOEXPOSURE_PERCENT = &H4A         ' auto exposure percent to average:
                                                    '         1~99: top percent average
-                                                   '         0 or 00: full roi average
+                                                   '         0 or 100: full roi average, means "disabled"
                                                    '
-        OPTION_ANTI_SHUTTER_EFFECT = &H4B          ' anti shutter effect: 1 => disable, 0 => disable; default: 1
+        OPTION_ANTI_SHUTTER_EFFECT = &H4B          ' anti shutter effect: 1 => disable, 0 => disable; default: 0
         OPTION_CHAMBER_HT = &H4C                   ' get chamber humidity & temperature:
                                                    '         high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
                                                    '         low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
@@ -313,6 +314,13 @@ Friend Class Ogmacam
                                                    '        (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
                                                    '    set: val = ADC value, such as 11bits, 12bits, etc
         OPTION_ISP = &H5F                          ' Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
+        OPTION_AUTOEXP_EXPOTIME_STEP = &H60        ' Auto exposure: time step (thousandths)
+        OPTION_AUTOEXP_GAIN_STEP = &H61            ' Auto exposure: gain step (thousandths)
+        OPTION_MOTOR_NUMBER = &H62                 ' range: [1, 20]
+        OPTION_MOTOR_POS = &H10000000              ' range: [1, 702]
+        OPTION_PSEUDO_COLOR_START = &H63           ' Pseudo: start color, BGR format
+        OPTION_PSEUDO_COLOR_END = &H64             ' Pseudo: end color, BGR format
+        OPTION_PSEUDO_COLOR_ENABLE = &H65          ' Pseudo: 1 => enable, 0 => disable
     End Enum
 
     ' HRESULT: Error code
@@ -379,6 +387,9 @@ Friend Class Ogmacam
     Public Const AUTOEXPO_THRESHOLD_DEF   = 5        ' auto exposure threshold
     Public Const AUTOEXPO_THRESHOLD_MIN   = 2        ' auto exposure threshold
     Public Const AUTOEXPO_THRESHOLD_MAX   = 15       ' auto exposure threshold
+    Public Const AUTOEXPO_STEP_DEF        = 1000     ' auto exposure step: thousandths
+    Public Const AUTOEXPO_STEP_MIN        = 1        ' auto exposure step: thousandths
+    Public Const AUTOEXPO_STEP_MAX        = 1000     ' auto exposure step: thousandths
     Public Const BANDWIDTH_DEF            = 100      ' bandwidth
     Public Const BANDWIDTH_MIN            = 1        ' bandwidth
     Public Const BANDWIDTH_MAX            = 100      ' bandwidth
@@ -390,9 +401,9 @@ Friend Class Ogmacam
     Public Const TEC_TARGET_MAX           = 400      ' TEC target: 40.0 degrees Celsius
     Public Const HEARTBEAT_MIN            = 100      ' millisecond
     Public Const HEARTBEAT_MAX            = 10000    ' millisecond
-    Public Const AE_PERCENT_MIN           = 0        ' auto exposure percent, 0 => full roi average
+    Public Const AE_PERCENT_MIN           = 0        ' auto exposure percent; 0 or 100 => full roi average, means "disabled"
     Public Const AE_PERCENT_MAX           = 100
-    Public Const AE_PERCENT_DEF           = 10
+    Public Const AE_PERCENT_DEF           = 10       ' auto exposure percent: enabled, percentage = 10%
     Public Const NOPACKET_TIMEOUT_MIN     = 500      ' no packet timeout minimum: 500ms
     Public Const NOFRAME_TIMEOUT_MIN      = 500      ' no frame timeout minimum: 500ms
     Public Const DYNAMIC_DEFECT_T1_MIN    = 10       ' dynamic defect pixel correction, threshold, means: 1.0
@@ -418,9 +429,10 @@ Friend Class Ogmacam
         PIXELFORMAT_VUYY    = &H6
         PIXELFORMAT_YUV444  = &H7
         PIXELFORMAT_RGB888  = &H8
-        PIXELFORMAT_GMCY8   = &H9
-        PIXELFORMAT_GMCY12  = &HA
+        PIXELFORMAT_GMCY8   = &H9   ' map to RGGB 8 bits
+        PIXELFORMAT_GMCY12  = &HA   ' map to RGGB 12 bits
         PIXELFORMAT_UYVY    = &HB
+        PIXELFORMAT_RAW12PACK = &HC
     End Enum
 
     Public Enum eFRAMEINFO_FLAG As Integer
@@ -626,7 +638,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 54.23385.20230918
+    ' get the version of this dll, which is: 54.23860.20231112
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function

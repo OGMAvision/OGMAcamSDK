@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 54.23385.20230918
+    Version: 54.23860.20231112
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -84,7 +84,8 @@ internal class Ogmacam : IDisposable
         FLAG_AUTOFOCUSER         = 0x0002000000000000,  /* astro auto focuser */
         FLAG_LIGHT_SOURCE        = 0x0004000000000000,  /* stand alone light source */
         FLAG_CAMERALINK          = 0x0008000000000000,  /* camera link */
-        FLAG_CXP                 = 0x0010000000000000   /* CXP: CoaXPress */
+        FLAG_CXP                 = 0x0010000000000000,  /* CXP: CoaXPress */
+        FLAG_RAW12PACK           = 0x0020000000000000   /* pixel format, RAW 12bits packed */
     };
     
     public enum eEVENT : uint
@@ -279,9 +280,9 @@ internal class Ogmacam : IDisposable
                                                      */
         OPTION_AUTOEXPOSURE_PERCENT   = 0x4a,        /* auto exposure percent to average:
                                                              1~99: peak percent average
-                                                             0 or 100: full roi average
+                                                             0 or 100: full roi average, means "disabled"
                                                      */
-        OPTION_ANTI_SHUTTER_EFFECT    = 0x4b,        /* anti shutter effect: 1 => disable, 0 => disable; default: 1 */
+        OPTION_ANTI_SHUTTER_EFFECT    = 0x4b,        /* anti shutter effect: 1 => disable, 0 => disable; default: 0 */
         OPTION_CHAMBER_HT             = 0x4c,        /* get chamber humidity & temperature:
                                                              high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
                                                              low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
@@ -330,7 +331,14 @@ internal class Ogmacam : IDisposable
                                                                 (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
                                                             set: val = ADC value, such as 11bits, 12bits, etc
                                                      */
-        OPTION_ISP                    = 0x5f         /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */                                                    
+        OPTION_ISP                    = 0x5f,        /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */                                                    
+        OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60,        /* Auto exposure: time step (thousandths) */
+        OPTION_AUTOEXP_GAIN_STEP      = 0x61,        /* Auto exposure: gain step (thousandths) */
+        OPTION_MOTOR_NUMBER           = 0x62,        /* range: [1, 20] */
+        OPTION_MOTOR_POS              = 0x10000000,  /* range: [1, 702] */
+        OPTION_PSEUDO_COLOR_START     = 0x63,        /* Pseudo: start color, BGR format */
+        OPTION_PSEUDO_COLOR_END       = 0x64,        /* Pseudo: end color, BGR format */
+        OPTION_PSEUDO_COLOR_ENABLE    = 0x65         /* Pseudo: 1 => enable, 0 => disable */
     };
     
     /* HRESULT: error code */
@@ -397,6 +405,9 @@ internal class Ogmacam : IDisposable
     public const int AUTOEXPO_THRESHOLD_DEF   = 5;        /* auto exposure threshold */
     public const int AUTOEXPO_THRESHOLD_MIN   = 2;        /* auto exposure threshold */
     public const int AUTOEXPO_THRESHOLD_MAX   = 15;       /* auto exposure threshold */
+    public const int AUTOEXPO_STEP_DEF        = 1000;     /* auto exposure step: thousandths */
+    public const int AUTOEXPO_STEP_MIN        = 1;        /* auto exposure step: thousandths */
+    public const int AUTOEXPO_STEP_MAX        = 1000;     /* auto exposure step: thousandths */  
     public const int BANDWIDTH_DEF            = 100;      /* bandwidth */
     public const int BANDWIDTH_MIN            = 1;        /* bandwidth */
     public const int BANDWIDTH_MAX            = 100;      /* bandwidth */
@@ -408,9 +419,9 @@ internal class Ogmacam : IDisposable
     public const int TEC_TARGET_MAX           = 400;      /* TEC target: 40.0 degrees Celsius */
     public const int HEARTBEAT_MIN            = 100;      /* millisecond */
     public const int HEARTBEAT_MAX            = 10000;    /* millisecond */
-    public const int AE_PERCENT_MIN           = 0;        /* auto exposure percent, 0 => full roi average */
+    public const int AE_PERCENT_MIN           = 0;        /* auto exposure percent; 0 or 100 => full roi average, means "disabled" */
     public const int AE_PERCENT_MAX           = 100;
-    public const int AE_PERCENT_DEF           = 10;
+    public const int AE_PERCENT_DEF           = 10;       /* auto exposure percent: enabled, percentage = 10% */
     public const int NOPACKET_TIMEOUT_MIN     = 500;      /* no packet timeout minimum: 500ms */
     public const int NOFRAME_TIMEOUT_MIN      = 500;      /* no frame timeout minimum: 500ms */
     public const int DYNAMIC_DEFECT_T1_MIN    = 10;       /* dynamic defect pixel correction, threshold, means: 1.0 */
@@ -437,20 +448,21 @@ internal class Ogmacam : IDisposable
         PIXELFORMAT_VUYY             = 0x06,
         PIXELFORMAT_YUV444           = 0x07,
         PIXELFORMAT_RGB888           = 0x08,
-        PIXELFORMAT_GMCY8            = 0x09,
-        PIXELFORMAT_GMCY12           = 0x0a,
-        PIXELFORMAT_UYVY             = 0x0b
+        PIXELFORMAT_GMCY8            = 0x09,   /* map to RGGB 8 bits */
+        PIXELFORMAT_GMCY12           = 0x0a,   /* map to RGGB 12 bits */
+        PIXELFORMAT_UYVY             = 0x0b,
+        PIXELFORMAT_RAW12PACK        = 0x0c
     };
     
     public enum eFRAMEINFO_FLAG : uint
     {
-        FRAMEINFO_FLAG_SEQ        = 0x0001, /* frame sequence number */
-        FRAMEINFO_FLAG_TIMESTAMP  = 0x0002, /* timestamp */
-        FRAMEINFO_FLAG_EXPOTIME   = 0x0004, /* exposure time */
-        FRAMEINFO_FLAG_EXPOGAIN   = 0x0008, /* exposure gain */
-        FRAMEINFO_FLAG_BLACKLEVEL = 0x0010, /* black level */
-        FRAMEINFO_FLAG_SHUTTERSEQ = 0x0020, /* sequence shutter counter */
-        FRAMEINFO_FLAG_STILL      = 0x8000  /* still image */
+        FRAMEINFO_FLAG_SEQ           = 0x00000001, /* frame sequence number */
+        FRAMEINFO_FLAG_TIMESTAMP     = 0x00000002, /* timestamp */
+        FRAMEINFO_FLAG_EXPOTIME      = 0x00000004, /* exposure time */
+        FRAMEINFO_FLAG_EXPOGAIN      = 0x00000008, /* exposure gain */
+        FRAMEINFO_FLAG_BLACKLEVEL    = 0x00000010, /* black level */
+        FRAMEINFO_FLAG_SHUTTERSEQ    = 0x00000020, /* sequence shutter counter */
+        FRAMEINFO_FLAG_STILL         = 0x00008000  /* still image */
     };
     
     public enum eIoControType : uint
@@ -684,7 +696,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
     
-    /* get the version of this dll/so, which is: 54.23385.20230918 */
+    /* get the version of this dll/so, which is: 54.23860.20231112 */
     public static string Version()
     {
         return Ogmacam_Version();
@@ -1021,7 +1033,7 @@ internal class Ogmacam : IDisposable
         }
     }
     
-#if !(NETFX_CORE || NETCOREAPP || WINDOWS_UWP)
+#if !(WINDOWS_UWP)
     public bool StartPullModeWithWndMsg(IntPtr hWnd, uint nMsg)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -3051,7 +3063,7 @@ internal class Ogmacam : IDisposable
 #endif
     }
     
-#if !(NETFX_CORE || NETCOREAPP || WINDOWS_UWP)
+#if !(WINDOWS_UWP)
     public class SafeCamHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -3144,7 +3156,7 @@ internal class Ogmacam : IDisposable
     private static extern SafeCamHandle Ogmacam_Open([MarshalAs(ut)] string camId);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern SafeCamHandle Ogmacam_OpenByIndex(uint index);
-#if !(NETFX_CORE || NETCOREAPP || WINDOWS_UWP)
+#if !(WINDOWS_UWP)
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_StartPullModeWithWndMsg(SafeCamHandle h, IntPtr hWnd, uint nMsg);
 #endif

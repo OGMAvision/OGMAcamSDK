@@ -181,7 +181,7 @@ class CConfigDlg : public CDialogImpl<CConfigDlg>
 {
 	friend class CMainFrame;
 	const OgmacamModelV2* m_pModel;
-	HOgmacam	m_hCam;
+	HOgmacam	m_hcam;
 	DWORD		m_area, m_bin, m_temp, m_scale;
 	CRegKey		m_regkey;
 	unsigned		m_expoTimeRange[2];
@@ -190,8 +190,8 @@ class CConfigDlg : public CDialogImpl<CConfigDlg>
 	std::vector<POINT>	m_vecPt;
 public:
 	enum { IDD = IDD_CONFIG };
-	CConfigDlg(HOgmacam hCam, const OgmacamModelV2* pModel)
-		: m_hCam(hCam), m_pModel(pModel), m_area(5), m_bin(1), m_temp(0), m_scale(0)
+	CConfigDlg(HOgmacam hcam, const OgmacamModelV2* pModel)
+		: m_hcam(hcam), m_pModel(pModel), m_area(5), m_bin(1), m_temp(0), m_scale(0)
 	{
 		m_regkey.Create(HKEY_CURRENT_USER, L"Software\\democns");
 		m_regkey.QueryDWORDValue(L"area", m_area);
@@ -204,8 +204,8 @@ public:
 			m_regkey.QueryBinaryValue(L"expo", &m_vecExpo[0], &dwLength);
 		}
 		
-		Ogmacam_get_ExpTimeRange(m_hCam, &m_expoTimeRange[0], &m_expoTimeRange[1], nullptr);
-		Ogmacam_get_ExpoAGainRange(m_hCam, &m_expoGainRange[0], &m_expoGainRange[1], nullptr);
+		Ogmacam_get_ExpTimeRange(m_hcam, &m_expoTimeRange[0], &m_expoTimeRange[1], nullptr);
+		Ogmacam_get_ExpoAGainRange(m_hcam, &m_expoGainRange[0], &m_expoGainRange[1], nullptr);
 	}
 
 	BEGIN_MSG_MAP(CMainDlg)
@@ -250,7 +250,7 @@ private:
 			box.AddString(L"16");
 			box.SetCurSel(0);
 		}
-		if (E_NOTIMPL == Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
+		if (E_NOTIMPL == Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
 		{
 			GetDlgItem(IDC_CHECK1).EnableWindow(FALSE);
 			GetDlgItem(IDC_COMBO4).EnableWindow(FALSE);
@@ -263,7 +263,7 @@ private:
 			m_regkey.QueryDWORDValue(L"scale", m_scale);
 			((CComboBox)GetDlgItem(IDC_COMBO4)).SetCurSel(m_scale);
 		}
-		if (E_NOTIMPL == Ogmacam_get_Temperature(m_hCam, nullptr)) // support get the temperature of the sensor
+		if (E_NOTIMPL == Ogmacam_get_Temperature(m_hcam, nullptr)) // support get the temperature of the sensor
 			GetDlgItem(IDC_EDIT5).EnableWindow(FALSE);
 		else
 		{
@@ -386,7 +386,7 @@ private:
 		{
 			CUpDownCtrl ctrl(GetDlgItem(IDC_SPIN8));
 			DWORD heat = 0, maxheat = 0;
-			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_HEAT_MAX, (int*)&maxheat);
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_HEAT_MAX, (int*)&maxheat);
 			ctrl.SetRange(0, maxheat);
 			m_regkey.QueryDWORDValue(L"heat", heat);
 			if (heat > maxheat)
@@ -415,14 +415,14 @@ private:
 		{
 			CComboBox box(GetDlgItem(IDC_COMBO3));
 			const int c = box.GetCurSel();
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_FAN, c);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_FAN, c);
 			m_regkey.SetDWORDValue(L"fan", c);
 		}
 
 		if (m_pModel->flag & OGMACAM_FLAG_TEC_ONOFF)
 		{
 			const int bEnable = IsDlgButtonChecked(IDC_CHECK3) ? 1 : 0;
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TEC, bEnable);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TEC, bEnable);
 			m_regkey.SetDWORDValue(L"tec", bEnable);
 			if (bEnable)
 			{
@@ -435,7 +435,7 @@ private:
 					AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Tec target out of range [%.1f, %.1f].", OGMACAM_TEC_TARGET_MIN / 10.0, OGMACAM_TEC_TARGET_MAX / 10.0), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
 					return 0;
 				}
-				Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TECTARGET, n);
+				Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TECTARGET, n);
 				m_regkey.SetDWORDValue(L"tectarget", (DWORD)n);
 			}
 		}
@@ -443,19 +443,19 @@ private:
 		if (m_pModel->flag & OGMACAM_FLAG_HEAT)
 		{
 			DWORD heat = 0, maxheat = 0;
-			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_HEAT_MAX, (int*)&maxheat);
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_HEAT_MAX, (int*)&maxheat);
 			if (GetDlgInt(this, IDC_EDIT8, heat, 0, maxheat))
 				return 0;
 			
 			m_regkey.SetDWORDValue(L"heat", heat);
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_HEAT, heat);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_HEAT, heat);
 		}
 
 		if (m_pModel->flag & (OGMACAM_FLAG_CG | OGMACAM_FLAG_CGHDR))
 		{
 			CComboBox box(GetDlgItem(IDC_COMBO5));
 			const int c = box.GetCurSel();
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_CG, c);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_CG, c);
 			m_regkey.SetDWORDValue(L"cg", c);
 		}
 
@@ -495,7 +495,7 @@ private:
 			AtlMessageBox(m_hWnd, L"Area must be odd number.", (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
 			return 0;
 		}
-		if (E_NOTIMPL != Ogmacam_get_Temperature(m_hCam, nullptr))
+		if (E_NOTIMPL != Ogmacam_get_Temperature(m_hcam, nullptr))
 		{
 			if (GetDlgInt(this, IDC_EDIT5, m_temp, TEMP_MIN, TEMP_MAX))
 				return 0;
@@ -517,12 +517,12 @@ private:
 				m_bin |= 0x40;
 				break;
 			}
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_BINNING, m_bin);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_BINNING, m_bin);
 		}
 		{
 			const unsigned r = m_area / 2;
 			int width = 0, height = 0;
-			Ogmacam_get_FinalSize(m_hCam, &width, &height);
+			Ogmacam_get_FinalSize(m_hcam, &width, &height);
 			if (IsDlgButtonChecked(IDC_RADIO1))
 			{
 				m_vecPt.resize(row * col);
@@ -551,11 +551,11 @@ private:
 		m_regkey.SetBinaryValue(L"expo", &m_vecExpo[0], sizeof(Expo) * m_vecExpo.size());
 		m_regkey.SetDWORDValue(L"binvalue", m_bin);
 
-		if (E_NOTIMPL != Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
+		if (E_NOTIMPL != Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
 		{
 			const int bCheck = IsDlgButtonChecked(IDC_CHECK1) ? 1 : 0;
 			m_regkey.SetDWORDValue(L"bitdepth", bCheck);
-			Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_BITDEPTH, bCheck);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, bCheck);
 			if (bCheck)
 			{
 				m_scale = ((CComboBox)GetDlgItem(IDC_COMBO4)).GetCurSel();
@@ -566,7 +566,7 @@ private:
 			CComboBox box(GetDlgItem(IDC_COMBO1));
 			m_regkey.SetDWORDValue(L"trigger", box.GetCurSel());
 			if (0 == box.GetCurSel())
-				Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_TRIGGER, 1);
+				Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TRIGGER, 1);
 		}
 
 		EndDialog(wID);
@@ -644,7 +644,7 @@ private:
 
 	LRESULT OnCheck1(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (E_NOTIMPL != Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
+		if (E_NOTIMPL != Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
 			GetDlgItem(IDC_COMBO4).EnableWindow(IsDlgButtonChecked(IDC_CHECK1));
 		return 0;
 	}
@@ -1033,7 +1033,7 @@ private:
 class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFrame>, public CIdleHandler
 {
 	const OgmacamModelV2*	m_pModel;
-	HOgmacam		m_hCam;
+	HOgmacam		m_hcam;
 	void*			m_pRawData;
 	int				m_ymax, m_scale;
 	unsigned		m_area, m_bitdepth;
@@ -1050,7 +1050,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	std::vector<POINT>	m_vecPt;
 public:
 	CMainFrame()
-	: m_hCam(nullptr), m_pModel(nullptr), m_pRawData(nullptr), m_curGraph(nullptr), m_curWnd(nullptr), m_idxExpo(-1)
+	: m_hcam(nullptr), m_pModel(nullptr), m_pRawData(nullptr), m_curGraph(nullptr), m_curWnd(nullptr), m_idxExpo(-1)
 	, m_bTriggerMode(false), m_bWantTigger(false), m_bTemperature(false), m_ymax(0), m_bitdepth(0), m_scale(1), m_area(5)
 	, m_tempGraph(true)
 	{
@@ -1101,8 +1101,8 @@ public:
 public:
 	virtual BOOL OnIdle()
 	{
-		UIEnable(ID_START, nullptr == m_hCam);
-		UIEnable(ID_STOP, m_hCam ? TRUE : FALSE);
+		UIEnable(ID_START, nullptr == m_hcam);
+		UIEnable(ID_STOP, m_hcam ? TRUE : FALSE);
 		UIEnable(ID_BESTFIT, m_curGraph && (m_curGraph->dataNum() > 0));
 		UIEnable(ID_ZOOMIN_X, m_curGraph && (m_curGraph->CanZoomIn(true)));
 		UIEnable(ID_ZOOMOUT_X, m_curGraph && (m_curGraph->CanZoomOut(true)));
@@ -1111,7 +1111,7 @@ public:
 		UIEnable(ID_ZOOM_X_MAX, m_curGraph && (m_curGraph->CanZoomIn(true)));
 		UIEnable(ID_ZOOM_Y_MAX, m_curGraph && (m_curGraph->CanZoomIn(false)));
 		UIEnable(ID_CSV, m_vecGraph.size() && (m_vecGraph[0].dataNum() > 0));
-		UIEnable(ID_OPEN, m_hCam ? FALSE : TRUE);
+		UIEnable(ID_OPEN, m_hcam ? FALSE : TRUE);
 		UIEnable(ID_SAVE, m_vecGraph.size() && (m_vecGraph[0].dataNum() > 0));
 		UIUpdateToolBar();
 		return FALSE;
@@ -1249,7 +1249,7 @@ public:
 
 	LRESULT OnOpen(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (nullptr == m_hCam)
+		if (nullptr == m_hcam)
 		{
 			CFileDialog dlg(TRUE, _T("cns"), nullptr, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, L"CNS Files (*.cns)\0*.cns\0All Files (*.*)\0*.*\0\0", m_hWnd);
 			if (IDOK == dlg.DoModal())
@@ -1510,7 +1510,7 @@ public:
 
 	LRESULT OnStart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (nullptr == m_hCam)
+		if (nullptr == m_hcam)
 		{
 			if (2 == __argc) /* launch by command line */
 				OpenCamera(__wargv[1]);
@@ -1571,14 +1571,14 @@ public:
 			if (m_bWantTigger && (GetTickCount() - m_tickLast >= m_vecExpo[m_idxExpo].delayTime + TIMER_EPSILON))
 			{
 				m_bWantTigger = false;
-				Ogmacam_Trigger(m_hCam, 1);
+				Ogmacam_Trigger(m_hcam, 1);
 			}
 			break;
 		case TIMER_TEMP:
 			if (m_bTemperature)
 			{
 				short temp = 0;
-				if (SUCCEEDED(Ogmacam_get_Temperature(m_hCam, &temp)))
+				if (SUCCEEDED(Ogmacam_get_Temperature(m_hcam, &temp)))
 				{
 					int val = temp;
 					m_tempGraph.AddData(&val);
@@ -1596,7 +1596,7 @@ public:
 		CWindow* newWnd = nullptr;
 		if ((idx >= 0) && (idx < m_vecGraph.size()))
 			newWnd = &m_vecGraph[idx];
-		else if (nullptr == m_hCam)
+		else if (nullptr == m_hcam)
 		{
 			if (m_bTemperature && (idx + 1 == m_tabCtrl.GetItemCount()))
 				newWnd = &m_tempGraph;
@@ -1640,20 +1640,20 @@ public:
 private:
 	void OpenCamera(const wchar_t* camId)
 	{
-		m_hCam = Ogmacam_Open(camId);
-		if (nullptr == m_hCam)
+		m_hcam = Ogmacam_Open(camId);
+		if (nullptr == m_hcam)
 		{
 			AtlMessageBox(m_hWnd, L"Open camera failed.", (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
 			return;
 		}
 
-		m_pModel = Ogmacam_query_Model(m_hCam);
-		Ogmacam_put_eSize(m_hCam, 0); // always use the maximum resolution
-		Ogmacam_put_Option(m_hCam, OGMACAM_OPTION_RAW, 1);
-		Ogmacam_put_HZ(m_hCam, 2);
-		Ogmacam_put_AutoExpoEnable(m_hCam, 0); // always disable auto exposure
+		m_pModel = Ogmacam_query_Model(m_hcam);
+		Ogmacam_put_eSize(m_hcam, 0); // always use the maximum resolution
+		Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_RAW, 1);
+		Ogmacam_put_HZ(m_hcam, 2);
+		Ogmacam_put_AutoExpoEnable(m_hcam, 0); // always disable auto exposure
 
-		CConfigDlg dlg(m_hCam, m_pModel);
+		CConfigDlg dlg(m_hcam, m_pModel);
 		if (IDOK != dlg.DoModal())
 			CloseCamera();
 		else
@@ -1670,7 +1670,7 @@ private:
 			m_scale = 1;
 
 			unsigned nFourCC;
-			Ogmacam_get_RawFormat(m_hCam, &nFourCC, &m_bitdepth);
+			Ogmacam_get_RawFormat(m_hcam, &nFourCC, &m_bitdepth);
 			m_ymax = 1 << m_bitdepth;
 			if (dlg.m_bin & 0x40)
 				m_ymax *= (dlg.m_bin & 0xf) * (dlg.m_bin & 0xf);
@@ -1693,7 +1693,7 @@ private:
 			}
 			
 			int w = 0, h = 0;
-			Ogmacam_get_FinalSize(m_hCam, &w, &h);
+			Ogmacam_get_FinalSize(m_hcam, &w, &h);
 			m_pRawData = malloc(w * h * ((m_bitdepth > 8) ? 2 : 1));
 
 			m_tempGraph.Init(0, 0);
@@ -1708,7 +1708,7 @@ private:
 			}
 			m_curGraph = &m_vecGraph[0];
 			m_curWnd = m_curGraph;
-			if ((E_NOTIMPL != Ogmacam_get_Temperature(m_hCam, nullptr)) && dlg.m_temp)
+			if ((E_NOTIMPL != Ogmacam_get_Temperature(m_hcam, nullptr)) && dlg.m_temp)
 			{
 				m_tabCtrl.AddItem(L"Temperature");
 				SetTimer(TIMER_TEMP, dlg.m_temp * 1000, nullptr);
@@ -1721,16 +1721,16 @@ private:
 			m_tabCtrl.AddItem(L"Video");
 
 			int val = 0;
-			Ogmacam_get_Option(m_hCam, OGMACAM_OPTION_TRIGGER, &val);
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TRIGGER, &val);
 			m_bTriggerMode = (val != 0);
 			
 			m_idxExpo = 0;
-			Ogmacam_put_ExpoTime(m_hCam, m_vecExpo[m_idxExpo].expoTime);
-			Ogmacam_put_ExpoAGain(m_hCam, m_vecExpo[m_idxExpo].expoGain);
-			Ogmacam_StartPullModeWithWndMsg(m_hCam, m_hWnd, MSG_CAMERA);
+			Ogmacam_put_ExpoTime(m_hcam, m_vecExpo[m_idxExpo].expoTime);
+			Ogmacam_put_ExpoAGain(m_hcam, m_vecExpo[m_idxExpo].expoGain);
+			Ogmacam_StartPullModeWithWndMsg(m_hcam, m_hWnd, MSG_CAMERA);
 			if (m_bTriggerMode)
 			{
-				Ogmacam_Trigger(m_hCam, 1);
+				Ogmacam_Trigger(m_hcam, 1);
 				m_bWantTigger = false;
 			}
 			SetTimer(TIMER_ID, TIMER_EPSILON, nullptr);
@@ -1743,10 +1743,10 @@ private:
 
 	void CloseCamera()
 	{
-		if (m_hCam)
+		if (m_hcam)
 		{
-			Ogmacam_Close(m_hCam);
-			m_hCam = nullptr;
+			Ogmacam_Close(m_hcam);
+			m_hcam = nullptr;
 		}
 		if (m_pRawData)
 		{
@@ -1779,7 +1779,7 @@ private:
 		const DWORD dwTick = GetTickCount();
 		bool bAdd = false;
 		OgmacamFrameInfoV3 info = { 0 };
-		const HRESULT hr = Ogmacam_PullImageV3(m_hCam, m_pRawData, 0, 0, 0, &info);
+		const HRESULT hr = Ogmacam_PullImageV3(m_hcam, m_pRawData, 0, 0, 0, &info);
 		if (SUCCEEDED(hr))
 		{
 			if (m_bTriggerMode)
@@ -1805,13 +1805,13 @@ private:
 			if (m_vecExpo.size() > 1)
 			{
 				m_idxExpo = (++m_idxExpo) % m_vecExpo.size();
-				Ogmacam_put_ExpoTime(m_hCam, m_vecExpo[m_idxExpo].expoTime);
-				Ogmacam_put_ExpoAGain(m_hCam, m_vecExpo[m_idxExpo].expoGain);
+				Ogmacam_put_ExpoTime(m_hcam, m_vecExpo[m_idxExpo].expoTime);
+				Ogmacam_put_ExpoAGain(m_hcam, m_vecExpo[m_idxExpo].expoGain);
 			}
 			if (m_bTriggerMode)
 			{
 				if (0 == m_vecExpo[m_idxExpo].delayTime)
-					Ogmacam_Trigger(m_hCam, 1);
+					Ogmacam_Trigger(m_hcam, 1);
 				else
 					m_bWantTigger = true;
 			}

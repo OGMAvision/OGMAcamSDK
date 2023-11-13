@@ -188,8 +188,6 @@ namespace demowpf
             cam_ = Ogmacam.Open(camId);
             if (cam_ != null)
             {
-                cam_.put_Option(Ogmacam.eOPTION.OPTION_RGB, 2); // RGB32
-
                 auto_exposure_.IsEnabled = true;
                 combo_.IsEnabled = true;
                 snap_.IsEnabled = true;
@@ -224,6 +222,7 @@ namespace demowpf
                     int width = 0, height = 0;
                     if (cam_.get_Size(out width, out height))
                     {
+                        cam_.put_Option(Ogmacam.eOPTION.OPTION_RGB, 2); // RGB32
                         /* The backend of WPF/UWP/WinUI is Direct3D/Direct2D, which is different from Winform's backend GDI.
                          * We use their respective native formats, Bgr32 in WPF/UWP/WinUI, and Bgr24 in Winform
                          */

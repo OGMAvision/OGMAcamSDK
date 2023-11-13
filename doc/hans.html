@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:54.23385.20230918</li></ul>
+<ul><li>版本:54.23860.20231112</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -342,12 +342,12 @@
 	  <tr>
         <td>S_OK</td>
         <td>Success (成功)</td>
-		<td>&nbsp;</td>
+		<td></td>
 		<td>0x00000000</td>
 	  </tr>
 	  <tr>
         <td>S_FALSE</td>
-        <td><strong>Yet another Success</strong></td>
+        <td>Yet another <strong>success</strong></td>
 		<td>成功, 但和S_OK有所区别, 比如内部值和用户设置的值已经一致, 相当于空操作</td>
 		<td>0x00000001</td>
 	  </tr>
@@ -360,7 +360,7 @@
 	  <tr>
         <td>E_INVALIDARG</td>
         <td>One or more arguments are not valid (参数错误)</td>
-		<td>&nbsp;</td>
+		<td></td>
 		<td>0x80070057</td>
 	  </tr>
 	  <tr>
@@ -408,13 +408,13 @@
 	  <tr>
         <td>E_TIMEOUT</td>
         <td>This operation returned because the timeout period expired (操作超时)</td>
-		<td>&nbsp;</td>
+		<td></td>
 		<td>0x8001011f</td>
 	  </tr>
 	  <tr>
         <td>E_FAIL</td>
         <td>Unspecified failure (未指定的错误)</td>
-		<td>&nbsp;</td>
+		<td></td>
 		<td>0x80004005</td>
 	  </tr>
     </table>
@@ -482,7 +482,7 @@ typedef struct{
    <td colspan="2">型号名称</td>
    </tr>
  <tr>
-   <td width="8%" rowspan="53">flag</td>
+   <td width="8%" rowspan="54">flag</td>
    <td colspan="2">位标记 (Bitwise flag)</td>
    </tr>
  <tr>
@@ -540,6 +540,10 @@ typedef struct{
   <tr>
    <td>OGMACAM_FLAG_RAW12</td>
    <td>Pixel format, RAW 12 bits</td>
+ </tr>
+  <tr>
+   <td>OGMACAM_FLAG_RAW12PACK</td>
+   <td>Pixel format, RAW 12 bits, packed</td>
  </tr>
   <tr>
    <td>OGMACAM_FLAG_RAW14</td>
@@ -1304,7 +1308,19 @@ typedef struct {
       </tr>
       <tr>
       	<td>OGMACAM_OPTION_PIXEL_FORMAT</td>
-      	<td>pixel format</td>
+      	<td>OGMACAM_PIXELFORMAT_RAW8<br/>
+OGMACAM_PIXELFORMAT_RAW10<br/>
+OGMACAM_PIXELFORMAT_RAW12<br/>
+OGMACAM_PIXELFORMAT_RAW14<br/>
+OGMACAM_PIXELFORMAT_RAW16<br/>
+OGMACAM_PIXELFORMAT_YUV411<br/>
+OGMACAM_PIXELFORMAT_VUYY<br/>
+OGMACAM_PIXELFORMAT_YUV444<br/>
+OGMACAM_PIXELFORMAT_RGB888<br/>
+OGMACAM_PIXELFORMAT_GMCY8 (map to RGGB 8 bits)<br/>
+OGMACAM_PIXELFORMAT_GMCY12 (map to RGGB 12 bits)<br/>
+OGMACAM_PIXELFORMAT_UYVY<br/>
+OGMACAM_PIXELFORMAT_RAW12PACK</td>
       	<td>型号特定</td>
       	<td>是<br/>(相对比较“重型”的操作, 不建议在相机处于运行状态时太频繁修改)</td>
       </tr>
@@ -1590,8 +1606,8 @@ typedef struct {
         <td>OGMACAM_OPTION_AUTOEXPOSURE_PERCENT</td>
         <td>自动曝光亮度统计值峰值模式: 计算感兴趣区域中指定百分比最亮像素的平均亮度. 当背景较暗且目标在平均模式下曝光过度时启用本选项. 启用本选项时，由于更多的CPU消耗，帧速率可能会受到影响<br/>
         1~99: 自动曝光ROI矩形内指定百分比最亮像素的平均亮度<br/>
-        0或100: 自动曝光ROI矩形内全部像素的平均亮度</td>
-		<td>10</td>
+        0或100: 自动曝光ROI矩形内全部像素的平均亮度, 意味着“禁用”</td>
+		<td>0(禁用)</td>
 		<td>是</td>
       </tr>
       <tr>
@@ -1621,7 +1637,7 @@ typedef struct {
       <tr>
         <td>OGMACAM_OPTION_ANTI_SHUTTER_EFFECT</td>
         <td>anti shutter effect: 1 =&gt; 启用, 0 =&gt; 禁用</td>
-		<td>启用(1)</td>
+		<td>禁用(0)</td>
 		<td>是</td>
       </tr>
 	  <tr>
@@ -1697,6 +1713,18 @@ typedef struct {
         <td>OGMACAM_OPTION_AUTOEXPO_CONV</td>
         <td>获取当前自动曝光收敛状态:<br/>1(YES) or 0(NO), -1(NA)</td>
 		<td></td>
+		<td>NA</td>
+      </tr>
+      <tr>
+        <td>OGMACAM_OPTION_AUTOEXP_EXPOTIME_STEP</td>
+        <td>自动曝光: 曝光时间步长 (千分数)</td>
+		<td>1000</td>
+		<td>NA</td>
+      </tr>
+      <tr>
+        <td>OGMACAM_OPTION_AUTOEXP_GAIN_STEP</td>
+        <td>自动曝光: 增益步长 (千分数)</td>
+		<td>1000</td>
 		<td>NA</td>
       </tr>
       <tr>
@@ -1776,6 +1804,24 @@ typedef struct {
       	<td>NA</td>
       	<td>NA</td>
       </tr>
+      <tr>
+      	<td>OGMACAM_OPTION_PSEUDO_COLOR_START</td>
+      	<td>伪彩色: 起始颜色, BGR格式</td>
+      	<td></td>
+      	<td>是</td>
+      </tr>
+      <tr>
+      	<td>OGMACAM_OPTION_PSEUDO_COLOR_END</td>
+      	<td>伪彩色: 结束颜色, BGR格式</td>
+      	<td></td>
+      	<td>是</td>
+      </tr>
+      <tr>
+      	<td>OGMACAM_OPTION_PSEUDO_COLOR_ENABLE</td>
+      	<td>伪彩色:<br/>1 = 启用<br/>0 = 禁用</td>
+      	<td>0</td>
+      	<td>是</td>
+      </tr>	  
       <tr>
       	<td>OGMACAM_OPTION_NUMBER_DROP_FRAME</td>
       	<td>已经从USB抓取但是被软件丢弃的帧数</td>
@@ -2414,7 +2460,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>120</td>
         <td>Ogmacam_get_AutoExpoTarget</td>
         <td>Ogmacam_put_AutoExpoTarget</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td colspan="3">Exposure Gain<br/>(曝光增益)</td>
@@ -2422,7 +2468,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>100</td>
         <td>Ogmacam_get_ExpoAGain</td>
         <td>Ogmacam_put_ExpoAGain</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td width="13%" rowspan="5">白平衡</td>
@@ -2486,7 +2532,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>0</td>
         <td>Ogmacam_get_Contrast</td>
         <td>Ogmacam_put_Contrast</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td colspan="3">Hue(色度)</td>
@@ -2494,7 +2540,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>0</td>
         <td>Ogmacam_get_Hue</td>
         <td>Ogmacam_put_Hue</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td colspan="3">Saturation(饱和度)</td>
@@ -2502,7 +2548,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>128</td>
         <td>Ogmacam_get_Saturation</td>
         <td>Ogmacam_put_Saturation</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td colspan="3">Brightness(亮度)</td>
@@ -2510,7 +2556,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>0</td>
         <td>Ogmacam_get_Brightness</td>
         <td>Ogmacam_put_Brightness</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td colspan="3">Gamma</td>
@@ -2518,7 +2564,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>100</td>
         <td>Ogmacam_get_Gamma</td>
         <td>Ogmacam_put_Gamma</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
       <tr>
         <td colspan="3">Black Level(暗电平)</td>
@@ -2530,7 +2576,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td>型号特定</td>
         <td>Ogmacam_get_Option</td>
         <td>Ogmacam_put_Option</td>
-        <td>&nbsp;</td>
+        <td></td>
       </tr>
    <tr>
     <td rowspan="5">Auto Exposure<br/>(自动曝光)</td>
@@ -2562,16 +2608,16 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   <tr>
     <td colspan="2">Percent(百分比)</td>
     <td>0~100</td>
-    <td>10</td>
+    <td>0(禁用)<br/>10(启用)</td>
     <td colspan="2">OGMACAM_OPTION_AUTOEXPOSURE_PERCENT</td>
-    <td>&nbsp;</td>
+    <td></td>
   </tr>
   <tr>
         <td colspan="3">TEC目标</td>
         <td>-500 ~ 400<br/>(-50℃ ~ 40℃)</td>
         <td>型号特定</td>
         <td colspan="2">OGMACAM_OPTION_TECTARGET</td>
-        <td>&nbsp;</td>
+        <td></td>
    </tr>
   </table>
   </div>
@@ -2761,7 +2807,7 @@ public bool Snap(uint nResolutionIndex)
 		<td rowspan="2">demopython</td>
 		<td>simplest</td>
 		<td rowspan="2">Python</td>
-		<td>&nbsp;</td>
+		<td></td>
 		<td>console</td>
 		<td>最简单python示例</td>
 	  </tr>
@@ -2780,7 +2826,7 @@ public bool Snap(uint nResolutionIndex)
 	  </tr>
 	  <tr>
 		<td colspan="2">amcap</td>
-		<td>&nbsp;</td>
+		<td></td>
 		<td>微软directshow示例, <a href="https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap" target="_blank">https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/directshow/capture/amcap</a></td>
 	  </tr>
 	  <tr>
