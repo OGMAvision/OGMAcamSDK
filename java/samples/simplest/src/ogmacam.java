@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 54.23860.20231112
+    Version: 54.23945.20231121
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -318,7 +318,32 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_MOTOR_POS              = 0x10000000; /* range: [1, 702] */
     public final static int OPTION_PSEUDO_COLOR_START     = 0x63;       /* Pseudo: start color, BGR format */
     public final static int OPTION_PSEUDO_COLOR_END       = 0x64;       /* Pseudo: end color, BGR format */
-    public final static int OPTION_PSEUDO_COLOR_ENABLE    = 0x65;       /* Pseudo: 1 => enable, 0 => disable */
+    public final static int OPTION_PSEUDO_COLOR_ENABLE    = 0x65;       /* Pseudo: -1 => custom: use startcolor & endcolor to generate the colormap
+                                                                                0 => disable
+                                                                                1 => spot
+                                                                                2 => spring
+                                                                                3 => summer
+                                                                                4 => autumn
+                                                                                5 => winter
+                                                                                6 => bone
+                                                                                7 => jet
+                                                                                8 => rainbow
+                                                                                9 => deepgreen
+                                                                                10 => ocean
+                                                                                11 => cool
+                                                                                12 => hsv
+                                                                                13 => pink
+                                                                                14 => hot
+                                                                                15 => parula
+                                                                                16 => magma
+                                                                                17 => inferno
+                                                                                18 => plasma
+                                                                                19 => viridis
+                                                                                20 => cividis
+                                                                                21 => twilight
+                                                                                22 => twilight_shifted
+                                                                                23 => turbo
+                                                                        */
     
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -983,7 +1008,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 54.23860.20231112 */
+    /* get the version of this dll/so/dylib, which is: 54.23945.20231121 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);

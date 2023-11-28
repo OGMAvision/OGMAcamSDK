@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 54.23860.20231112 */
+/* Version: 54.23945.20231121 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -24,6 +24,18 @@ typedef void (__stdcall* PIOGMACAM_TEMPTINT_CALLBACK)(const int nTemp, const int
 typedef void (__stdcall* PIOGMACAM_HISTOGRAM_CALLBACK)(const float aHistY[256], const float aHistR[256], const float aHistG[256], const float aHistB[256], void* ctxHistogram);
 typedef void (__stdcall* PIOGMACAM_CHROME_CALLBACK)(void* ctxChrome);
 typedef void (__stdcall* PIOGMACAM_PROGRESS)(int percent, void* ctxProgess);
+#endif
+
+#ifndef __OGMACAMSELFTRIGGER_DEFINED__
+#define __OGMACAMSELFTRIGGER_DEFINED__
+typedef struct {
+    unsigned sensingLeft, sensingTop, sensingWidth, sensingHeight; /* Sensing Area */
+    unsigned hThreshold, lThreshold; /* threshold High side, threshold Low side */
+    unsigned expoTime; /* Exposure Time */
+    unsigned short expoGain; /* Exposure Gain */
+    unsigned short hCount, lCount; /* Count threshold High side, Count threshold Low side, thousandths of Sensing Area */
+    unsigned short reserved;
+} OgmacamSelfTrigger;
 #endif
 
 #ifndef __OGMACAMAFPARAM_DEFINED__
@@ -369,6 +381,9 @@ typedef struct {
         STDMETHOD(get_AutoExpoRange)(THIS_ unsigned* maxTime, unsigned* minTime, unsigned short* maxGain, unsigned short* minGain) PURE;
 
         STDMETHOD(size_EEPROM)(THIS_) PURE;
+
+        STDMETHOD(put_SelfTrigger)(THIS_ const OgmacamSelfTrigger* pSt) PURE;
+        STDMETHOD(get_SelfTrigger)(THIS_ OgmacamSelfTrigger* pSt) PURE;
     };
 #endif
 

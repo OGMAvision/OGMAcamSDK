@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 54.23860.20231112
+    Version: 54.23945.20231121
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -338,7 +338,32 @@ internal class Ogmacam : IDisposable
         OPTION_MOTOR_POS              = 0x10000000,  /* range: [1, 702] */
         OPTION_PSEUDO_COLOR_START     = 0x63,        /* Pseudo: start color, BGR format */
         OPTION_PSEUDO_COLOR_END       = 0x64,        /* Pseudo: end color, BGR format */
-        OPTION_PSEUDO_COLOR_ENABLE    = 0x65         /* Pseudo: 1 => enable, 0 => disable */
+        OPTION_PSEUDO_COLOR_ENABLE    = 0x65         /* Pseudo: -1 => custom: use startcolor & endcolor to generate the colormap
+                                                                0 => disable
+                                                                1 => spot
+                                                                2 => spring
+                                                                3 => summer
+                                                                4 => autumn
+                                                                5 => winter
+                                                                6 => bone
+                                                                7 => jet
+                                                                8 => rainbow
+                                                                9 => deepgreen
+                                                                10 => ocean
+                                                                11 => cool
+                                                                12 => hsv
+                                                                13 => pink
+                                                                14 => hot
+                                                                15 => parula
+                                                                16 => magma
+                                                                17 => inferno
+                                                                18 => plasma
+                                                                19 => viridis
+                                                                20 => cividis
+                                                                21 => twilight
+                                                                22 => twilight_shifted
+                                                                23 => turbo
+                                                     */
     };
     
     /* HRESULT: error code */
@@ -696,7 +721,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
     
-    /* get the version of this dll/so, which is: 54.23860.20231112 */
+    /* get the version of this dll/so, which is: 54.23945.20231121 */
     public static string Version()
     {
         return Ogmacam_Version();

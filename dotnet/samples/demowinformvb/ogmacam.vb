@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 54.23860.20231112
+'    Version: 54.23945.20231121
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -320,7 +320,31 @@ Friend Class Ogmacam
         OPTION_MOTOR_POS = &H10000000              ' range: [1, 702]
         OPTION_PSEUDO_COLOR_START = &H63           ' Pseudo: start color, BGR format
         OPTION_PSEUDO_COLOR_END = &H64             ' Pseudo: end color, BGR format
-        OPTION_PSEUDO_COLOR_ENABLE = &H65          ' Pseudo: 1 => enable, 0 => disable
+        OPTION_PSEUDO_COLOR_ENABLE = &H65          ' Pseudo: -1 => custom: use startcolor & endcolor to generate the colormap
+                                                   '        0 => disable
+                                                   '        1 => spot
+                                                   '        2 => spring
+                                                   '        3 => summer
+                                                   '        4 => autumn
+                                                   '        5 => winter
+                                                   '        6 => bone
+                                                   '        7 => jet
+                                                   '        8 => rainbow
+                                                   '        9 => deepgreen
+                                                   '        10 => ocean
+                                                   '        11 => cool
+                                                   '        12 => hsv
+                                                   '        13 => pink
+                                                   '        14 => hot
+                                                   '        15 => parula
+                                                   '        16 => magma
+                                                   '        17 => inferno
+                                                   '        18 => plasma
+                                                   '        19 => viridis
+                                                   '        20 => cividis
+                                                   '        21 => twilight
+                                                   '        22 => twilight_shifted
+                                                   '        23 => turbo
     End Enum
 
     ' HRESULT: Error code
@@ -638,7 +662,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 54.23860.20231112
+    ' get the version of this dll, which is: 54.23945.20231121
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function

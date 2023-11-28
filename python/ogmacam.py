@@ -1,4 +1,4 @@
-"""Version: 54.23860.20231112
+"""Version: 54.23945.20231121
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -305,7 +305,31 @@ OGMACAM_OPTION_MOTOR_NUMBER           = 0x62       # range: [1, 20]
 OGMACAM_OPTION_MOTOR_POS              = 0x10000000 # range: [1, 702]
 OGMACAM_OPTION_PSEUDO_COLOR_START     = 0x63       # Pseudo: start color, BGR format
 OGMACAM_OPTION_PSEUDO_COLOR_END       = 0x64       # Pseudo: end color, BGR format
-OGMACAM_OPTION_PSEUDO_COLOR_ENABLE    = 0x65       # Pseudo: 1 => enable, 0 => disable
+OGMACAM_OPTION_PSEUDO_COLOR_ENABLE    = 0x65       # Pseudo: -1 => custom: use startcolor & endcolor to generate the colormap
+                                                   #          0 => disable
+                                                   #          1 => spot
+                                                   #          2 => spring
+                                                   #          3 => summer
+                                                   #          4 => autumn
+                                                   #          5 => winter
+                                                   #          6 => bone
+                                                   #          7 => jet
+                                                   #          8 => rainbow
+                                                   #          9 => deepgreen
+                                                   #          10 => ocean
+                                                   #          11 => cool
+                                                   #          12 => hsv
+                                                   #          13 => pink
+                                                   #          14 => hot
+                                                   #          15 => parula
+                                                   #          16 => magma
+                                                   #          17 => inferno
+                                                   #          18 => plasma
+                                                   #          19 => viridis
+                                                   #          20 => cividis
+                                                   #          21 => twilight
+                                                   #          22 => twilight_shifted
+                                                   #          23 => turbo
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -732,7 +756,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 54.23860.20231112"""
+        """get the version of this dll, which is: 54.23945.20231121"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 

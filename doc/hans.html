@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:54.23860.20231112</li></ul>
+<ul><li>版本:54.23945.20231121</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -1818,7 +1818,31 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
       </tr>
       <tr>
       	<td>OGMACAM_OPTION_PSEUDO_COLOR_ENABLE</td>
-      	<td>伪彩色:<br/>1 = 启用<br/>0 = 禁用</td>
+      	<td>伪彩色:<br/>-1 => 自定义: 使用起始颜色和结束颜色产生颜色映射表格<br/>
+                                                                    0 =&gt; 禁用<br/>
+                                                                    1 =&gt; spot<br/>
+                                                                    2 =&gt; spring<br/>
+                                                                    3 =&gt; summer<br/>
+                                                                    4 =&gt; autumn<br/>
+                                                                    5 =&gt; winter<br/>
+                                                                    6 =&gt; bone<br/>
+                                                                    7 =&gt; jet<br/>
+                                                                    8 =&gt; rainbow<br/>
+                                                                    9 =&gt; deepgreen<br/>
+                                                                    10 =&gt; ocean<br/>
+                                                                    11 =&gt; cool<br/>
+                                                                    12 =&gt; hsv<br/>
+                                                                    13 =&gt; pink<br/>
+                                                                    14 =&gt; hot<br/>
+                                                                    15 =&gt; parula<br/>
+                                                                    16 =&gt; magma<br/>
+                                                                    17 =&gt; inferno<br/>
+                                                                    18 =&gt; plasma<br/>
+                                                                    19 =&gt; viridis<br/>
+                                                                    20 =&gt; cividis<br/>
+                                                                    21 =&gt; twilight<br/>
+                                                                    22 =&gt; twilight_shifted<br/>
+                                                                    23 =&gt; turbo</td>
       	<td>0</td>
       	<td>是</td>
       </tr>	  
