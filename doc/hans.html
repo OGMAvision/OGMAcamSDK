@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:54.23945.20231121</li></ul>
+<ul><li>版本:55.24511.$WCDATE=%Y%m%d$</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -48,7 +48,7 @@
   </li>
 </ul>
 <hr/><h1><font color="#0000FF">2. 简介</font></h1><hr/>
-<p align="left">Ogmacam系列相机支持多种API，包括：Native C/C++, <a href="#dotnet">.NET(C#和VB.NET)</a>, <a href="#python">Python</a>, <a href="#java">Java</a>, <a href="https://learn.microsoft.com/en-us/windows/win32/directshow/directshow" target="_blank">DirectShow</a>, <a href="http://twain.org" target="_blank">Twain</a>, LabView, MatLab等等. Native C/C++ API作为底层(Low Level) API相比较其他API的特点是使用纯C/C++开发, 不依赖其他的运行时库, 接口简洁, 控制灵活. 本SDK压缩包包含了所有需要用到的的资源和信息, 目录如下:</p>
+<p align="left">Ogmacam系列相机支持多种API, 包括：Native C/C++, <a href="#dotnet">.NET(C#和VB.NET)</a>, <a href="#python">Python</a>, <a href="#java">Java</a>, <a href="https://learn.microsoft.com/en-us/windows/win32/directshow/directshow" target="_blank">DirectShow</a>, <a href="http://twain.org" target="_blank">Twain</a>, LabView, MatLab等等. Native C/C++ API作为底层(Low Level) API相比较其他API的特点是使用纯C/C++开发, 不依赖其他的运行时库, 接口简洁, 控制灵活. 本SDK压缩包包含了所有需要用到的的资源和信息, 目录如下:</p>
 <ul><li>inc</li></ul>
 <blockquote>
   <p>ogmacam.h, C/C++头文件<br/></p>
@@ -151,7 +151,7 @@
  </tr>    
       <tr>
         <td>OGMACAM_EVENT_EXPOSURE</td>
-        <td rowspan="18">软件</td>
+        <td rowspan="19">软件</td>
         <td>曝光时间发生改变</td>
       </tr>
       <tr>
@@ -201,6 +201,10 @@
   <tr>
    <td>OGMACAM_EVENT_DFC</td>
    <td>暗场校正(dark field correction)状态发生改变</td>
+ </tr>
+  <tr>
+   <td>OGMACAM_EVENT_FPNC</td>
+   <td>固定模式噪声校正(fixed pattern noise correction)状态发生改变</td>
  </tr>
  <tr>
    <td>OGMACAM_EVENT_ROI</td>
@@ -482,7 +486,7 @@ typedef struct{
    <td colspan="2">型号名称</td>
    </tr>
  <tr>
-   <td width="8%" rowspan="54">flag</td>
+   <td width="8%" rowspan="56">flag</td>
    <td colspan="2">位标记 (Bitwise flag)</td>
    </tr>
  <tr>
@@ -535,23 +539,27 @@ typedef struct{
  </tr>
   <tr>
    <td>OGMACAM_FLAG_RAW10</td>
-   <td>Pixel format, RAW 10 bits</td>
+   <td>OGMACAM_PIXELFORMAT_RAW10 Pixel format, RAW 10 bits</td>
+ </tr>
+  <tr>
+   <td>OGMACAM_FLAG_RAW11</td>
+   <td>OGMACAM_PIXELFORMAT_RAW11 Pixel format, RAW 11 bits</td>
  </tr>
   <tr>
    <td>OGMACAM_FLAG_RAW12</td>
-   <td>Pixel format, RAW 12 bits</td>
+   <td>OGMACAM_PIXELFORMAT_RAW12 Pixel format, RAW 12 bits</td>
  </tr>
   <tr>
    <td>OGMACAM_FLAG_RAW12PACK</td>
-   <td>Pixel format, RAW 12 bits, packed</td>
+   <td>OGMACAM_PIXELFORMAT_RAW12PACK Pixel format, RAW 12 bits, packed</td>
  </tr>
   <tr>
    <td>OGMACAM_FLAG_RAW14</td>
-   <td>Pixel format, RAW 14 bits</td>
+   <td>OGMACAM_PIXELFORMAT_RAW14 Pixel format, RAW 14 bits</td>
  </tr>
   <tr>
    <td>OGMACAM_FLAG_RAW16</td>
-   <td>Pixel format, RAW 16 bits</td>
+   <td>OGMACAM_PIXELFORMAT_RAW16 Pixel format, RAW 16 bits</td>
  </tr>
   <tr>
    <td>OGMACAM_FLAG_FAN</td>
@@ -613,31 +621,31 @@ typedef struct{
   </tr>
   <tr>
     <td>OGMACAM_FLAG_YUV411</td>
-    <td>pixel format, yuv411</td>
+    <td>OGMACAM_PIXELFORMAT_YUV411 Pixel format</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_YUV422</td>
-    <td>pixel format, yuv422</td>
+    <td>OGMACAM_PIXELFORMAT_YUV422 Pixel format</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_YUV444</td>
-    <td>pixel format, yuv444</td>
+    <td>OGMACAM_PIXELFORMAT_YUV444 Pixel format</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_RGB888</td>
-    <td>pixel format, RGB888</td>
+    <td>OGMACAM_PIXELFORMAT_RGB888 Pixel format</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_RAW8</td>
-    <td>pixel format, RAW 8 bits</td>
+    <td>OGMACAM_PIXELFORMAT_RAW8 Pixel format, RAW 8 bits</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_GMCY8</td>
-    <td>pixel format, GMCY, 8 bits</td>
+    <td>OGMACAM_PIXELFORMAT_GMCY8 Pixel format, GMCY 8 bits</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_GMCY12</td>
-    <td>pixel format, GMCY, 12 btis</td>
+    <td>OGMACAM_PIXELFORMAT_GMCY12 Pixel format, GMCY 12 btis</td>
   </tr>
   <tr>
     <td>OGMACAM_FLAG_GLOBALSHUTTER</td>
@@ -698,6 +706,10 @@ typedef struct{
   <tr>
     <td>OGMACAM_FLAG_LIGHT_SOURCE</td>
     <td>独立式光源</td>
+  </tr>
+  <tr>
+    <td>OGMACAM_FLAG_GHOPTO</td>
+    <td>ghopto sensor(不支持增益, 转换增益支持高/中/低三种)</td>
   </tr>
  <tr>
    <td width="8%">maxspeed</td>
@@ -761,7 +773,7 @@ typedef struct{
     <p><strong>说明：</strong>初始化对GigE相机的支持, 只需要在进程启动时调用一次即可.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF"><a id="apiopen">Ogmacam_Open</a></font></h2>
-    <p><strong>返回值：</strong>相机实例句柄. 失败时返回NULL（如设备被突然拔出等等）</p>
+    <p><strong>返回值：</strong>相机句柄. 失败时返回NULL（如设备被突然拔出等等）</p>
     <p><strong>参数：</strong>Ogmacam相机实例, 由Ogmacam_EnumV2枚举得到.<strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
     <p><strong>说明：</strong>打开相机实例.</p>
     <p>(1) 在camId后面支持附着一些额外参数(用;分割, 如Ogmacam_Open(L"0-1010;registry=;wb=rgb")), 见下表:</p>
@@ -806,7 +818,7 @@ typedef struct{
   </div>
   <p>2. <a id="androidopen">Android</a></p>
   <p>(a) 对于开放NDK枚举usb设备权限的安卓平台, 和普通流程一样, 没有任何区别.</p>
-  <p>(b) 对于没有开放NDK枚举usb设备权限的安卓平台, 只有通过Java侧获取设备权限, 得到文件描述符传递给Ogmacam_Open, 得到HOgmacam相机实例句柄之后的流程则没有区别. 如下:</p>
+  <p>(b) 对于没有开放NDK枚举usb设备权限的安卓平台, 只有通过Java侧获取设备权限, 得到文件描述符传递给Ogmacam_Open, 得到HOgmacam相机句柄之后的流程则没有区别. 如下:</p>
 <table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>
 usbManager = (UsbManager)getApplicationContext().getSystemService(Context.USB_SERVICE);
 HashMap&lt;String, UsbDevice&gt; deviceList = usbManager.getDeviceList();
@@ -831,7 +843,7 @@ for (UsbDevice usbDevice : deviceList.values()) {
     <p><strong>返回值：</strong>无</p>
     <p><strong>参数：</strong></p>
 	<blockquote>
-	<p>HOgmacam h：相机实例句柄</p>
+	<p>HOgmacam h：相机句柄</p>
 	</blockquote>
     <p><strong>说明：</strong>关闭相机实例. 句柄关闭之后, 请不要再使用之.</p>
 </li></ul>
@@ -839,7 +851,7 @@ for (UsbDevice usbDevice : deviceList.values()) {
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
     <blockquote>
-      <p>HOgmacam h：相机实例句柄</p>
+      <p>HOgmacam h：相机句柄</p>
       <p>HWND hWnd: 事件发生时, 消息将Post到这个窗口</p>
       <p>UINT nMsg: Windows自定义消息类型. 消息的WPARAM参数是事件类型OGMACAM_EVENT_xxxx, LPARAM参数不用（恒等于0）</p>
       <p>POGMACAM_EVENT_CALLBACK funEvent, void* ctxEvent：用户程序指定的回调函数和回调上下文参数.</p>
@@ -859,7 +871,7 @@ Ogmacam_PullImage<br/>Ogmacam_PullStillImage<br/><a id="rowpitch1">Ogmacam_PullI
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败, <strong>不存在图像可供获取时返回E_PENDING</strong></p>
       <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
 	<p>nWaitMS: 超时值(毫秒). 如果指定非零值, 则该函数或者成功获取图像或者等待超时. 如果nWaitMS为零, 则没有图像可供获取时, 函数不会等待; 它总是立即返回; 相当于Ogmacam_PullImageV3.</p>
     <p>void* pImageData：数据缓冲区. 用户应用程序必须确保改缓冲区足够大以容纳图像数据. 缓冲区大小必须 &gt;= rowPitch * nHeight</p>
     <p>int bStill: 静态图像填1, 其它填0</p>
@@ -976,7 +988,7 @@ typedef struct {
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
     <blockquote>
-      <p>HOgmacam h：相机实例句柄</p>
+      <p>HOgmacam h：相机句柄</p>
       <p>funData, ctxData：用户程序指定的回调函数和回调上下文参数. ogmacam.dll内部从相机得到的图像数据后, 会回调该函数.</p>
 	  <p>funEvent, ctxEvent: 事件回调函数和回调上下文参数.</p>
     </blockquote>
@@ -995,7 +1007,7 @@ typedef struct {
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_Stop</font></h2>
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
-  <p><strong>参数：</strong>相机实例句柄</p>
+  <p><strong>参数：</strong>相机句柄</p>
   <p><strong>说明：</strong>停止相机实例. 停止之后, 可以调用Ogmacam_StartPushModeV4/V3重新开启. 比如切换视频分辨率：</p>
   <blockquote>
     <p>步骤1：调用Ogmacam_Stop停止</p>
@@ -1007,7 +1019,7 @@ typedef struct {
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
     	<blockquote>
-    		<p>HOgmacam h: 相机实例句柄</p>
+    		<p>HOgmacam h: 相机句柄</p>
 			<p>int bPause: 1 =&gt; 暂停, 0 =&gt; 继续</p>
     	</blockquote>	
     <p><strong>说明：</strong>暂停或者继续视频流</p>
@@ -1016,7 +1028,7 @@ typedef struct {
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
     <blockquote>
-      <p>HOgmacam h：相机实例句柄</p>
+      <p>HOgmacam h：相机句柄</p>
       <p>unsigned nResolutionIndex：想要抓拍的分辨率序号. 0xffffffff表示使用当前预览分辨率.</p>
 	  <p><a id="snapn">unsigned nNum: 抓拍图像张数.</a></p>
     </blockquote>
@@ -1033,7 +1045,7 @@ typedef struct {
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
     <p><strong>参数：</strong></p>
     <blockquote>
-      <p>HOgmacam h：相机实例句柄</p>
+      <p>HOgmacam h：相机句柄</p>
       <p>unsigned short nNumber: 0xffff(一直触发),0(取消触发), 其他值(触发图片的张数)</p>
     </blockquote>
   <p><strong>说明：</strong>触发模式下, 调用本函数进行软件触发. 触发成功之后, 如果是Pull Mode, 则通过OGMACAM_EVENT_IMAGE通知. 如果是Push Mode则通过POGMACAM_DATA_CALLBACK_V4/V3回调函数返回, 其中回调函数的参数BOOL bSnap设为FALSE.</p>
@@ -1042,7 +1054,7 @@ typedef struct {
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
       <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned nResolutionIndex：当前分辨率序号</p>
     <p>int nWidth, int nHeight：当前分辨率的宽度高度</p>
   </blockquote>
@@ -1060,7 +1072,7 @@ typedef struct {
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
       <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned nResolutionIndex：当前分辨率序号</p>
     <p>int nWidth, int nHeight：当前分辨率的宽度高度</p>
   </blockquote>
@@ -1078,7 +1090,7 @@ typedef struct {
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
     <p><strong>参数：</strong></p>
     <blockquote>
-      <p>HOgmacam h: 相机实例句柄</p>
+      <p>HOgmacam h: 相机句柄</p>
       <p>unsigned xOffset: x偏移, 必须是偶数, 否则返回E_INVALIDARG</p>
       <p>unsigned yOffset: y偏移, 必须是偶数, 否则返回E_INVALIDARG</p>
       <p>unsigned xWidth: 宽度. 最小值16, 必须是偶数, 否则返回E_INVALIDARG</p>
@@ -1095,7 +1107,7 @@ typedef struct {
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
       <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned nResolutionIndex：分辨率序号</p>
     <p>int* pWidth, int* pHeight：宽度、高度</p>
   </blockquote>
@@ -1108,8 +1120,8 @@ typedef struct {
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
       <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
-    <p>unsigned* pFourCC：格式类型, 见下表</p>
+    <p>HOgmacam h：相机句柄</p>
+    <p>unsigned* pFourCC：4种Bayer像素排列(MAKEFOURCC('G', 'B', 'R', 'G'), MAKEFOURCC('R', 'G', 'G', 'B'), MAKEFOURCC('B', 'G', 'G', 'R'), MAKEFOURCC('G', 'R', 'B', 'G'), 请参阅<a href="http://www.siliconimaging.com/RGB%20Bayer.htm" target="_blank">这里</a>). <strong>请注意, 不同软件定义Bayer时使用的坐标系Y轴方向可能不同(Y轴向上或向下), 所以互操作时有可能需要做一点映射. 如同一种像素排列, Y轴向下时Bayer是GRBG, Y轴向上则是BGGR.</strong></p>
     <p>unsigned* pBitsPerPixel：bitdepth, 如8, 10, 12, 14, 16</p>
 <div align="center"><table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0">
   <tr>
@@ -1117,45 +1129,31 @@ typedef struct {
 #define MAKEFOURCC(a, b, c, d) ((unsigned)(unsigned char)(a) | ((unsigned)(unsigned char)(b) &lt;&lt; 8) | ((unsigned)(unsigned char)(c) &lt;&lt; 16) | ((unsigned)(unsigned char)(d) &lt;&lt; 24))<br/>
 #endif<br/></td>
   </tr>
-</table></div><br/>
-  <div align="center">
-    <table width="100%" border="1" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0">
-      <tr>
-        <td width="40%">MAKEFOURCC('G', 'B', 'R', 'G')</td>
-        <td width="60%">GBGBGB...<br/>RGRGRG...<br/>GBGBGB...<br/>RGRGRG...<br/>...<br/>请参阅<a href="http://www.siliconimaging.com/RGB%20Bayer.htm" target="_blank">这里</a></td>
-      </tr>
-      <tr>
-        <td>MAKEFOURCC('R', 'G', 'G', 'B')</td>
-        <td>RGRGRG...<br/>GBGBGB...<br/>RGRGRG...<br/>GBGBGB...<br/>...<br/></td>
-      </tr>
-      <tr>
-        <td>MAKEFOURCC('B', 'G', 'G', 'R')</td>
-        <td>BGBGBG...<br/>GRGRGR...<br/>BGBGBG...<br/>GRGRGR...<br/>...<br/></td>
-      </tr>
-      <tr>
-        <td>MAKEFOURCC('G', 'R', 'B', 'G')</td>
-        <td>GRGRGR...<br/>BGBGBG...<br/>GRGRGR...<br/>BGBGBG...<br/>...<br/></td>
-      </tr>
-      <tr>
-        <td>MAKEFOURCC('V', 'U', 'Y', 'Y')</td>
-        <td>YUV4:2:2, 请参阅: <a href="http://www.fourcc.org" target="_blank">http://www.fourcc.org</a></td>
-      </tr>
-      <tr>
-        <td>MAKEFOURCC('U', 'Y', 'V', 'Y')</td>
-        <td>YUV4:2:2</td>
-      </tr>
-      <tr>
-        <td>MAKEFOURCC('Y', 'Y', 'Y', 'Y')</td>
-        <td>黑白相机</td>
-      </tr>
-    </table>
-  </div></blockquote>
+</table></div><br/></blockquote>
+</li></ul>
+<ul><li><h2><font color="#0000FF">Ogmacam_get_PixelFormatSupport</font></h2>
+      <p><strong>返回值: </strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
+      <p><strong>参数:</strong></p>
+  <blockquote>
+    <p>HOgmacam h: 相机句柄</p>
+    <p>char cmd:<blockquote>
+		-1: 查询支持的Pixel Format数量<br/>
+		0~number: 查询第n条支持的Pixel Format的值</blockquote></p>
+    <p>int* piValue: 输出, OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
+  </blockquote>
+</li></ul>
+<ul><li><h2><font color="#0000FF">Ogmacam_get_PixelFormatName</font></h2>
+      <p><strong>返回值:</strong> Pixel Format名称, 如"RAW10", "HDR12HL"等等</p>
+      <p><strong>参数:</strong></p>
+  <blockquote>
+    <p>int val: OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
+  </blockquote>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_Option<br/>Ogmacam_get_Option</font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
       <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned iOption：选项, 见下表</p>
     <p>int iValue：值, 见下表</p>
   <div align="center">
@@ -1175,7 +1173,7 @@ typedef struct {
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr>
       <tr>
-        <td><a id="rawo">OGMACAM_OPTION_ISP</a></td>
+        <td>OGMACAM_OPTION_ISP</td>
         <td>启用/禁用硬件ISP:<br/>
           0 =&gt; 自动 (RAW模式时禁用, 其它启用)<br/>1 =&gt; 启用<br/>-1 =&gt; 禁用</td>
 		<td>0(自动)</td>
@@ -1302,13 +1300,14 @@ typedef struct {
       	<td>转换增益(Conversion Gain):<br/>
 						0: LCG<br/>
 						1: HCG<br/>
-						2: HDR</td>
+						2: HDR(对于OGMACAM_FLAG_CGHDR相机)<br/>
+						2: MCG(对于OGMACAM_FLAG_GHOPTO相机)</td>
       	<td>型号特定</td>
       	<td>是</td>
       </tr>
       <tr>
       	<td>OGMACAM_OPTION_PIXEL_FORMAT</td>
-      	<td>OGMACAM_PIXELFORMAT_RAW8<br/>
+      	<td><a id="pflist">OGMACAM_PIXELFORMAT_RAW8<br/>
 OGMACAM_PIXELFORMAT_RAW10<br/>
 OGMACAM_PIXELFORMAT_RAW12<br/>
 OGMACAM_PIXELFORMAT_RAW14<br/>
@@ -1320,7 +1319,13 @@ OGMACAM_PIXELFORMAT_RGB888<br/>
 OGMACAM_PIXELFORMAT_GMCY8 (map to RGGB 8 bits)<br/>
 OGMACAM_PIXELFORMAT_GMCY12 (map to RGGB 12 bits)<br/>
 OGMACAM_PIXELFORMAT_UYVY<br/>
-OGMACAM_PIXELFORMAT_RAW12PACK</td>
+OGMACAM_PIXELFORMAT_RAW12PACK<br/>
+OGMACAM_PIXELFORMAT_RAW11<br/>
+OGMACAM_PIXELFORMAT_HDR8HL(HDR, 位深度: 8, 转换增益: 高 + 低)<br/>
+OGMACAM_PIXELFORMAT_HDR10HL(HDR, 位深度: 10, 转换增益: 高 + 低)<br/>
+OGMACAM_PIXELFORMAT_HDR11HL(HDR, 位深度: 11, 转换增益: 高 + 低)<br/>
+OGMACAM_PIXELFORMAT_HDR12HL(HDR, 位深度: 12, 转换增益: 高 + 低)<br/>
+OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td>
       	<td>型号特定</td>
       	<td>是<br/>(相对比较“重型”的操作, 不建议在相机处于运行状态时太频繁修改)</td>
       </tr>
@@ -1351,6 +1356,21 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
       <tr>
       	<td><a id="dfc">OGMACAM_OPTION_DFC</a></td>
       	<td>暗场校正(Dark Field Correction):<br/>
+					设置(set):
+                        <blockquote>0: 禁用<br/>
+                        1: 启用<br/>
+						-1: 重置<br/>
+                        (0xff000000 | n): 设置平均数为n, [1~255]</blockquote>
+                    获取(get):
+                        <blockquote>(val &amp; 0xff): 0 =&gt; 禁用, 1 =&gt; 启用, 2 =&gt; 已初始化<br/>
+                        ((val &amp; 0xff00) &gt;&gt; 8): 序号<br/>
+                        ((val &amp; 0xff0000) &gt;&gt; 16): 平均数</blockquote></td>
+      	<td>0</td>
+      	<td>是</td>
+      </tr>
+      <tr>
+      	<td>OGMACAM_OPTION_FPNC</td>
+      	<td>固定模式噪声校正(Fixed Pattern Noise Correction):<br/>
 					设置(set):
                         <blockquote>0: 禁用<br/>
                         1: 启用<br/>
@@ -1424,21 +1444,15 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
       </tr>
 	  <tr>
       	<td>OGMACAM_OPTION_AFMODE</td>
-      	<td>自动对焦模式:<br/>0: 手动<br/>1: 自动<br/>2: 单击<br/>3: 共轭校准</td>
+      	<td>自动对焦模式: 见OgmacamAFMode</td>
       	<td>NA</td>
       	<td>是</td>
       </tr>
 	  <tr>
-      	<td>OGMACAM_OPTION_AFZONE</td>
-      	<td>自动对焦区域</td>
+      	<td>OGMACAM_OPTION_AFSTATUS</td>
+      	<td>自动对焦状态: 见OgmacamAFStaus</td>
       	<td>NA</td>
-      	<td>是</td>
-      </tr>
-	  <tr>
-      	<td>OGMACAM_OPTION_AFFEEDBACK</td>
-      	<td>自动对焦反馈信息:<br/>0: 未知<br/>1: 聚焦<br/>2: 正在对焦<br/>3: 离焦<br/>4: 上<br/>5: 下</td>
       	<td>NA</td>
-      	<td>是</td>
       </tr>
 	  <tr>
       	<td>OGMACAM_OPTION_TESTPATTERN</td>
@@ -1499,7 +1513,8 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
       </tr>
 	  <tr>
         <td>OGMACAM_OPTION_CALLBACK_THREAD</td>
-        <td>单独的专门线程用于回调, 只在拉(Pull)模式下Callback可用, 不能用于推(Push)模式</td>
+        <td>单独的专门线程用于回调, 只在拉(Pull)模式下Callback可用, 不能用于推(Push)模式:<br/>
+		0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>0</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr>
@@ -1591,8 +1606,14 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
             子开关: 是</td>
       </tr>
       <tr>
+        <td>OGMACAM_OPTION_LOW_POWERCONSUMPTION</td>
+        <td>低功耗模式:<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
+		<td>型号特定</td>
+		<td>是</td>
+      </tr>
+      <tr>
         <td><a id="lownoise">OGMACAM_OPTION_LOW_NOISE</a></td>
-        <td>低噪声模式(更高的信噪比,更低的帧率)<br/>1 =&gt; 启用</td>
+        <td>低噪声模式(更高的信噪比,更低的帧率):<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>型号特定</td>
 		<td>是</td>
       </tr>
@@ -1604,7 +1625,7 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_AUTOEXPOSURE_PERCENT</td>
-        <td>自动曝光亮度统计值峰值模式: 计算感兴趣区域中指定百分比最亮像素的平均亮度. 当背景较暗且目标在平均模式下曝光过度时启用本选项. 启用本选项时，由于更多的CPU消耗，帧速率可能会受到影响<br/>
+        <td>自动曝光亮度统计值峰值模式: 计算感兴趣区域中指定百分比最亮像素的平均亮度. 当背景较暗且目标在平均模式下曝光过度时启用本选项, 启用本选项时, 由于更多的CPU消耗, 帧速率可能会受到影响<br/>
         1~99: 自动曝光ROI矩形内指定百分比最亮像素的平均亮度<br/>
         0或100: 自动曝光ROI矩形内全部像素的平均亮度, 意味着“禁用”</td>
 		<td>0(禁用)</td>
@@ -1658,19 +1679,6 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
 		<td>NA</td>
 		<td>是</td>
       </tr>
-	  <tr>
-        <td>OGMACAM_OPTION_ADC</td>
-        <td>ADC位数:<br/>
-			获取:<br/>
-				<blockquote>(option | 'C'): 获取当前ADC数<br/>
-                            (option | 'N'): 获取支持的ADC数目<br/>
-                            (option | n): 获取第n条支持的ADC数, 如11bits, 12bits, 等等<br/>
-				</blockquote>
-			设置: val = ADC数, 如11bits, 12bits, 等等
-		</td>
-		<td>型号特定<br/>(第0条为默认值)</td>
-		<td>是</td>
-      </tr>
       <tr>
         <td>OGMACAM_OPTION_CHAMBER_HT</td>
         <td>密封舱湿度和温度:<br/>
@@ -1719,13 +1727,23 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
         <td>OGMACAM_OPTION_AUTOEXP_EXPOTIME_STEP</td>
         <td>自动曝光: 曝光时间步长 (千分数)</td>
 		<td>1000</td>
-		<td>NA</td>
+		<td>是</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_AUTOEXP_GAIN_STEP</td>
         <td>自动曝光: 增益步长 (千分数)</td>
 		<td>1000</td>
-		<td>NA</td>
+		<td>是</td>
+      </tr>
+      <tr>
+        <td>OGMACAM_OPTION_OVEREXP_POLICY</td>
+        <td>自动曝光过曝策略: 当过曝时,<br/>
+			<blockquote>0 =&gt; 直接降低曝光时间/增益到最小值; 或<br/>
+			1 =&gt; 按当前和目标亮度的比例降低曝光时间/增益.</blockquote><br/>
+		策略0的优点是收敛速度更快，缺点是有黑屏.<br/>
+		策略1避免黑屏, 但是收敛速度更慢.</td>
+		<td>是</td>
+		<td>Yes</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_AUTOEXPO_TRIGGER</td>
@@ -1918,7 +1936,7 @@ OGMACAM_PIXELFORMAT_RAW12PACK</td>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>int val:</p>
     <blockquote>0: 当帧缓冲队列满时停止抓帧, 直到队列中的帧被取走从而队列非满<br/>
     1: 实时
@@ -1935,7 +1953,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p><a id="aexpo">int bAutoExposure:</a></p>
 	<blockquote>0: 不启用自动曝光<br/>
 	1: 自动曝光连续模式<br/>
@@ -1950,7 +1968,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned Time：曝光时间, 单位微秒</p>
     <p>unsigned* nMin, unsigned* nMax, unsigned* nDef：曝光时间的最小值, 最大值, 默认值</p>
   </blockquote>
@@ -1960,7 +1978,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong>   </p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned short AGain：模拟增益, 百分比, 如200表示增益200%</p>
     <p>unsigned short* nMin, unsigned short* nMax, unsigned short* nDef：模拟增益的最小值, 最大值, 默认值</p>
   </blockquote>
@@ -1968,28 +1986,28 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_Hue<br/>Ogmacam_get_Hue<br/>Ogmacam_put_Saturation<br/>Ogmacam_get_Saturation<br/>Ogmacam_put_Brightness<br/>Ogmacam_get_Brightness<br/>Ogmacam_get_Contrast<br/>Ogmacam_put_Contrast<br/>Ogmacam_get_Gamma<br/>Ogmacam_put_Gamma</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
-    <p><strong>参数：</strong>HOgmacam h：相机实例句柄</p>
+    <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
     <p><strong>说明：</strong>设置或者得到：色度, 饱和度, 亮度, 对比度, Gamma</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_Chrome<br/>Ogmacam_put_Chrome</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>int bChrome：1(单色)或0(彩色)</p>
   </blockquote>
   <p><strong>说明：</strong>多色模式或者单色模式.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_VFlip<br/>Ogmacam_put_VFlip<br/>Ogmacam_get_HFlip<br/>Ogmacam_put_HFlip</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
-    <p><strong>参数：</strong> HOgmacam h：相机实例句柄</p>
+    <p><strong>参数：</strong> HOgmacam h：相机句柄</p>
     <p><strong>说明：</strong>垂直或者水平翻转</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_Speed<br/>Ogmacam_get_Speed<br/>Ogmacam_get_MaxSpeed</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned short nSpeed：帧速率级别</p>
   </blockquote>
   <p><strong>说明：</strong>最小帧速率等级是0. 最大帧速率级别可以通过Ogmacam_get_MaxSpeed函数得到, 和OgmacamModelV2的maxspeed是一个意思.<br/>
@@ -1999,7 +2017,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>int nHZ：0表示60Hz交流, 1表示50Hz交流, 2表示直流</p>
   </blockquote>
   <p><strong>说明：</strong>设置光源的电力供应频率</p>
@@ -2008,7 +2026,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败, E_NOTIMPL表示不支持读取/设置温度</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>short nTemperature：以0.1℃为单位, 如32表示3.2℃, -35表示-3.5℃.</p>
   </blockquote>
   <p><strong>说明：</strong>读取传感器温度(OGMACAM_FLAG_GETTEMPERATURE表示支持读取温度).</p>
@@ -2018,7 +2036,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>int bSkip：Bin模式或者Skip模式</p>
   </blockquote>
   <p><strong>说明：</strong>设置Bin模式或者Skip模式.较高分辨率的相机支持2种采样模式, 一种是Bin模式（邻域平均）, 一种是Skip模式（抽样提取）.相比较而言, 前者图像效果较好, 但是帧速率降低；后者帧速率较高, 但是图像效果较差.</p>
@@ -2027,7 +2045,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. Temp/Tint模式下起作用, RGB Gain模式下不起作用直接返回E_NOTIMPL. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>int nTemp, int nTint：色温和Tint</p>
   </blockquote>
   <p><strong>说明：</strong>Temp/Tint模式下设置/获取白平衡的色温和Tint参数.请参阅<a href="#wb">这里</a>.</p>
@@ -2036,7 +2054,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. Temp/Tint模式下起作用, RGB Gain模式下不起作用直接返回E_NOTIMPL. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>PIOGMACAM_TEMPTINT_CALLBACK funTT, void* ctxTT：自动白平衡过程完成时的回调函数以及回调上下文.</p>
   </blockquote>
   <p><strong>说明：</strong>Temp/Tint白平衡模式下调用本函数来触发单次自动白平衡功能. 当白平衡参数计算完成的时候, OGMACAM_EVENT_TEMPTINT事件会通知应用程序(Pull Mode)和调用回调函数. Pull mode中, 如果不使用回调函数, 请把函数指针设为NULL.</p>
@@ -2045,7 +2063,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. RGB Gain模式下起作用, Temp/Tint模式下不起作用直接返回E_NOTIMPL. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>int aGain[3]：RGB增益值</p>
   </blockquote>
   <p><strong>说明：</strong>RGB Gain模式下设置/获取白平衡的RGB增益值. 请参阅<a href="#wb">这里</a>.</p>
@@ -2054,7 +2072,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. RGB Gain模式下起作用, Temp/Tint模式下不起作用直接返回E_NOTIMPL. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>PIOGMACAM_WHITEBALANCE_CALLBACK funWB, void* ctxWB：自动白平衡过程完成时的回调函数以及回调上下文.</p>
   </blockquote>
   <p><strong>说明：</strong>RGB Gain白平衡模式下调用本函数来触发单次自动白平衡功能. 当白平衡参数计算完成的时候, OGMACAM_EVENT_WBGAIN事件会通知应用程序(Pull Mode)和调用回调函数. Pull mode中, 如果不使用回调函数, 请把函数指针设为NULL.</p>
@@ -2063,7 +2081,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>PIOGMACAM_BLACKBALANCE_CALLBACK funBB, void* ctxBB：自动黑平衡过程完成时的回调函数以及回调上下文.</p>
   </blockquote>
   <p><strong>说明：</strong>调用本函数来触发单次自动黑平衡功能. 当黑平衡参数计算完成的时候, OGMACAM_EVENT_BLACK事件会通知应用程序(Pull Mode)和调用回调函数. Pull mode中, 如果不使用回调函数, 请把函数指针设为NULL.</p>
@@ -2072,33 +2090,33 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned short aSub[3]：RGB偏移值</p>
   </blockquote>
   <p><strong>说明：</strong>设置/获取黑平衡的RGB偏移值</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_AWBAuxRect<br/>Ogmacam_get_AWBAuxRect<br/>Ogmacam_put_AEAuxRect<br/>Ogmacam_get_AEAuxRect<br/>Ogmacam_put_ABBAuxRect<br/>Ogmacam_get_ABBAuxRect</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
-    <p><strong>参数：</strong>HOgmacam h：相机实例句柄</p>
+    <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
     <p><strong>说明：</strong>设置/获取自动白平衡和自动曝光和黑平衡的参考矩形. 默认矩形位于图像正中央, 宽度等于20%图像宽度,高度等于20%图像高度.</p>
 	<p><strong>注意：坐标永远是相对原始分辨率而言的</strong>, 请参阅<a href="#cord">这里</a>.</p>
 	<p>对于黑白相机, 白平衡和黑平衡始终返回E_NOTIMPL.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_MonoMode</font></h2>
     <p><strong>返回值：</strong>S_OK表示单色模式, S_FALSE表示彩色模式</p>
-    <p><strong>参数：</strong>HOgmacam h：相机实例句柄</p>
+    <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
     <p><strong>说明：</strong>是否单色相机, 对应OgmacamModelV2的flag: OGMACAM_FLAG_MONO</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_MaxBitDepth</font></h2>
     <p><strong>返回值：</strong>相机支持的最大位深度(bitdepth)</p>
-    <p><strong>参数：</strong>HOgmacam h：相机实例句柄</p>
+    <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
     <p><strong>说明：</strong>有些型号的相机支持比8bits更大的位深度, 如10, 12, 14, 16等.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_StillResolutionNumber<br/>Ogmacam_get_StillResolution</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned nResolutionIndex：分辨率序号</p>
     <p>int* pWidth, int* pHeight：宽度、高度</p>
   </blockquote>
@@ -2108,7 +2126,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>char sn[32]：存放序列号的缓冲区. 如：TP110826145730ABCD1234FEDC56787</p>
     <p>char fwver[16]: 存放固件版本号的缓冲区. 如: 3.2.1.20140922</p>
     <p>char hwver[16]: 存放硬件版本好的缓冲区. 如: 3.12</p>
@@ -2121,7 +2139,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned nResolutionIndex：分辨率序号</p>
     <p>float* x, float* y: 传感器物理像元大小, 如2.4μm × 2.4μm</p>
   </blockquote>
@@ -2130,7 +2148,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
   <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned short iLed：LED灯的序号</p>
     <p>unsigned short iState：LED状态, 1代表常亮, 2代表闪烁, 其它代表熄灭</p>
     <p>unsigned short iPeriod：闪烁周期, 毫秒数. 至少需要500ms.</p>
@@ -2141,7 +2159,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示失败或读写的字节数</p>
   <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned addr: EEPROM读写地址</p>
     <p>const unsigned char* pBuffer: 需要写入EEPROM的数据</p>
     <p>unsigned char* pBuffer: 读取EEPROM的缓冲区</p>
@@ -2153,34 +2171,34 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示失败或读写的字节数</p>
   <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h: 相机实例句柄</p>
+    <p>HOgmacam h: 相机句柄</p>
     <p>const unsigned char* pBuffer: 需要写入的数据</p>
     <p>unsigned char* pBuffer: 读取缓冲区</p>
     <p>unsigned nBufferLen: 缓冲区长度</p>
   </blockquote>
   <p><strong>说明：</strong>如果读写失败, 返回负数HRESULT；如果成功, 返回读写成功的字节数.</p>
 </li></ul>
-<ul><li><h2><font color="#0000FF">Ogmacam_FfcOnce<br/>Ogmacam_DfcOnce</font></h2>
+<ul><li><h2><font color="#0000FF">Ogmacam_FfcOnce<br/>Ogmacam_DfcOnce<br/>Ogmacam_FpncOnce</font></h2>
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
   <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
   </blockquote>
 </li></ul>
-<ul><li><h2><font color="#0000FF">Ogmacam_FfcExport<br/>Ogmacam_FfcImport<br/>Ogmacam_DfcExport<br/>Ogmacam_DfcImport</font></h2>
+<ul><li><h2><font color="#0000FF">Ogmacam_FfcExport<br/>Ogmacam_FfcImport<br/>Ogmacam_DfcExport<br/>Ogmacam_DfcImport<br/>Ogmacam_FpncExport<br/>Ogmacam_FpncImport</font></h2>
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
   <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
 	<p>filepath: 文件路径</p>
   </blockquote>
-  <p><strong>说明：</strong>导入导出*.ffc或*.dfc文件.</p>
+  <p><strong>说明：</strong>导入导出*.ffc或*.dfc或*.fpnc文件.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_IoControl</font></h2>
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
   <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned ioLineNumber:</p>
     <blockquote>0 =&gt; Opto-isolated input<br/>
     1 =&gt; Opto-isolated output<br/>
@@ -2393,7 +2411,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
 	<p>unsigned short mode: 模式, 见下表</p>
 	  <div align="center">
     <table width="100%" border="1" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0">
@@ -2446,14 +2464,14 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_LevelRangeAuto</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
-    <p><strong>参数：</strong>HOgmacam h：相机实例句柄</p>
+    <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
     <p><strong>说明：</strong>软件自动LevelRange</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_LevelRange<br/>Ogmacam_get_LevelRange</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>unsigned short aLow[4], unsigned short aHigh[4]: R, G, B和灰度的Level Range. RGB只对彩色图像有效, 灰度只对灰度图像有效.</p>
   </blockquote>
   <p><strong>说明：</strong>软件LevelRange相关.</p>
@@ -2462,7 +2480,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote>
-    <p>HOgmacam h：相机实例句柄</p>
+    <p>HOgmacam h：相机句柄</p>
     <p>PIOGMACAM_HISTOGRAM_CALLBACK funHistogram, void* ctxHistogram：直方图数据的回调函数以及回调上下文</p>
   </blockquote>
   <p><strong>说明：</strong>获取直方图数据</p>
@@ -2891,6 +2909,7 @@ public bool Snap(uint nResolutionIndex)
 	</table>
 </div>
 <hr/><h1><font color="#0000ff">9. 更新历史</font></h1><hr/>
+<p>v55: 增加支持HDR Pixel Format</p>
 <p>v54: 增加支持GigE. 请参阅<a href="#apigige">这里</a></p>
 <p>v53: 增加OgmacamFrameInfoV3, Ogmacam_PullImageV3, Ogmacam_StartPushModeV4</p>
 <p>v52: 安卓Java侧传递文件描述符给<a href="#apiopen">Ogmacam_Open</a>打开相机. 请参阅<a href="#androidopen">这里</a></p>

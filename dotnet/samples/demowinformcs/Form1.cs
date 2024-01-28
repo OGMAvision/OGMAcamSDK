@@ -114,6 +114,7 @@ namespace demowinformcs
             comboBox1.Enabled = false;
             trackBar2.SetRange(Ogmacam.TEMP_MIN, Ogmacam.TEMP_MAX);
             trackBar3.SetRange(Ogmacam.TINT_MIN, Ogmacam.TINT_MAX);
+            Ogmacam.GigeEnable(null);
         }
 
         private void DelegateOnEventCallback(Ogmacam.eEVENT evt)

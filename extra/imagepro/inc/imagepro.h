@@ -39,8 +39,10 @@ IMAGEPRO_API(void) imagepro_init(pfun_imagepro_malloc pfun);
         AREA      = 3,
         LANCZOS4  = 4
 */
-IMAGEPRO_API(HRESULT) imagepro_resize(void* inputImage, void* outputImage, int method);
-
+#if defined(_WIN32)
+IMAGEPRO_API(HRESULT) imagepro_resizeV1(void* srcImage, void* destImage, int method);
+IMAGEPRO_API(HRESULT) imagepro_resizeV2(PBITMAPINFOHEADER pSrc, int srcStep, void* srcImage, PBITMAPINFOHEADER pDest, int destStep, void* destImage, int method);
+#endif
 /*
 * informat: fourcc
 * outformat: BGR(0), BGRA(1), 2(RGB), 3(RGBA)

@@ -27,7 +27,7 @@ MainWidget::MainWidget(QWidget* parent)
                 if (m_hcam[1])
                     Ogmacam_put_AutoExpoEnable(m_hcam[1], state ? 1 : 0);
             });
-            m_lbl_frame[0] = new QLabel();            
+            m_lbl_frame[0] = new QLabel();
 
             QVBoxLayout* v = new QVBoxLayout();
             v->addWidget(m_btn_open);

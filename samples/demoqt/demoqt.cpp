@@ -8,7 +8,7 @@ MainWidget::MainWidget(QWidget* parent)
     , m_imgWidth(0), m_imgHeight(0), m_pData(nullptr)
     , m_res(0), m_temp(OGMACAM_TEMP_DEF), m_tint(OGMACAM_TINT_DEF), m_count(0)
 {
-    setMinimumSize(1024, 768);    
+    setMinimumSize(1024, 768);
 
     QGridLayout* gmain = new QGridLayout();
 

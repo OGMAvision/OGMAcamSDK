@@ -1,4 +1,4 @@
-"""Version: 54.23945.20231121
+"""Version: 55.24511.20240121
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -64,6 +64,9 @@ OGMACAM_FLAG_LIGHT_SOURCE        = 0x0004000000000000  # stand alone light sourc
 OGMACAM_FLAG_CAMERALINK          = 0x0008000000000000  # camera link
 OGMACAM_FLAG_CXP                 = 0x0010000000000000  # CXP: CoaXPress
 OGMACAM_FLAG_RAW12PACK           = 0x0020000000000000  # pixel format, RAW 12bits packed
+OGMACAM_FLAG_SELFTRIGGER         = 0x0040000000000000  # self trigger
+OGMACAM_FLAG_RAW11               = 0x0080000000000000  # pixel format, RAW 11bits
+OGMACAM_FLAG_GHOPTO              = 0x0100000000000000  # ghopto sensor
 
 OGMACAM_EVENT_EXPOSURE           = 0x0001          # exposure time or gain changed
 OGMACAM_EVENT_TEMPTINT           = 0x0002          # white balance changed, Temp/Tint mode
@@ -79,10 +82,10 @@ OGMACAM_EVENT_ROI                = 0x000b          # roi changed
 OGMACAM_EVENT_LEVELRANGE         = 0x000c          # level range changed
 OGMACAM_EVENT_AUTOEXPO_CONV      = 0x000d          # auto exposure convergence
 OGMACAM_EVENT_AUTOEXPO_CONVFAIL  = 0x000e          # auto exposure once mode convergence failed
+OGMACAM_EVENT_FPNC               = 0x000f          # fix pattern noise correction status changed
 OGMACAM_EVENT_ERROR              = 0x0080          # generic error
 OGMACAM_EVENT_DISCONNECTED       = 0x0081          # camera disconnected
 OGMACAM_EVENT_NOFRAMETIMEOUT     = 0x0082          # no frame timeout error
-OGMACAM_EVENT_AFFEEDBACK         = 0x0083          # auto focus information feedback
 OGMACAM_EVENT_FOCUSPOS           = 0x0084          # focus positon
 OGMACAM_EVENT_NOPACKETTIMEOUT    = 0x0085          # no packet timeout
 OGMACAM_EVENT_EXPO_START         = 0x4000          # hardware event: exposure start
@@ -130,7 +133,12 @@ OGMACAM_OPTION_BINNING                = 0x17       # binning
                                                    # The final image size is rounded down to an even number, such as 640/3 to get 212
                                                    #
 OGMACAM_OPTION_ROTATE                 = 0x18       # rotate clockwise: 0, 90, 180, 270
-OGMACAM_OPTION_CG                     = 0x19       # Conversion Gain mode: 0 = LCG, 1 = HCG, 2 = HDR
+OGMACAM_OPTION_CG                     = 0x19       # Conversion Gain:
+                                                   #     0 = LCG
+                                                   #     1 = HCG
+                                                   #     2 = HDR (for camera with flag OGMACAM_FLAG_CGHDR)
+                                                   #     2 = MCG (for camera with flag OGMACAM_FLAG_GHOPTO)
+                                                   #
 OGMACAM_OPTION_PIXEL_FORMAT           = 0x1a       # pixel format
 OGMACAM_OPTION_FFC                    = 0x1b       # flat field correction
                                                    #      set:
@@ -176,9 +184,8 @@ OGMACAM_OPTION_UPSIDE_DOWN            = 0x23       # upsize down:
                                                    #     default: 1 (win), 0 (linux/macos)
                                                    #
 OGMACAM_OPTION_FOCUSPOS               = 0x24       # focus positon
-OGMACAM_OPTION_AFMODE                 = 0x25       # auto focus mode (0:manul focus; 1:auto focus; 2:once focus; 3:conjugate calibration)
-OGMACAM_OPTION_AFZONE                 = 0x26       # auto focus zone
-OGMACAM_OPTION_AFFEEDBACK             = 0x27       # auto focus information feedback; 0:unknown; 1:focused; 2:focusing; 3:defocus; 4:up; 5:down
+OGMACAM_OPTION_AFMODE                 = 0x25       # auto focus mode, see OgmacamAFMode
+OGMACAM_OPTION_AFSTATUS               = 0x27       # auto focus status, see OgmacamAFStaus
 OGMACAM_OPTION_TESTPATTERN            = 0x28       # test pattern:
                                                    #     0: off
                                                    #     3: monochrome diagonal stripes
@@ -193,7 +200,7 @@ OGMACAM_OPTION_MAX_PRECISE_FRAMERATE  = 0x2c       # get the precise frame rate 
 OGMACAM_OPTION_PRECISE_FRAMERATE      = 0x2d       # precise frame rate current value in 0.1 fps, range:[1~maximum]
 OGMACAM_OPTION_BANDWIDTH              = 0x2e       # bandwidth, [1-100]%
 OGMACAM_OPTION_RELOAD                 = 0x2f       # reload the last frame in trigger mode
-OGMACAM_OPTION_CALLBACK_THREAD        = 0x30       # dedicated thread for callback
+OGMACAM_OPTION_CALLBACK_THREAD        = 0x30       # dedicated thread for callback: 0 => disable, 1 => enable, default: 0
 OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH  = 0x31       # frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
                                                    # All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
                                                    #
@@ -291,13 +298,6 @@ OGMACAM_OPTION_EEPROM_SIZE            = 0x5b       # get EEPROM size
 OGMACAM_OPTION_OVERCLOCK_MAX          = 0x5c       # get overclock range: [0, max]
 OGMACAM_OPTION_OVERCLOCK              = 0x5d       # overclock, default: 0
 OGMACAM_OPTION_RESET_SENSOR           = 0x5e       # reset sensor
-
-OGMACAM_OPTION_ADC                    = 0x08000000 # Analog-Digital Conversion:
-                                                   #    get:
-                                                   #        (option | 'C'): get the current value
-                                                   #        (option | 'N'): get the supported ADC number
-                                                   #        (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
-                                                   #    set: val = ADC value, such as 11bits, 12bits, etc                                                     
 OGMACAM_OPTION_ISP                    = 0x5f       # Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
 OGMACAM_OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60       # Auto exposure: time step (thousandths)
 OGMACAM_OPTION_AUTOEXP_GAIN_STEP      = 0x61       # Auto exposure: gain step (thousandths)
@@ -330,6 +330,25 @@ OGMACAM_OPTION_PSEUDO_COLOR_ENABLE    = 0x65       # Pseudo: -1 => custom: use s
                                                    #          21 => twilight
                                                    #          22 => twilight_shifted
                                                    #          23 => turbo
+                                                   #
+OGMACAM_OPTION_LOW_POWERCONSUMPTION   = 0x66       # Low Power Consumption: 0 => disable, 1 => enable
+OGMACAM_OPTION_FPNC                   = 0x67       # Fix Pattern Noise Correction
+                                                   #        set:
+                                                   #            0: disable
+                                                   #            1: enable
+                                                   #           -1: reset
+                                                   #            (0xff000000 | n): set the average number to n, [1~255]
+                                                   #        get:
+                                                   #            (val & 0xff): 0 => disable, 1 => enable, 2 => inited
+                                                   #            ((val & 0xff00) >> 8): sequence
+                                                   #            ((val & 0xff0000) >> 16): average number
+                                                   #
+OGMACAM_OPTION_OVEREXP_POLICY         = 0x68       # Auto exposure over exposure policy: when overexposed,
+                                                   #        0 => directly reduce the exposure time/gain to the minimum value; or
+                                                   #        1 => reduce exposure time/gain in proportion to current and target brightness.
+                                                   # The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
+                                                   # Policy 1 avoids the black screen, but the convergence speed is slower.
+                                                   # Default: 0
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -344,6 +363,12 @@ OGMACAM_PIXELFORMAT_GMCY8             = 0x09   # map to RGGB 8 bits
 OGMACAM_PIXELFORMAT_GMCY12            = 0x0a   # map to RGGB 12 bits
 OGMACAM_PIXELFORMAT_UYVY              = 0x0b
 OGMACAM_PIXELFORMAT_RAW12PACK         = 0x0c
+OGMACAM_PIXELFORMAT_RAW11             = 0x0d
+OGMACAM_PIXELFORMAT_HDR8HL            = 0x0e   # HDR, Bitdepth: 8, Conversion Gain: High + Low
+OGMACAM_PIXELFORMAT_HDR10HL           = 0x0f   # HDR, Bitdepth: 10, Conversion Gain: High + Low
+OGMACAM_PIXELFORMAT_HDR11HL           = 0x10   # HDR, Bitdepth: 11, Conversion Gain: High + Low
+OGMACAM_PIXELFORMAT_HDR12HL           = 0x11   # HDR, Bitdepth: 12, Conversion Gain: High + Low
+OGMACAM_PIXELFORMAT_HDR14HL           = 0x12   # HDR, Bitdepth: 14, Conversion Gain: High + Low
 
 OGMACAM_FRAMEINFO_FLAG_SEQ            = 0x00000001   # frame sequence number
 OGMACAM_FRAMEINFO_FLAG_TIMESTAMP      = 0x00000002   # timestamp
@@ -394,7 +419,7 @@ OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE             = 0x1e
 OGMACAM_IOCONTROLTYPE_GET_OUTPUTMODE            = 0x1f  # 0x00 => Frame Trigger Wait
                                                         # 0x01 => Exposure Active
                                                         # 0x02 => Strobe
-                                                        # 0x03 => User output                                                        
+                                                        # 0x03 => User output
                                                         # 0x04 => Counter Output
                                                         # 0x05 => Timer Output
 OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE            = 0x20
@@ -427,6 +452,24 @@ OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37  # Output Counter Value, 
 OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38
 OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a  # Output pause: 1 => puase, 0 => unpause
 
+OGMACAM_IOCONTROL_DELAYTIME_MAX                 = 5 * 1000 * 1000
+
+OGMACAM_AFMODE_CALIBRATE      = 0x0   # lens calibration mode
+OGMACAM_AFMODE_MANUAL         = 0x1   # manual focus mode
+OGMACAM_AFMODE_ONCE           = 0x2   # onepush focus mode
+OGMACAM_AFMODE_AUTO           = 0x3   # autofocus mode
+OGMACAM_AFMODE_NONE           = 0x4   # no active selection of focus mode
+OGMACAM_AFMODE_IDLE           = 0x5
+
+OGMACAM_AFSTATUS_PEAKPOINT    = 0x1   # Focus completed, find the focus position
+OGMACAM_AFSTATUS_DEFOCUS      = 0x2   # End of focus, defocus
+OGMACAM_AFSTATUS_NEAR         = 0x3   # Focusing ended, object too close
+OGMACAM_AFSTATUS_FAR          = 0x4   # Focusing ended, object too far
+OGMACAM_AFSTATUS_ROICHANGED   = 0x5   # Focusing ends, roi changes
+OGMACAM_AFSTATUS_SCENECHANGED = 0x6   # Focusing ends, scene changes
+OGMACAM_AFSTATUS_MODECHANGED  = 0x7   # The end of focusing and the change in focusing mode is usually determined by the user moderator
+OGMACAM_AFSTATUS_UNFINISH     = 0x8   # The focus is not complete. At the beginning of focusing, it will be set as incomplete
+    
 # AAF: Astro Auto Focuser
 OGMACAM_AAF_SETPOSITION     = 0x01
 OGMACAM_AAF_GETPOSITION     = 0x02
@@ -444,11 +487,12 @@ OGMACAM_AAF_GETBUZZER       = 0x0e
 OGMACAM_AAF_SETBACKLASH     = 0x0f
 OGMACAM_AAF_GETBACKLASH     = 0x10
 OGMACAM_AAF_GETAMBIENTTEMP  = 0x12
-OGMACAM_AAF_GETTEMP         = 0x14
+OGMACAM_AAF_GETTEMP         = 0x14  # in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
 OGMACAM_AAF_ISMOVING        = 0x16
 OGMACAM_AAF_HALT            = 0x17
 OGMACAM_AAF_SETMAXSTEP      = 0x1b
 OGMACAM_AAF_GETMAXSTEP      = 0x1c
+OGMACAM_AAF_GETSTEPSIZE     = 0x1e
 OGMACAM_AAF_RANGEMIN        = 0xfd  # Range: min value
 OGMACAM_AAF_RANGEMAX        = 0xfe  # Range: max value
 OGMACAM_AAF_RANGEDEF        = 0xff  # Range: default value
@@ -516,6 +560,7 @@ OGMACAM_WBGAIN_MAX               = 127      # white balance gain
 OGMACAM_BLACKLEVEL_MIN           = 0        # minimum black level
 OGMACAM_BLACKLEVEL8_MAX          = 31       # maximum black level for bitdepth = 8
 OGMACAM_BLACKLEVEL10_MAX         = 31 * 4   # maximum black level for bitdepth = 10
+OGMACAM_BLACKLEVEL11_MAX         = 31 * 8   # maximum black level for bitdepth = 11
 OGMACAM_BLACKLEVEL12_MAX         = 31 * 16  # maximum black level for bitdepth = 12
 OGMACAM_BLACKLEVEL14_MAX         = 31 * 64  # maximum black level for bitdepth = 14
 OGMACAM_BLACKLEVEL16_MAX         = 31 * 256 # maximum black level for bitdepth = 16
@@ -541,7 +586,7 @@ OGMACAM_DENOISE_DEF              = 0        # denoise
 OGMACAM_DENOISE_MIN              = 0        # denoise
 OGMACAM_DENOISE_MAX              = 100      # denoise
 OGMACAM_TEC_TARGET_MIN           = -500     # TEC target: -50.0 degrees Celsius
-OGMACAM_TEC_TARGET_DEF           = 100      # TEC target: 0.0 degrees Celsius
+OGMACAM_TEC_TARGET_DEF           = 100      # TEC target: 10.0 degrees Celsius
 OGMACAM_TEC_TARGET_MAX           = 400      # TEC target: 40.0 degrees Celsius
 OGMACAM_HEARTBEAT_MIN            = 100      # millisecond
 OGMACAM_HEARTBEAT_MAX            = 10000    # millisecond
@@ -589,7 +634,7 @@ class OgmacamResolution:
         self.width = w
         self.height = h
 
-class OgmacamAfParam:
+class OgmacamFocusMotor:
     def __init__(self, imax, imin, idef, imaxabs, iminabs, zoneh, zonev):
         self.imax = imax                 # maximum auto focus sensor board positon
         self.imin = imin                 # minimum auto focus sensor board positon
@@ -637,6 +682,29 @@ class OgmacamDeviceV2:
         self.displayname = displayname   # display name
         self.id = id                     # unique and opaque id of a connected camera, for Ogmacam_Open
         self.model = model               # OgmacamModelV2
+
+class OgmacamSelfTrigger:
+    def __init__(self, sensingLeft, sensingTop, sensingWidth, sensingHeight, hThreshold, lThreshold, expoTime, expoGain, hCount, lCount, reserved):
+        self.sensingLeft = sensingLeft
+        self.sensingTop = sensingTop
+        self.sensingWidth = sensingWidth
+        self.sensingHeight = sensingHeight  # Sensing Area
+        self.hThreshold = hThreshold
+        self.lThreshold = lThreshold        # threshold High side, threshold Low side
+        self.expoTime = expoTime            # Exposure Time
+        self.expoGain = expoGain            # Exposure Gain
+        self.hCount = hCount
+        self.lCount = lCount                # Count threshold High side, Count threshold Low side, thousandths of Sensing Area
+        self.reserved = reserved
+
+class OgmacamAFState:
+    def __init__(self, AF_Mode, AF_Status, AF_LensAP_Update_Flag, AF_LensManual_Flag, Reserved0, Reserved1):
+        self.AF_Mode = AF_Mode
+        self.AF_Status = AF_Status
+        self.AF_LensAP_Update_Flag = AF_LensAP_Update_Flag  # mark for whether the lens aperture is calibrated
+        self.AF_LensManual_Flag = AF_LensManual_Flag        # if true, allows manual operation
+        self.Reserved0 = Reserved0
+        self.Reserved1 = Reserved1
 
 if sys.platform == 'win32':
     class HRESULTException(OSError):
@@ -692,7 +760,7 @@ class Ogmacam:
                     ('right', ctypes.c_int),
                     ('bottom', ctypes.c_int)]
 
-    class __AfParam(ctypes.Structure):
+    class __FocusMotor(ctypes.Structure):
         _fields_ = [('imax', ctypes.c_int),                # maximum auto focus sensor board positon
                     ('imin', ctypes.c_int),                # minimum auto focus sensor board positon
                     ('idef', ctypes.c_int),                # conjugate calibration positon
@@ -718,6 +786,26 @@ class Ogmacam:
                     ('flag', ctypes.c_uint),               # OGMACAM_FRAMEINFO_FLAG_xxxx
                     ('seq', ctypes.c_uint),                # frame sequence number
                     ('timestamp', ctypes.c_longlong)]      # microsecond
+
+    class __SelfTrigger(ctypes.Structure):
+        _fields_ = [('sensingLeft', ctypes.c_uint),
+                    ('sensingTop', ctypes.c_uint),
+                    ('sensingWidth', ctypes.c_uint),
+                    ('sensingHeight', ctypes.c_uint),      # Sensing Area
+                    ('hThreshold', ctypes.c_uint),
+                    ('lThreshold', ctypes.c_uint),         # threshold High side, threshold Low side
+                    ('expoTime', ctypes.c_uint),           # Exposure Time
+                    ('expoGain', ctypes.c_ushort),         # Exposure Gain
+                    ('hCount', ctypes.c_ushort),
+                    ('lCount', ctypes.c_ushort),           # Count threshold High side, Count threshold Low side, thousandths of Sensing Area
+                    ('reserved', ctypes.c_ushort)]
+
+    class __AFState(ctypes.Structure):
+        _fields_ = [('AF_Status', ctypes.c_uint),
+                    ('AF_LensAP_Update_Flag', ctypes.c_byte),  # mark for whether the lens aperture is calibrated
+                    ('AF_LensManual_Flag', ctypes.c_byte),     # if true, allows manual operation
+                    ('Reserved0', ctypes.c_byte),
+                    ('Reserved1', ctypes.c_byte)]
 
     if sys.platform == 'win32':
         __EVENT_CALLBACK = ctypes.WINFUNCTYPE(None, ctypes.c_uint, ctypes.py_object)
@@ -756,7 +844,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 54.23945.20231121"""
+        """get the version of this dll, which is: 55.24511.20240121"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -1122,7 +1210,7 @@ class Ogmacam:
         trigger synchronously
         nTimeout:   0:              by default, exposure * 102% + 4000 milliseconds
                     0xffffffff:     wait infinite
-                    other:          milliseconds to wait        
+                    other:          milliseconds to wait
         """
         if pInfo is None:
             self.__lib.TriggerSync(self.__h, nTimeout, pImageData, bits, rowPitch, None)
@@ -1256,6 +1344,7 @@ class Ogmacam:
         self.__lib.Ogmacam_put_AutoExpoTarget(self.__h, ctypes.c_int(Target))
 
     def put_AutoExpoRange(self, maxTime, minTime, maxGain, minGain):
+        ''' set the maximum/minimal auto exposure time and agin. The default maximum auto exposure time is 350ms '''
         return self.__lib.Ogmacam_put_AutoExpoRange(self.__h, ctypes.c_uint(maxTime), ctypes.c_uint(minTime), ctypes.c_ushort(maxGain), ctypes.c_ushort(minGain))
 
     def get_AutoExpoRange(self):
@@ -1598,6 +1687,17 @@ class Ogmacam:
         self.__lib.Ogmacam_get_Option(self.__h, ctypes.c_uint(iOption), ctypes.byref(x))
         return x.value
 
+    def get_PixelFormatSupport(self, cmd):
+        """"
+        cmd:
+            0xff:       query the number
+            0~number:   query the nth pixel format
+        output: OGMACAM_PIXELFORMAT_xxxx
+        """
+        x = ctypes.c_int(0)
+        self.__lib.Ogmacam_get_PixelFormatSupport(self.__h, cmd, ctypes.byref(x))
+        return x.value
+
     def put_Linear(self, v8, v16):
         self.__lib.Ogmacam_put_Linear(self.__h, v8, v16)
 
@@ -1640,6 +1740,46 @@ class Ogmacam:
         h = ctypes.c_uint(0)
         self.__lib.Ogmacam_get_Roi(self.__h, ctypes.byref(x), ctypes.byref(y), ctypes.byref(w), ctypes.byref(h))
         return (x.value, y.value, w.value, h.value)
+
+    def put_XY(self, x, y):
+        self.__lib.Ogmacam_put_XY(self.__h, ctypes.c_int(x), ctypes.c_int(y))
+
+    def put_SelfTrigger(self, pSt):
+        x = self.__SelfTrigger()
+        x.sensingLeft = pSt.sensingLeft
+        x.sensingTop = pSt.sensingTop
+        x.sensingWidth = pSt.sensingWidth
+        x.sensingHeight = pSt.sensingHeight
+        x.hThreshold = pSt.hThreshold
+        x.lThreshold = pSt.lThreshold
+        x.expoTime = pSt.expoTime
+        x.expoGain = pSt.expoGain
+        x.hCount = pSt.hCount
+        x.lCount = pSt.lCount
+        x.reserved = pSt.reserved
+        self.__lib.Ogmacam_put_SelfTrigger(self.__h, ctypes.byref(x))
+
+    def get_SelfTrigger(self, pSt):
+        x = self.__SelfTrigger()
+        self.__lib.Ogmacam_get_SelfTrigger(self.__h, ctypes.byref(x))
+        return OgmacamSelfTrigger(x.sensingLeft.value, x.sensingTop.value, x.sensingWidth.value, x.sensingHeight.value, x.hThreshold.value, x.lThreshold.value, x.expoTime.value, x.expoGain.value, x.hCount.value, x.lCount.value, x.reserved.value)
+
+    def get_AFState(self):
+        x = ctypes.c_uint(0)
+        self.__lib.Ogmacam_get_AFState(self.__h, ctypes.byref(x))
+        return x.value
+
+    def put_AFMode(self, mode):
+        self.__lib.Ogmacam_put_AFRoi(self.__h, ctypes.c_uint(mode))
+
+    def put_AFRoi(self, xOffset, yOffset, xWidth, yHeight):
+        self.__lib.Ogmacam_put_AFRoi(self.__h, ctypes.c_uint(xOffset), ctypes.c_uint(yOffset), ctypes.c_uint(xWidth), ctypes.c_uint(yHeight))
+
+    def put_AFAperture(self, iAperture):
+        self.__lib.Ogmacam_put_AFAperture(self.__h, ctypes.c_int(iAperture))
+
+    def put_AFFMPos(self, iFMPos):
+        self.__lib.Ogmacam_put_AFFMPos(self.__h, ctypes.c_int(iFMPos))
 
     def get_FrameRate(self):
         """
@@ -1684,6 +1824,9 @@ class Ogmacam:
     def DfcOnePush(self):
         DfcOnce(self)
 
+    def FpncOnce(self):
+        self.__lib.Ogmacam_FpncOnce(self.__h)
+
     def DfcExport(self, filepath):
         if sys.platform == 'win32':
             self.__lib.Ogmacam_DfcExport(self.__h, filepath)
@@ -1708,6 +1851,18 @@ class Ogmacam:
         else:
             self.__lib.Ogmacam_FfcImport(self.__h, filepath.encode())
 
+    def FpncExport(self, filepath):
+        if sys.platform == 'win32':
+            self.__lib.Ogmacam_FpncExport(self.__h, filepath)
+        else:
+            self.__lib.Ogmacam_FpncExport(self.__h, filepath.encode())
+
+    def FpncImport(self, filepath):
+        if sys.platform == 'win32':
+            self.__lib.Ogmacam_FpncImport(self.__h, filepath)
+        else:
+            self.__lib.Ogmacam_FpncImport(self.__h, filepath.encode())
+
     def IoControl(self, ioLineNumber, eType, outVal):
         x = ctypes.c_int(0)
         self.__lib.Ogmacam_IoControl(self.__h, ctypes.c_uint(ioLineNumber), ctypes.c_uint(eType), ctypes.c_int(outVal), ctypes.byref(x))
@@ -1718,10 +1873,10 @@ class Ogmacam:
         self.__lib.Ogmacam_AAF(self.__h, ctypes.c_int(action), ctypes.c_int(outVal), ctypes.byref(x))
         return x.value
 
-    def get_AfParam(self):
-        x = self.__AfParam()
-        self.__lib.Ogmacam_get_AfParam(self.__h, ctypes.byref(x))
-        return OgmacamAfParam(x.imax.value, x.imin.value, x.idef.value, x.imaxabs.value, x.iminabs.value, x.zoneh.value, x.zonev.value)
+    def get_FocusMotor(self):
+        x = self.__FocusMotor()
+        self.__lib.Ogmacam_get_FocusMotor(self.__h, ctypes.byref(x))
+        return OgmacamFocusMotor(x.imax.value, x.imin.value, x.idef.value, x.imaxabs.value, x.iminabs.value, x.zoneh.value, x.zonev.value)
 
     @staticmethod
     def __histogramCallbackFun(aHist, nFlag, ctx):
@@ -1740,6 +1895,11 @@ class Ogmacam:
         self.__ctxhistogram = ctx
         self.__cbhistogram = __class__.__HISTOGRAM_CALLBACK(__class__.__histogramCallbackFun)
         self.__lib.Ogmacam_GetHistogramV2(self.__h, self.__cbhistogram, ctypes.py_object(self))
+
+    @classmethod
+    def PixelFormatName(cls, val):
+        cls.__initlib()
+        return cls.__lib.Ogmacam_get_PixelFormatName(val)
 
     @classmethod
     def Replug(cls, camId):
@@ -1853,7 +2013,7 @@ class Ogmacam:
             cls.__lib.Ogmacam_PullImageV3.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]
             cls.__lib.Ogmacam_WaitImageV3.restype = ctypes.c_int
             cls.__lib.Ogmacam_WaitImageV3.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_WaitImageV3.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]       
+            cls.__lib.Ogmacam_WaitImageV3.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]
             cls.__lib.Ogmacam_PullImageV2.restype = ctypes.c_int
             cls.__lib.Ogmacam_PullImageV2.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_PullImageV2.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV2)]
@@ -1886,7 +2046,7 @@ class Ogmacam:
             cls.__lib.Ogmacam_Trigger.argtypes = [ctypes.c_void_p, ctypes.c_ushort]
             cls.__lib.Ogmacam_TriggerSync.restype = ctypes.c_int
             cls.__lib.Ogmacam_TriggerSync.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_TriggerSync.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]            
+            cls.__lib.Ogmacam_TriggerSync.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]
             cls.__lib.Ogmacam_put_Size.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_Size.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_Size.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
@@ -2001,6 +2161,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_DfcOnce.restype = ctypes.c_int
             cls.__lib.Ogmacam_DfcOnce.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_DfcOnce.argtypes = [ctypes.c_void_p]
+            cls.__lib.Ogmacam_FpncOnce.restype = ctypes.c_int
+            cls.__lib.Ogmacam_FpncOnce.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_FpncOnce.argtypes = [ctypes.c_void_p]
             cls.__lib.Ogmacam_FfcExport.restype = ctypes.c_int
             cls.__lib.Ogmacam_FfcExport.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_FfcImport.restype = ctypes.c_int
@@ -2009,16 +2172,24 @@ class Ogmacam:
             cls.__lib.Ogmacam_DfcExport.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_DfcImport.restype = ctypes.c_int
             cls.__lib.Ogmacam_DfcImport.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_FpncExport.restype = ctypes.c_int
+            cls.__lib.Ogmacam_FpncExport.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_FpncImport.restype = ctypes.c_int
+            cls.__lib.Ogmacam_FpncImport.errcheck = cls.__errcheck
             if sys.platform == 'win32':
                 cls.__lib.Ogmacam_FfcExport.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
                 cls.__lib.Ogmacam_FfcImport.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
                 cls.__lib.Ogmacam_DfcExport.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
                 cls.__lib.Ogmacam_DfcImport.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+                cls.__lib.Ogmacam_FpncExport.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+                cls.__lib.Ogmacam_FpncImport.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
             else:
                 cls.__lib.Ogmacam_FfcExport.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
                 cls.__lib.Ogmacam_FfcImport.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
                 cls.__lib.Ogmacam_DfcExport.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
                 cls.__lib.Ogmacam_DfcImport.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+                cls.__lib.Ogmacam_FpncExport.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+                cls.__lib.Ogmacam_FpncImport.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
             cls.__lib.Ogmacam_put_Hue.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_Hue.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_Hue.argtypes = [ctypes.c_void_p, ctypes.c_int]
@@ -2205,15 +2376,47 @@ class Ogmacam:
             cls.__lib.Ogmacam_get_Option.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_Option.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_get_Option.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(ctypes.c_int)]
+            cls.__lib.Ogmacam_get_PixelFormatSupport.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_PixelFormatSupport.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_PixelFormatSupport.argtypes = [ctypes.c_void_p, ctypes.c_char, ctypes.POINTER(ctypes.c_int)]
+            cls.__lib.Ogmacam_get_PixelFormatName.restype = ctypes.c_char_p
+            cls.__lib.Ogmacam_get_PixelFormatName.argtypes = [ctypes.c_int]
             cls.__lib.Ogmacam_put_Roi.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_Roi.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_Roi.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
             cls.__lib.Ogmacam_get_Roi.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_Roi.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_get_Roi.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
-            cls.__lib.Ogmacam_get_AfParam.restype = ctypes.c_int
-            cls.__lib.Ogmacam_get_AfParam.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_get_AfParam.argtypes = [ctypes.c_void_p, ctypes.POINTER(cls.__AfParam)]
+            cls.__lib.Ogmacam_put_XY.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_XY.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_XY.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            cls.__lib.Ogmacam_put_SelfTrigger.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_SelfTrigger.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_SelfTrigger.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.__SelfTrigger)]
+            cls.__lib.Ogmacam_get_SelfTrigger.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_SelfTrigger.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_SelfTrigger.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.__SelfTrigger)]
+            cls.__lib.Ogmacam_get_LensInfo.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_LensInfo.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_LensInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+            cls.__lib.Ogmacam_get_AFState.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_AFState.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_AFState.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+            cls.__lib.Ogmacam_put_AFMode.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_AFMode.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_AFMode.argtypes = [ctypes.c_void_p, c_uint]
+            cls.__lib.Ogmacam_put_AFRoi.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_AFRoi.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_AFRoi.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
+            cls.__lib.Ogmacam_put_AFAperture.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_AFAperture.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_AFAperture.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            cls.__lib.Ogmacam_put_AFFMPos.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_AFFMPos.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_AFFMPos.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            cls.__lib.Ogmacam_get_FocusMotor.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_FocusMotor.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_FocusMotor.argtypes = [ctypes.c_void_p, ctypes.POINTER(cls.__FocusMotor)]
             cls.__lib.Ogmacam_IoControl.restype = ctypes.c_int
             cls.__lib.Ogmacam_IoControl.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_IoControl.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ctypes.c_int)]

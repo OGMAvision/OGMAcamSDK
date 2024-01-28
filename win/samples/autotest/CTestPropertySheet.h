@@ -17,7 +17,7 @@ class CTestPropertySheet : public CPropertySheet
 	CResTestPropertyPage* m_pResTestPropertyPage;
 	CSnapTestPropertyPage* m_pSnapTestPropertyPage;
 	CBitDepthTestPropertyPage* m_pBitDepthTestPropertyPage;
-	CFlushTestPropertyPage* m_pFlushTestPropertyPage;	
+	CFlushTestPropertyPage* m_pFlushTestPropertyPage;
 	CPauseTestPropertyPage* m_pPauseTestPropertyPage;
 	COpenCloseTestPropertyPage* m_pOpenCloseTestPropertyPage;
 	CTriggerTestPropertyPage* m_pTriggerTestPropertyPage;

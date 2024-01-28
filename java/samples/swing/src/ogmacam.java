@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 54.23945.20231121
+    Version: 55.24511.20240121
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -71,7 +71,10 @@ public class ogmacam implements AutoCloseable {
     public final static long FLAG_LIGHT_SOURCE            = 0x0004000000000000L;  /* stand alone light source */
     public final static long FLAG_CAMERALINK              = 0x0008000000000000L;  /* camera link */
     public final static long FLAG_CXP                     = 0x0010000000000000L;  /* CXP: CoaXPress */
-    public final static logn FLAG_RAW12PACK               = 0x0020000000000000L;  /* pixel format, RAW 12bits packed */
+    public final static long FLAG_RAW12PACK               = 0x0020000000000000L;  /* pixel format, RAW 12bits packed */
+    public final static long FLAG_SELFTRIGGER             = 0x0040000000000000L;  /* self trigger */
+    public final static long FLAG_RAW11                   = 0x0080000000000000L;  /* pixel format, RAW 11bits */
+    public final static long FLAG_GHOPTO                  = 0x0100000000000000L;  /* ghopto sensor */
     
     public final static int EVENT_EXPOSURE                = 0x0001; /* exposure time or gain changed */
     public final static int EVENT_TEMPTINT                = 0x0002; /* white balance changed, Temp/Tint mode */
@@ -87,10 +90,10 @@ public class ogmacam implements AutoCloseable {
     public final static int EVENT_LEVELRANGE              = 0x000c; /* level range changed */
     public final static int EVENT_AUTOEXPO_CONV           = 0x000d; /* auto exposure convergence */
     public final static int EVENT_AUTOEXPO_CONVFAIL       = 0x000e; /* auto exposure once mode convergence failed */
+    public final static int EVENT_FPNC                    = 0x000f; /* fix pattern noise correction status changed */
     public final static int EVENT_ERROR                   = 0x0080; /* generic error */
     public final static int EVENT_DISCONNECTED            = 0x0081; /* camera disconnected */
     public final static int EVENT_NOFRAMETIMEOUT          = 0x0082; /* no frame timeout error */
-    public final static int EVENT_AFFEEDBACK              = 0x0083; /* auto focus feedback information */
     public final static int EVENT_MOTORPOS                = 0x0084; /* focus motor positon */
     public final static int EVENT_NOPACKETTIMEOUT         = 0x0085; /* no packet timeout */
     public final static int EVENT_EXPO_START              = 0x4000; /* hardware event: exposure start */
@@ -138,18 +141,23 @@ public class ogmacam implements AutoCloseable {
                                                                            The final image size is rounded down to an even number, such as 640/3 to get 212
                                                                         */
     public final static int OPTION_ROTATE                 = 0x18;       /* rotate clockwise: 0, 90, 180, 270 */
-    public final static int OPTION_CG                     = 0x19;       /* Conversion Gain mode: 0 = LCG, 1 = HCG, 2 = HDR */
+    public final static int OPTION_CG                     = 0x19;       /* Conversion Gain:
+                                                                               0 = LCG
+                                                                               1 = HCG
+                                                                               2 = HDR (for camera with flag OGMACAM_FLAG_CGHDR)
+                                                                               2 = MCG (for camera with flag OGMACAM_FLAG_GHOPTO)
+                                                                        */
     public final static int OPTION_PIXEL_FORMAT           = 0x1a;       /* pixel format */
     public final static int OPTION_FFC                    = 0x1b;       /* flat field correction
-                                                                          set:
-                                                                              0: disable
-                                                                              1: enable
-                                                                              -1: reset
-                                                                              (0xff000000 | n): set the average number to n, [1~255]
-                                                                          get:
-                                                                              (val & 0xff): 0 => disable, 1 => enable, 2 => inited
-                                                                              ((val & 0xff00) >> 8): sequence
-                                                                              ((val & 0xff0000) >> 16): average number
+                                                                                set:
+                                                                                    0: disable
+                                                                                    1: enable
+                                                                                    -1: reset
+                                                                                    (0xff000000 | n): set the average number to n, [1~255]
+                                                                                get:
+                                                                                    (val & 0xff): 0 => disable, 1 => enable, 2 => inited
+                                                                                    ((val & 0xff00) >> 8): sequence
+                                                                                    ((val & 0xff0000) >> 16): average number
                                                                         */
     public final static int OPTION_DDR_DEPTH              = 0x1c;       /* the number of the frames that DDR can cache
                                                                           1: DDR cache only one frame
@@ -159,15 +167,15 @@ public class ogmacam implements AutoCloseable {
                                                                           1: DDR can cache frames to full capacity
                                                                         */
     public final static int OPTION_DFC                    = 0x1d;       /* dark field correction
-                                                                          set:
-                                                                              0: disable
-                                                                              1: enable
-                                                                              -1: reset
-                                                                              (0xff000000 | n): set the average number to n, [1~255]
-                                                                          get:
-                                                                              (val & 0xff): 0 => disable, 1 => enable, 2 => inited
-                                                                              ((val & 0xff00) >> 8): sequence
-                                                                              ((val & 0xff0000) >> 16): average number
+                                                                                set:
+                                                                                    0: disable
+                                                                                    1: enable
+                                                                                    -1: reset
+                                                                                    (0xff000000 | n): set the average number to n, [1~255]
+                                                                                get:
+                                                                                    (val & 0xff): 0 => disable, 1 => enable, 2 => inited
+                                                                                    ((val & 0xff00) >> 8): sequence
+                                                                                    ((val & 0xff0000) >> 16): average number
                                                                         */
     public final static int OPTION_SHARPENING             = 0x1e;       /* Sharpening: (threshold << 24) | (radius << 16) | strength)
                                                                             strength: [0, 500], default: 0 (disable)
@@ -184,9 +192,8 @@ public class ogmacam implements AutoCloseable {
                                                                             default: 1 (win), 0 (linux/macos)
                                                                         */
     public final static int OPTION_MOTORPOS               = 0x24;       /* focus motor positon */
-    public final static int OPTION_AFMODE                 = 0x25;       /* auto focus mode (0:manul focus; 1:auto focus; 2:once focus; 3:conjugate calibration) */
-    public final static int OPTION_AFZONE                 = 0x26;       /* auto focus zone */
-    public final static int OPTION_AFFEEDBACK             = 0x27;       /* auto focus information feedback; 0:unknown; 1:focused; 2:focusing; 3:defocus; 4:up; 5:down */
+    public final static int OPTION_AFMODE                 = 0x25;       /* auto focus mode, see OgmacamAFMode */
+    public final static int OPTION_AFSTATUS               = 0x27;       /* auto focus status, see OgmacamAFStaus */
     public final static int OPTION_TESTPATTERN            = 0x28;       /* test pattern:
                                                                             0: off
                                                                             3: monochrome diagonal stripes
@@ -201,7 +208,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_PRECISE_FRAMERATE      = 0x2d;       /* precise frame rate current value in 0.1 fps, range:[1~maximum] */
     public final static int OPTION_BANDWIDTH              = 0x2e;       /* bandwidth, [1-100]% */
     public final static int OPTION_RELOAD                 = 0x2f;       /* reload the last frame in trigger mode */
-    public final static int OPTION_CALLBACK_THREAD        = 0x30;       /* dedicated thread for callback */
+    public final static int OPTION_CALLBACK_THREAD        = 0x30;       /* dedicated thread for callback: 0 => disable, 1 => enable, default: 0 */
     public final static int OPTION_FRONTEND_DEQUE_LENGTH  = 0x31;       /* frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
                                                                            All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
                                                                         */
@@ -304,13 +311,6 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_OVERCLOCK_MAX          = 0x5c;       /* get overclock range: [0, max] */
     public final static int OPTION_OVERCLOCK              = 0x5d;       /* overclock, default: 0 */
     public final static int OPTION_RESET_SENSOR           = 0x5e;       /* reset sensor */
-    public final static int OPTION_ADC                    = 0x08000000; /* Analog-Digital Conversion:
-                                                                                get:
-                                                                                    (option | 'C'): get the current value
-                                                                                    (option | 'N'): get the supported ADC number
-                                                                                    (option | n): get the nth supported ADC value, such as 11bits, 12bits, etc; the first value is the default
-                                                                                set: val = ADC value, such as 11bits, 12bits, etc
-                                                                        */
     public final static int OPTION_ISP                    = 0x5f;       /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
     public final static int OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60;       /* Auto exposure: time step (thousandths) */
     public final static int OPTION_AUTOEXP_GAIN_STEP      = 0x61;       /* Auto exposure: gain step (thousandths) */
@@ -344,7 +344,26 @@ public class ogmacam implements AutoCloseable {
                                                                                 22 => twilight_shifted
                                                                                 23 => turbo
                                                                         */
-    
+    public final static int OPTION_LOW_POWERCONSUMPTION   = 0x66;       /* Low Power Consumption: 0 => disable, 1 => enable */
+    public final static int OPTION_FPNC                   = 0x67;       /* Fix Pattern Noise Correction
+                                                                                set:
+                                                                                    0: disable
+                                                                                    1: enable
+                                                                                    -1: reset
+                                                                                    (0xff000000 | n): set the average number to n, [1~255]
+                                                                                get:
+                                                                                    (val & 0xff): 0 => disable, 1 => enable, 2 => inited
+                                                                                    ((val & 0xff00) >> 8): sequence
+                                                                                    ((val & 0xff0000) >> 16): average number
+                                                                        */
+    public final static int PTION_OVEREXP_POLICY          = 0x68;       /* Auto exposure over exposure policy: when overexposed,
+                                                                                0 => directly reduce the exposure time/gain to the minimum value; or
+                                                                                1 => reduce exposure time/gain in proportion to current and target brightness.
+                                                                            The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
+                                                                            Policy 1 avoids the black screen, but the convergence speed is slower.
+                                                                            Default: 0
+                                                                        */
+
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
     public final static int PIXELFORMAT_RAW12             = 0x02;
@@ -358,6 +377,12 @@ public class ogmacam implements AutoCloseable {
     public final static int PIXELFORMAT_GMCY12            = 0x0a;   /* map to RGGB 12 bits */
     public final static int PIXELFORMAT_UYVY              = 0x0b;
     public final static int PIXELFORMAT_RAW12PACK         = 0x0c;
+    public final static int PIXELFORMAT_RAW11             = 0x0d;
+    public final static int PIXELFORMAT_HDR8HL            = 0x0e;   /* HDR, Bitdepth: 8, Conversion Gain: High + Low */
+    public final static int PIXELFORMAT_HDR10HL           = 0x0f;   /* HDR, Bitdepth: 10, Conversion Gain: High + Low */
+    public final static int PIXELFORMAT_HDR11HL           = 0x10;   /* HDR, Bitdepth: 11, Conversion Gain: High + Low */
+    public final static int PIXELFORMAT_HDR12HL           = 0x11;   /* HDR, Bitdepth: 12, Conversion Gain: High + Low */
+    public final static int PIXELFORMAT_HDR14HL           = 0x12;   /* HDR, Bitdepth: 14, Conversion Gain: High + Low */
     
     public final static int FRAMEINFO_FLAG_SEQ            = 0x00000001; /* frame sequence number */
     public final static int FRAMEINFO_FLAG_TIMESTAMP      = 0x00000002; /* timestamp */
@@ -450,6 +475,8 @@ public class ogmacam implements AutoCloseable {
     public final static int IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38;
     public final static int IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a; /* Output pause: 1 => puase, 0 => unpause */
     
+    public final static int IOCONTROL_DELAYTIME_MAX                 = 5 * 1000 * 1000;
+    
     /* AAF: Astro Auto Focuser */
     public final static int AAF_SETPOSITION     = 0x01;
     public final static int AAF_GETPOSITION     = 0x02;
@@ -467,11 +494,12 @@ public class ogmacam implements AutoCloseable {
     public final static int AAF_SETBACKLASH     = 0x0f;
     public final static int AAF_GETBACKLASH     = 0x10;
     public final static int AAF_GETAMBIENTTEMP  = 0x12;
-    public final static int AAF_GETTEMP         = 0x14;
+    public final static int AAF_GETTEMP         = 0x14;  /* in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius */
     public final static int AAF_ISMOVING        = 0x16;
     public final static int AAF_HALT            = 0x17;
     public final static int AAF_SETMAXSTEP      = 0x1b;
     public final static int AAF_GETMAXSTEP      = 0x1c;
+    public final static int AAF_GETSTEPSIZE     = 0x1e;
     public final static int AAF_RANGEMIN        = 0xfd;  /* Range: min value */
     public final static int AAF_RANGEMAX        = 0xfe;  /* Range: max value */
     public final static int AAF_RANGEDEF        = 0xff;  /* Range: default value */
@@ -515,6 +543,7 @@ public class ogmacam implements AutoCloseable {
     public final static int BLACKLEVEL_MIN           = 0;        /* minimum black level */
     public final static int BLACKLEVEL8_MAX          = 31;       /* maximum black level for bitdepth = 8 */
     public final static int BLACKLEVEL10_MAX         = 31 * 4;   /* maximum black level for bitdepth = 10 */
+    public final static int BLACKLEVEL11_MAX         = 31 * 8;   /* maximum black level for bitdepth = 11 */
     public final static int BLACKLEVEL12_MAX         = 31 * 16;  /* maximum black level for bitdepth = 12 */
     public final static int BLACKLEVEL14_MAX         = 31 * 64;  /* maximum black level for bitdepth = 14 */
     public final static int BLACKLEVEL16_MAX         = 31 * 256; /* maximum black level for bitdepth = 16 */
@@ -532,7 +561,7 @@ public class ogmacam implements AutoCloseable {
     public final static int AUTOEXPO_THRESHOLD_MAX   = 15;       /* auto exposure threshold */
     public final static int AUTOEXPO_STEP_DEF        = 1000;     /* auto exposure step: thousandths */
     public final static int AUTOEXPO_STEP_MIN        = 1;        /* auto exposure step: thousandths */
-    public final static int AUTOEXPO_STEP_MAX        = 1000;     /* auto exposure step: thousandths */   
+    public final static int AUTOEXPO_STEP_MAX        = 1000;     /* auto exposure step: thousandths */
     public final static int BANDWIDTH_DEF            = 100;      /* bandwidth */
     public final static int BANDWIDTH_MIN            = 1;        /* bandwidth */
     public final static int BANDWIDTH_MAX            = 100;      /* bandwidth */
@@ -540,7 +569,7 @@ public class ogmacam implements AutoCloseable {
     public final static int DENOISE_MIN              = 0;        /* denoise */
     public final static int DENOISE_MAX              = 100;      /* denoise */
     public final static int TEC_TARGET_MIN           = -500;     /* TEC target: -50.0 degrees Celsius */
-    public final static int TEC_TARGET_DEF           = 100;      /* TEC target: 0.0 degrees Celsius */
+    public final static int TEC_TARGET_DEF           = 100;      /* TEC target: 10.0 degrees Celsius */
     public final static int TEC_TARGET_MAX           = 400;      /* TEC target: 40.0 degrees Celsius */
     public final static int HEARTBEAT_MIN            = 100;      /* millisecond */
     public final static int HEARTBEAT_MAX            = 10000;    /* millisecond */
@@ -606,7 +635,7 @@ public class ogmacam implements AutoCloseable {
         public String toString() {
             return toString(_hresult);
         }
-        
+
         public static String toString(int hresult) {
             switch (hresult) {
                 case E_INVALIDARG:
@@ -636,7 +665,11 @@ public class ogmacam implements AutoCloseable {
             }
         }
     }
-    
+
+    public static String PixelFormatName(int val) {
+        return _lib.Ogmacam_get_PixelFormatName(val);
+    }
+
     private static int errCheck(int hresult) throws HRESULTException {
         if (hresult < 0)
             throw new HRESULTException(hresult);
@@ -688,9 +721,71 @@ public class ogmacam implements AutoCloseable {
         public int  seq;            /* frame sequence number */
         public long timestamp;      /* microsecond */
     }
-    
+
+    @FieldOrder({ "sensingLeft", "sensingTop", "sensingWidth", "sensingHeight", "hThreshold", "lThreshold", "expoTime", "expoGain", "hCount", "lCount", "reserved" })
+    public static class SelfTrigger extends Structure {
+        public int sensingLeft, sensingTop, sensingWidth, sensingHeight; /* Sensing Area */
+        public int hThreshold, lThreshold; /* threshold High side, threshold Low side */
+        public int expoTime; /* Exposure Time */
+        public short expoGain; /* Exposure Gain */
+        public short hCount, lCount; /* Count threshold High side, Count threshold Low side, thousandths of Sensing Area */
+        public short reserved;
+    };
+
+    public static class LensInfo
+    {
+        public short lensID;
+        public byte  lensType;
+        public byte  statusAfmf;      /* LENS_AF = 0x00,  LENS_MF = 0x80 */
+
+        public short maxFocalLength;
+        public short curFocalLength;
+        public short minFocalLength;
+
+        public short farFM;           /* focus motor, absolute value */
+        public short curFM;           /* current focus motor */
+        public short nearFM;
+
+        public short maxFocusDistance;
+        public short minFocusDistance;
+
+        public byte curAM;
+        public byte maxAM;            /* maximum Aperture, mimimum F# */
+        public byte minAM;            /* mimimum Aperture, maximum F# */
+        public byte posAM;            /* used for set aperture motor to posAM, it is an index */
+        public int posFM;             /* used for set focus motor to posFM */
+
+        public String[] arrayFN;
+    };
+
+    public final static int AFMode_CALIBRATE = 0x0; /* lens calibration mode */
+    public final static int AFMode_MANUAL = 0x1;    /* manual focus mode */
+    public final static int AFMode_ONCE = 0x2;      /* onepush focus mode */
+    public final static int AFMode_AUTO = 0x3;      /* autofocus mode */
+    public final static int AFMode_NONE = 0x4;      /* no active selection of focus mode */
+    public final static int AFMode_IDLE = 0x5;
+
+    public final static int AFStatus_PEAKPOINT = 0x1;       /* Focus completed, find the focus position */
+    public final static int AFStatus_DEFOCUS = 0x2;         /* End of focus, defocus */
+    public final static int AFStatus_NEAR = 0x3;            /* Focusing ended, object too close */
+    public final static int AFStatus_FAR = 0x4;             /* Focusing ended, object too far */
+    public final static int AFStatus_ROICHANGED = 0x5;      /* Focusing ends, roi changes */
+    public final static int AFStatus_SCENECHANGED = 0x6;    /* Focusing ends, scene changes */
+    public final static int AFStatus_MODECHANGED = 0x7;     /* The end of focusing and the change in focusing mode is usually determined by the user moderator */
+    public final static int AFStatus_UNFINISH = 0x8;        /* The focus is not complete. At the beginning of focusing, it will be set as incomplete */
+
+    @FieldOrder({ "AF_Mode", "AF_Status", "AF_LensAP_Update_Flag", "AF_LensManual_Flag", "Reserved0", "Reserved1" })
+    public static class AFState extends Structure {
+        public int AF_Mode;
+        public int AF_Status;
+        public byte AF_LensAP_Update_Flag;  /* mark for whether the lens aperture is calibrated */
+        public byte AF_LensManual_Flag;     /* if true, allows manual operation */
+        public byte Reserved0;
+        public byte Reserved1;
+    };
+
     @FieldOrder({ "imax", "imin", "idef", "imaxabs", "iminabs", "zoneh", "zonev" })
-    public static class AfParam extends Structure {
+    public static class FocusMotor extends Structure {
         public int imax;            /* maximum auto focus sensor board positon */
         public int imin;            /* minimum auto focus sensor board positon */
         public int idef;            /* conjugate calibration positon */
@@ -741,6 +836,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_put_Temperature(Pointer h, short nTemperature);
         int Ogmacam_get_Roi(Pointer h, IntByReference pxOffset, IntByReference pyOffset, IntByReference pxWidth, IntByReference pyHeight);
         int Ogmacam_put_Roi(Pointer h, int xOffset, int yOffset, int xWidth, int yHeight);
+        int Ogmacam_put_XY(Pointer h, int x, int y);
         int Ogmacam_get_AutoExpoEnable(Pointer h, IntByReference bAutoExposure);
         int Ogmacam_put_AutoExpoEnable(Pointer h, int bAutoExposure);
         int Ogmacam_get_AutoExpoTarget(Pointer h, ShortByReference Target);
@@ -816,7 +912,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_AbbOnce(Pointer h, Pointer funBB, Pointer ctxBB);
         int Ogmacam_put_LEDState(Pointer h, short iLed, short iState, short iPeriod);
         int Ogmacam_write_EEPROM(Pointer h, int addr, Pointer pBuffer, int nBufferLen);
-        int Ogmacam_read_EEPROM(Pointer h, int addr, Pointer pBuffer, int nBufferLen);      
+        int Ogmacam_read_EEPROM(Pointer h, int addr, Pointer pBuffer, int nBufferLen);
         int Ogmacam_rwc_Flash(Pointer h, int action, int addr, int len, Pointer pData);
         int Ogmacam_write_Pipe(Pointer h, int pipeId, Pointer pBuffer, int nBufferLen);
         int Ogmacam_read_Pipe(Pointer h, int pipeId, Pointer pBuffer, int nBufferLen);
@@ -825,6 +921,10 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_read_UART(Pointer h, Pointer pBuffer, int nBufferLen);
         int Ogmacam_put_Option(Pointer h, int iOption, int iValue);
         int Ogmacam_get_Option(Pointer h, int iOption, IntByReference iValue);
+        int Ogmacam_get_PixelFormatSupport(Pointer h, byte cmd, IntByReference iValue);
+        String Ogmacam_get_PixelFormatName(int val);
+        int Ogmacam_put_SelfTrigger(Pointer h, SelfTrigger pSt);
+        int Ogmacam_get_SelfTrigger(Pointer h, SelfTrigger pSt);
         int Ogmacam_put_Linear(Pointer h, byte[] v8, short[] v16);
         int Ogmacam_put_Curve(Pointer h, byte[] v8, short[] v16);
         int Ogmacam_put_ColorMatrix(Pointer h, double[] v);
@@ -832,9 +932,16 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_get_FrameRate(Pointer h, IntByReference nFrame, IntByReference nTime, IntByReference nTotalFrame);
         int Ogmacam_FfcOnce(Pointer h);
         int Ogmacam_DfcOnce(Pointer h);
+        int Ogmacam_FpncOnce(Pointer h);
         int Ogmacam_IoControl(Pointer h, int ioLineNumber, int eType, int outVal, IntByReference inVal);
         int Ogmacam_AAF(Pointer h, int action, int outVal, IntByReference inVal);
-        int Ogmacam_get_AfParam(Pointer h, AfParam pAfParam);
+        int Ogmacam_get_LensInfo(Pointer h, Pointer pInfo);
+        int TOgmacam_get_AFState(Pointer h, IntByReference pState);
+        int TOgmacam_put_AFMode(Pointer h, int mode);
+        int TOgmacam_put_AFRoi(Pointer h, int xOffset, int yOffset, int xWidth, int yHeight);
+        int TOgmacam_put_AFAperture(Pointer h, int iAperture);
+        int TOgmacam_put_AFFMPos(Pointer h, int iFMPos);
+        int Ogmacam_get_FocusMotor(Pointer h, FocusMotor pFocusMotor);
         
         int Ogmacam_TriggerSyncArray(Pointer h, int nTimeout, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_PullImageV3Array(Pointer h, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
@@ -852,7 +959,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_read_UARTArray(Pointer h, byte[] pBuffer, int nBufferLen);
         Pointer Ogmacam_get_Model(short idVendor, short idProduct);
         int Ogmacam_Gain2TempTint(int[] gain, IntByReference temp, IntByReference tint);
-        void Ogmacam_TempTint2Gain(int temp, int tint, int[] gain);     
+        void Ogmacam_TempTint2Gain(int temp, int tint, int[] gain);
     }
 
     private interface WinLibrary extends CLib, StdCallLibrary {
@@ -870,6 +977,8 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_FfcExport(Pointer h, WString filepath);
         int Ogmacam_DfcImport(Pointer h, WString filepath);
         int Ogmacam_DfcExport(Pointer h, WString filepath);
+        int Ogmacam_FpncImport(Pointer h, WString filepath);
+        int Ogmacam_FpncExport(Pointer h, WString filepath);
 
         interface PROGRESS_CALLBACK extends StdCallCallback {
             void invoke(int percent, Pointer ctxProgress);
@@ -900,6 +1009,8 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_FfcExport(Pointer h, String filepath);
         int Ogmacam_DfcImport(Pointer h, String filepath);
         int Ogmacam_DfcExport(Pointer h, String filepath);
+        int Ogmacam_FpncImport(Pointer h, String filepath);
+        int Ogmacam_FpncExport(Pointer h, String filepath);
         
         interface HOTPLUG_CALLBACK extends Callback {
             void invoke(Pointer ctxHotPlug);
@@ -1008,7 +1119,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 54.23945.20231121 */
+    /* get the version of this dll/so/dylib, which is: 55.24511.20240121 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -1052,7 +1163,10 @@ public class ogmacam implements AutoCloseable {
     {
         ModelV2 model = new ModelV2();
         long qoffset = 0;
-        model.name = qtr.getPointer(0).getWideString(0);
+        if (Platform.isWindows())
+            model.name = qtr.getPointer(0).getWideString(0);
+        else
+            model.name = qtr.getPointer(0).getString(0);
         qoffset += Native.POINTER_SIZE;
         if (Platform.isWindows() && (4 == Native.POINTER_SIZE))   /* 32bits windows */
             qoffset += 4; //skip 4 bytes, different from the linux version
@@ -1647,6 +1761,7 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_put_AutoExpoTarget(_handle, Target));
     }
     
+    
     public void put_AutoExpoRange(int maxTime, int minTime, short maxGain, short minGain) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_AutoExpoRange(_handle, maxTime, minTime, maxGain, minGain));
     }
@@ -2100,7 +2215,29 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_get_Option(_handle, iOption, p));
         return p.getValue();
     }
-    
+
+    /*
+     * cmd:
+     *   -1:         query the number
+     *   0~number:   query the nth pixel format
+     * output: OGMACAM_PIXELFORMAT_xxxx
+    */
+    public int get_PixelFormatSupport(byte cmd) throws HRESULTException {
+        IntByReference p = new IntByReference();
+        errCheck(_lib.Ogmacam_get_PixelFormatSupport(_handle, cmd, p));
+        return p.getValue();
+    }
+
+    public void put_SelfTrigger(SelfTrigger pSt) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_SelfTrigger(_handle, pSt));
+    }
+
+    public SelfTrigger get_SelfTrigger() throws HRESULTException {
+        SelfTrigger p = new SelfTrigger();
+        errCheck(_lib.Ogmacam_get_SelfTrigger(_handle, p));
+        return p;
+    }
+
     public void put_Linear(byte[] v8, short[] v16) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_Linear(_handle, v8, v16));
     }
@@ -2146,6 +2283,10 @@ public class ogmacam implements AutoCloseable {
         IntByReference s = new IntByReference();
         errCheck(_lib.Ogmacam_get_Roi(_handle, p, q, r, s));
         return new int[] { p.getValue(), q.getValue(), r.getValue(), s.getValue() };
+    }
+    
+    public void put_XY(int x, int y) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_XY(_handle, x, y));
     }
     
     /*
@@ -2202,6 +2343,10 @@ public class ogmacam implements AutoCloseable {
         DfcOnce();
     }
     
+    public void FpncOnce() throws HRESULTException {
+        errCheck(_lib.Ogmacam_FpncOnce(_handle));
+    }
+    
     public void FfcExport(String filepath) throws HRESULTException {
         if (Platform.isWindows())
             errCheck(((WinLibrary)_lib).Ogmacam_FfcExport(_handle, new WString(filepath)));
@@ -2230,6 +2375,20 @@ public class ogmacam implements AutoCloseable {
             errCheck(((CLibrary)_lib).Ogmacam_DfcImport(_handle, filepath));
     }
     
+    public void FpncExport(String filepath) throws HRESULTException {
+        if (Platform.isWindows())
+            errCheck(((WinLibrary)_lib).Ogmacam_FpncExport(_handle, new WString(filepath)));
+        else
+            errCheck(((CLibrary)_lib).Ogmacam_FpncExport(_handle, filepath));
+    }
+    
+    public void FpncImport(String filepath) throws HRESULTException {
+        if (Platform.isWindows())
+            errCheck(((WinLibrary)_lib).Ogmacam_FpncImport(_handle, new WString(filepath)));
+        else
+            errCheck(((CLibrary)_lib).Ogmacam_FpncImport(_handle, filepath));
+    }
+    
     public int IoControl(int ioLineNumber, int eType, int outVal) throws HRESULTException {
         IntByReference p = new IntByReference();
         errCheck(_lib.Ogmacam_IoControl(_handle, ioLineNumber, eType, outVal, p));
@@ -2241,9 +2400,95 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_AAF(_handle, action, outVal, p));
         return p.getValue();
     }
+
+    private static LensInfo Ptr2LensInfo(Pointer qtr)
+    {
+        LensInfo pInfo = new LensInfo();
+        long qoffset = 0;
+        pInfo.lensID = qtr.getShort(qoffset);
+        qoffset += 2;
+        pInfo.lensType = qtr.getByte(qoffset);
+        qoffset += 1;
+        pInfo.statusAfmf = qtr.getByte(qoffset);     /* LENS_AF = 0x00,  LENS_MF = 0x80 */
+        qoffset += 1;
+
+        pInfo.maxFocalLength = qtr.getShort(qoffset);
+        qoffset += 2;
+        pInfo.curFocalLength = qtr.getShort(qoffset);
+        qoffset += 2;
+        pInfo.minFocalLength = qtr.getShort(qoffset);
+        qoffset += 2;
+
+        pInfo.farFM = qtr.getShort(qoffset);           /* focus motor, absolute value */
+        qoffset += 2;
+        pInfo.curFM = qtr.getShort(qoffset);           /* current focus motor */
+        qoffset += 2;
+        pInfo.nearFM = qtr.getShort(qoffset);
+        qoffset += 2;
+
+        pInfo.maxFocusDistance = qtr.getShort(qoffset);
+        qoffset += 2;
+        pInfo.minFocusDistance = qtr.getShort(qoffset);
+        qoffset += 2;
+
+        pInfo.curAM = qtr.getByte(qoffset);
+        qoffset += 1;
+        pInfo.maxAM = qtr.getByte(qoffset);            /* maximum Aperture, mimimum F# */
+        qoffset += 1;
+        pInfo.minAM = qtr.getByte(qoffset);            /* mimimum Aperture, maximum F# */
+        qoffset += 1;
+        pInfo.posAM = qtr.getByte(qoffset);            /* used for set aperture motor to posAM, it is an index */
+        qoffset += 1;
+        pInfo.posFM = qtr.getInt(qoffset);             /* used for set focus motor to posFM */
+        qoffset += 4;
+
+        int sizeFN = qtr.getInt(qoffset);
+        qoffset += 4;
+        if (sizeFN >= 0) {
+            Pointer sp = qtr.getPointer(qoffset);
+            if (sp != Pointer.NULL) {
+                pInfo.arrayFN = new String[sizeFN];
+                for (int i = 0; i < sizeFN; ++i)
+                    pInfo.arrayFN[i] = sp.getString(Native.POINTER_SIZE * i);
+            }
+            pInfo.arrayFN = new String[sizeFN];
+        }
+
+        return pInfo;
+    }
+
+    public LensInfo get_LensInfo() throws HRESULTException {
+        Memory ptr = new Memory(128);
+        errCheck(_lib.Ogmacam_get_LensInfo(_handle, ptr));
+        return Ptr2LensInfo(ptr);
+    }
+
+    public int get_AFState() throws HRESULTException {
+        IntByReference p = new IntByReference();
+        errCheck(_lib.TOgmacam_get_AFState(_handle, p));
+        return p.getValue();
+    }
+
+    public void put_AFMode(int mode) throws HRESULTException {
+        errCheck(_lib.TOgmacam_put_AFMode(_handle, mode));
+    }
+
+    public void put_AFRoi(int xOffset, int yOffset, int xWidth, int yHeight) throws HRESULTException {
+        errCheck(_lib.TOgmacam_put_AFRoi(_handle, xOffset, yOffset, xWidth, yHeight));
+    }
+
+    public void put_AFAperture(int iAperture) throws HRESULTException {
+        errCheck(_lib.TOgmacam_put_AFAperture(_handle, iAperture));
+    }
+
+    public void put_AFFMPos(int iFMPos) throws HRESULTException {
+        errCheck(_lib.TOgmacam_put_AFFMPos(_handle, iFMPos));
+    }
     
-    public void get_AfParam(AfParam pAfParam) throws HRESULTException {
-        errCheck(_lib.Ogmacam_get_AfParam(_handle, pAfParam));
+    public FocusMotor get_FocusMotor() throws HRESULTException {
+        FocusMotor pFocusMotor = new FocusMotor();
+        errCheck(_lib.Ogmacam_get_FocusMotor(_handle, pFocusMotor));
+        return pFocusMotor;
     }
 
     private static void OnHistogramCallback(Pointer aHist, int nFlag, Pointer ctxHistogram) {

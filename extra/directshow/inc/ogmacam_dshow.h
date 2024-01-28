@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 54.23945.20231121 */
+/* Version: 55.24511.20240121 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -38,8 +38,8 @@ typedef struct {
 } OgmacamSelfTrigger;
 #endif
 
-#ifndef __OGMACAMAFPARAM_DEFINED__
-#define __OGMACAMAFPARAM_DEFINED__
+#ifndef __OGMACAMFOCUSMOTOR_DEFINED__
+#define __OGMACAMFOCUSMOTOR_DEFINED__
 typedef struct {
     int imax;    /* maximum auto focus sensor board positon */
     int imin;    /* minimum auto focus sensor board positon */
@@ -48,7 +48,7 @@ typedef struct {
     int iminabs; /* maximum absolute auto focus sensor board positon, micrometer */
     int zoneh;   /* zone horizontal */
     int zonev;   /* zone vertical */
-} OgmacamAfParam;
+} OgmacamFocusMotor;
 #endif
 
 #ifndef __IOGMACAM_DEFINED__
@@ -344,7 +344,7 @@ typedef struct {
         STDMETHOD(put_MinAutoExpoTimeAGain) (THIS_ unsigned minTime, unsigned short minGain) PURE;
         STDMETHOD(get_MinAutoExpoTimeAGain) (THIS_ unsigned* minTime, unsigned short* minGain) PURE;
         
-        STDMETHOD(get_AfParam) (THIS_ OgmacamAfParam* pAfParam) PURE;
+        STDMETHOD(get_FocusMotor) (THIS_ OgmacamFocusMotor* pFocusMotor) PURE;
         
         STDMETHOD(get_FinalSize) (THIS_ int* pWidth, int* pHeight) PURE;
         
@@ -384,6 +384,29 @@ typedef struct {
 
         STDMETHOD(put_SelfTrigger)(THIS_ const OgmacamSelfTrigger* pSt) PURE;
         STDMETHOD(get_SelfTrigger)(THIS_ OgmacamSelfTrigger* pSt) PURE;
+
+        /*
+        * cmd: input
+        *   -1:         query the number
+        *   0~number:   query the nth pixel format
+        * piValue: output, OGMACAM_PIXELFORMAT_xxxx
+        */
+        STDMETHOD(get_PixelFormatSupport)(THIS_ char cmd, int* piValue) PURE;
+
+        STDMETHOD(put_XY)(THIS_ int x, int y) PURE;
+
+        /* Fix Pattern Noise Correction */
+        STDMETHOD(FpncOnce) (THIS_) PURE;
+        STDMETHOD(get_FpncStatus) (THIS_ int* status) PURE; /* see OGMACAM_OPTION_FPNC */
+        STDMETHOD(put_FpncStatus) (THIS_ int status) PURE;
+
+#if defined(_WIN32)
+        STDMETHOD(FpncExport) (THIS_ const wchar_t* filepath) PURE;
+        STDMETHOD(FpncImport) (THIS_ const wchar_t* filepath) PURE;
+#else
+        STDMETHOD(FpncExport) (THIS_ const char* filepath) PURE;
+        STDMETHOD(FpncImport) (THIS_ const char* filepath) PURE;
+#endif
     };
 #endif
 

@@ -153,7 +153,7 @@ public class ImageLib
     [DllImport("imagelib.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ImageLib_Save([MarshalAs(UnmanagedType.LPWStr)] string file, IntPtr pDIB, IntPtr pInfo);
-    [DllImport("imagelib.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]    
+    [DllImport("imagelib.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ImageLib_CanSave(IntPtr pDIB, IntPtr pInfo);
     [DllImport("imagelib.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -479,7 +479,7 @@ public class ImageLib
             if (Marshal.ReadInt32(ptr) == (int)IMAGEFORMAT.IMAGEFORMAT_UNKNOWN)
                 break;
             lst.Add(ToFmtCodec(ptr));
-            ptr = IncIntPtr(ptr, 4 * 3 + IntPtr.Size); 
+            ptr = IncIntPtr(ptr, 4 * 3 + IntPtr.Size);
         }
         return lst.ToArray();
     }

@@ -312,24 +312,40 @@ private:
 	}
 };
 
+static wchar_t* PixelFormatHdrName(int val)
+{
+	switch (val)
+	{
+	case OGMACAM_PIXELFORMAT_HDR8HL:
+		return L"HDR8HL";
+	case OGMACAM_PIXELFORMAT_HDR10HL:
+		return L"HDR10HL";
+	case OGMACAM_PIXELFORMAT_HDR11HL:
+		return L"HDR11HL";
+	case OGMACAM_PIXELFORMAT_HDR12HL:
+		return L"HDR12HL";
+	case OGMACAM_PIXELFORMAT_HDR14HL:
+		return L"HDR14HL";
+	default:
+		return nullptr;
+	}
+}
+
 class CPixelFormatDlg : public CDialogImpl<CPixelFormatDlg>
 {
-	const OgmacamDeviceV2&	m_inst;
+	const OgmacamDeviceV2&	m_tdev;
 	HOgmacam				m_hcam;
 
 	BEGIN_MSG_MAP(CPixelFormatDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
-		COMMAND_HANDLER(IDC_RADIO1, BN_CLICKED, OnRadio1)
-		COMMAND_HANDLER(IDC_RADIO2, BN_CLICKED, OnRadio2)
-		COMMAND_HANDLER(IDC_RADIO3, BN_CLICKED, OnRadio3)
-		COMMAND_HANDLER(IDC_RADIO4, BN_CLICKED, OnRadio4)
 		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
+		COMMAND_HANDLER(IDC_COMBO1, CBN_SELCHANGE, OnSelchange1)
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_PIXELFORMAT };
 
 	CPixelFormatDlg(const OgmacamDeviceV2& tdev, HOgmacam hcam)
-	: m_inst(tdev), m_hcam(hcam)
+	: m_tdev(tdev), m_hcam(hcam)
 	{
 	}
 private:
@@ -337,82 +353,38 @@ private:
 	{
 		CenterWindow(GetParent());
 
-		if (0 == (m_inst.model->flag & (OGMACAM_FLAG_RAW8 | OGMACAM_FLAG_GMCY8)))
-			GetDlgItem(IDC_RADIO1).EnableWindow(FALSE);
-		
-		if (m_inst.model->flag & (OGMACAM_FLAG_RAW10 | OGMACAM_FLAG_RAW12 | OGMACAM_FLAG_RAW14 | OGMACAM_FLAG_RAW16 | OGMACAM_FLAG_GMCY12))
+		CComboBox cbox(GetDlgItem(IDC_COMBO1));
 		{
-			wchar_t str[16];
-			unsigned bits = 16;
-			if (m_inst.model->flag & OGMACAM_FLAG_RAW10)
-				bits = 10;
-			else if (m_inst.model->flag & (OGMACAM_FLAG_RAW12 | OGMACAM_FLAG_GMCY12))
-				bits = 12;
-			else if (m_inst.model->flag & OGMACAM_FLAG_RAW14)
-				bits = 14;
-			swprintf(str, L"RAW%u", bits);
-			GetDlgItem(IDC_RADIO2).SetWindowText(str);
-		}
-		else
-		{
-			GetDlgItem(IDC_RADIO2).EnableWindow(FALSE);
+			int num = 0,  val = 0;
+			if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, -1, &num)) && (num > 0))
+			{
+				for (int i = 0; i < num; ++i)
+				{
+					if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, (char)i, &val)))
+						cbox.SetItemData(cbox.AddString(CA2W(Ogmacam_get_PixelFormatName(val))), val);
+				}
+			}
 		}
 
-		if (0 == (m_inst.model->flag & (OGMACAM_FLAG_VUYY | OGMACAM_FLAG_UYVY)))
-			GetDlgItem(IDC_RADIO3).EnableWindow(FALSE);
-		if (0 == (m_inst.model->flag & OGMACAM_FLAG_RAW12PACK))
-			GetDlgItem(IDC_RADIO4).EnableWindow(FALSE);
-
-		int val = 0;
-		Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, &val);
-		if ((OGMACAM_PIXELFORMAT_RAW8 == val) || (OGMACAM_PIXELFORMAT_GMCY8 == val))
-			CheckDlgButton(IDC_RADIO1, 1);
-		else if ((OGMACAM_PIXELFORMAT_RAW10 == val) || (OGMACAM_PIXELFORMAT_RAW12 == val) || (OGMACAM_PIXELFORMAT_RAW14 == val) || (OGMACAM_PIXELFORMAT_RAW16 == val) || (OGMACAM_PIXELFORMAT_GMCY12 == val))
-			CheckDlgButton(IDC_RADIO2, 1);
-		else if ((OGMACAM_PIXELFORMAT_VUYY == val) || (OGMACAM_PIXELFORMAT_UYVY == val))
-			CheckDlgButton(IDC_RADIO3, 1);
-		else if (OGMACAM_PIXELFORMAT_RAW12PACK == val)
-			CheckDlgButton(IDC_RADIO4, 1);
+		{
+			int val = 0, num = cbox.GetCount();
+			Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, &val);
+			for (int i = 0; i < num; ++i)
+			{
+				if (cbox.GetItemData(i) == val)
+				{
+					cbox.SetCurSel(i);
+					break;
+				}
+			}
+		}
 		return TRUE;
 	}
 
-	LRESULT OnRadio1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	LRESULT OnSelchange1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (m_inst.model->flag & OGMACAM_FLAG_RAW8)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW8);
-		else if (m_inst.model->flag & OGMACAM_FLAG_GMCY8)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_GMCY8);
-		return 0;
-	}
-
-	LRESULT OnRadio2(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		if (m_inst.model->flag & OGMACAM_FLAG_RAW10)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW10);
-		else if (m_inst.model->flag & OGMACAM_FLAG_RAW12)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW12);
-		else if (m_inst.model->flag & OGMACAM_FLAG_RAW14)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW14);
-		else if (m_inst.model->flag & OGMACAM_FLAG_RAW16)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW16);
-		else if (m_inst.model->flag & OGMACAM_FLAG_GMCY12)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_GMCY12);
-		return 0;
-	}
-
-	LRESULT OnRadio3(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		if (m_inst.model->flag & OGMACAM_FLAG_VUYY)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_VUYY);
-		else if (m_inst.model->flag & OGMACAM_FLAG_UYVY)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_UYVY);
-		return 0;
-	}
-
-	LRESULT OnRadio4(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		if (m_inst.model->flag & OGMACAM_FLAG_RAW12PACK)
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_PIXELFORMAT_RAW12PACK);
+		CComboBox cbox(GetDlgItem(IDC_COMBO1));
+		Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, cbox.GetItemData(cbox.GetCurSel()));
 		return 0;
 	}
 

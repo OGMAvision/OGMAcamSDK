@@ -33,6 +33,19 @@ CAppModule _Module;
 
 CDPI g_dpi;
 
+static unsigned char GetPixelFormatBitDepth(int val) noexcept
+{
+	static constexpr unsigned char arr[] = { 8, 10, 12, 14, 16, 8, 8, 8, 8, 8, 12, 8, 12, 11, 16, 16, 16, 16, 16 };
+	return arr[val];
+}
+
+static bool IsSupportGain(HOgmacam h)
+{
+	unsigned short nMin = 0, nMax = 0;
+	Ogmacam_get_ExpoAGainRange(h, &nMin, &nMax, nullptr);
+	return (nMax > nMin);
+}
+
 typedef struct {
 	UINT	delayTime;
 	UINT	expoTime;
@@ -125,18 +138,19 @@ static bool GetExpoTime(CWindow* pDlg, UINT nID, DWORD& expoTime, DWORD minExpoT
 class CExposureDlg : public CDialogImpl<CExposureDlg>
 {
 	friend class CConfigDlg;
+	const bool m_bSupportGain;
 	const unsigned*			m_expoTimeRange;
 	const unsigned short*	m_expoGainRange;
 	DWORD	m_expoTime, m_expoGain, m_delayTime;
 public:
 	enum { IDD = IDD_EXPOSURE };
-	CExposureDlg(const unsigned* expoTimeRange, const unsigned short* expoGainRange)
-	: m_expoTimeRange(expoTimeRange), m_expoGainRange(expoGainRange), m_expoTime(0), m_expoGain(OGMACAM_EXPOGAIN_MIN), m_delayTime(0)
+	CExposureDlg(bool bSupportGain, const unsigned* expoTimeRange, const unsigned short* expoGainRange)
+	: m_bSupportGain(bSupportGain), m_expoTimeRange(expoTimeRange), m_expoGainRange(expoGainRange), m_expoTime(0), m_expoGain(OGMACAM_EXPOGAIN_MIN), m_delayTime(0)
 	{
 	}
 
-	CExposureDlg(const unsigned* expoTimeRange, const unsigned short* expoGainRange, const Expo& expo)
-	: m_expoTimeRange(expoTimeRange), m_expoGainRange(expoGainRange), m_expoTime(expo.expoTime), m_expoGain(expo.expoGain), m_delayTime(expo.delayTime)
+	CExposureDlg(bool bSupportGain, const unsigned* expoTimeRange, const unsigned short* expoGainRange, const Expo& expo)
+	: m_bSupportGain(bSupportGain), m_expoTimeRange(expoTimeRange), m_expoGainRange(expoGainRange), m_expoTime(expo.expoTime), m_expoGain(expo.expoGain), m_delayTime(expo.delayTime)
 	{
 	}
 
@@ -151,18 +165,26 @@ private:
 		CenterWindow(GetParent());
 
 		SetDlgItemText(IDC_STATIC1, (LPCTSTR)FormatString(L"Range: [%s, %s]ms", (LPCTSTR)FormatExpoTime(m_expoTimeRange[0]), (LPCTSTR)FormatExpoTime(m_expoTimeRange[1])));
-		SetDlgItemText(IDC_STATIC2, (LPCTSTR)FormatString(L"Range: [%hu, %hu]", m_expoGainRange[0], m_expoGainRange[1]));
-
 		if (m_expoTime)
 			SetDlgItemText(IDC_EDIT1, (LPCTSTR)FormatExpoTime(m_expoTime));
-		SetDlgItemInt(IDC_EDIT2, m_expoGain, FALSE);
+		
+		if (m_bSupportGain)
+		{
+			SetDlgItemText(IDC_STATIC2, (LPCTSTR)FormatString(L"Range: [%hu, %hu]", m_expoGainRange[0], m_expoGainRange[1]));
+			SetDlgItemInt(IDC_EDIT2, m_expoGain, FALSE);
+		}
+		else
+		{
+			GetDlgItem(IDC_EDIT2).EnableWindow(FALSE);
+		}
+
 		SetDlgItemInt(IDC_EDIT3, m_delayTime, FALSE);
 		return TRUE;
 	}
 
 	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (GetDlgInt(this, IDC_EDIT2, m_expoGain, m_expoGainRange[0], m_expoGainRange[1])
+		if ((m_bSupportGain && GetDlgInt(this, IDC_EDIT2, m_expoGain, m_expoGainRange[0], m_expoGainRange[1]))
 			|| GetDlgInt(this, IDC_EDIT3, m_delayTime, 0, UINT_MAX)
 			|| GetExpoTime(this, IDC_EDIT1, m_expoTime, m_expoTimeRange[0], m_expoTimeRange[1]))
 			return 0;
@@ -181,6 +203,7 @@ class CConfigDlg : public CDialogImpl<CConfigDlg>
 {
 	friend class CMainFrame;
 	const OgmacamModelV2* m_pModel;
+	const bool m_bSupportGain;
 	HOgmacam	m_hcam;
 	DWORD		m_area, m_bin, m_temp, m_scale;
 	CRegKey		m_regkey;
@@ -191,7 +214,7 @@ class CConfigDlg : public CDialogImpl<CConfigDlg>
 public:
 	enum { IDD = IDD_CONFIG };
 	CConfigDlg(HOgmacam hcam, const OgmacamModelV2* pModel)
-		: m_hcam(hcam), m_pModel(pModel), m_area(5), m_bin(1), m_temp(0), m_scale(0)
+		: m_bSupportGain(IsSupportGain(hcam)), m_hcam(hcam), m_pModel(pModel), m_area(5), m_bin(1), m_temp(0), m_scale(0)
 	{
 		m_regkey.Create(HKEY_CURRENT_USER, L"Software\\democns");
 		m_regkey.QueryDWORDValue(L"area", m_area);
@@ -214,7 +237,7 @@ public:
 		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
 		COMMAND_HANDLER(IDC_BUTTON1, BN_CLICKED, OnAdd)
 		COMMAND_HANDLER(IDC_BUTTON2, BN_CLICKED, OnDelete)
-		COMMAND_HANDLER(IDC_CHECK1, BN_CLICKED, OnCheck1)
+		COMMAND_HANDLER(IDC_COMBO6, CBN_SELCHANGE, OnPixelFormat)
 		COMMAND_HANDLER(IDC_RADIO1, BN_CLICKED, OnRadio1)
 		COMMAND_HANDLER(IDC_RADIO2, BN_CLICKED, OnRadio2)
 		COMMAND_HANDLER(IDC_CHECK3, BN_CLICKED, OnCheck3)
@@ -250,18 +273,34 @@ private:
 			box.AddString(L"16");
 			box.SetCurSel(0);
 		}
-		if (E_NOTIMPL == Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
-		{
-			GetDlgItem(IDC_CHECK1).EnableWindow(FALSE);
+		if (Ogmacam_get_MaxBitDepth(m_hcam) <= 8)
 			GetDlgItem(IDC_COMBO4).EnableWindow(FALSE);
-		}
 		else
 		{
-			DWORD dwValue = 1;
-			m_regkey.QueryDWORDValue(L"bitdepth", dwValue);
-			CheckDlgButton(IDC_CHECK1, dwValue ? 1 : 0);
+			DWORD dwValue = 0;
+			m_regkey.QueryDWORDValue(L"pixelformat", dwValue);
+
+			CComboBox box(GetDlgItem(IDC_COMBO6));
+			int num = 0, val = 0;
+			Ogmacam_get_PixelFormatSupport(m_hcam, -1, &num);
+			for (int i = 0; i < num; ++i)
+			{
+				if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, (char)i, &val)))
+				{
+					box.SetItemData(box.AddString(CA2W(Ogmacam_get_PixelFormatName(val))), val);
+					if (dwValue == val)
+						box.SetCurSel(box.GetCount() - 1);
+				}
+			}
+
+			if (box.GetCurSel() < 0)
+				box.SetCurSel(0);
+
 			m_regkey.QueryDWORDValue(L"scale", m_scale);
 			((CComboBox)GetDlgItem(IDC_COMBO4)).SetCurSel(m_scale);
+
+			val = (int)(box.GetItemData(box.GetCurSel()));
+			GetDlgItem(IDC_COMBO4).EnableWindow(GetPixelFormatBitDepth(val) > 8);
 		}
 		if (E_NOTIMPL == Ogmacam_get_Temperature(m_hcam, nullptr)) // support get the temperature of the sensor
 			GetDlgItem(IDC_EDIT5).EnableWindow(FALSE);
@@ -315,7 +354,8 @@ private:
 			for (size_t i = 0; i < m_vecExpo.size(); ++i)
 			{
 				ctrl.AddItem(i, 0, (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime));
-				ctrl.SetItemText(i, 1, (LPCTSTR)FormatString(L"%hu", m_vecExpo[i].expoGain));
+				if (m_bSupportGain)
+					ctrl.SetItemText(i, 1, (LPCTSTR)FormatString(L"%hu", m_vecExpo[i].expoGain));
 				ctrl.SetItemText(i, 2, (LPCTSTR)FormatString(L"%u", m_vecExpo[i].delayTime));
 			}
 		}
@@ -343,18 +383,34 @@ private:
 			CComboBox box(GetDlgItem(IDC_COMBO5));
 			if (m_pModel->flag & (OGMACAM_FLAG_CG | OGMACAM_FLAG_CGHDR))
 			{
-				DWORD val = 0, maxval = 1;
-				box.AddString(L"LCG");
-				box.AddString(L"HCG");
-				if (m_pModel->flag & OGMACAM_FLAG_CGHDR)
-				{
-					box.AddString(L"HDR");
-					maxval = 2;
-				}
+				DWORD val = 0;
 				m_regkey.QueryDWORDValue(L"cg", val);
-				if (val > maxval)
-					val = maxval;
-				box.SetCurSel(val);
+				if (m_pModel->flag & OGMACAM_FLAG_GHOPTO)
+				{
+					box.AddString(L"LCG");
+					box.AddString(L"MCG");
+					box.AddString(L"HCG");
+					if (1 == val)
+						box.SetCurSel(2);
+					else if (2 == val)
+						box.SetCurSel(1);
+					else
+						box.SetCurSel(0);
+				}
+				else
+				{
+					DWORD maxval = 1;
+					box.AddString(L"LCG");
+					box.AddString(L"HCG");
+					if (m_pModel->flag & OGMACAM_FLAG_CGHDR)
+					{
+						box.AddString(L"HDR");
+						maxval = 2;
+					}
+					if (val > maxval)
+						val = maxval;
+					box.SetCurSel(val);
+				}
 			}
 			else
 			{
@@ -454,7 +510,14 @@ private:
 		if (m_pModel->flag & (OGMACAM_FLAG_CG | OGMACAM_FLAG_CGHDR))
 		{
 			CComboBox box(GetDlgItem(IDC_COMBO5));
-			const int c = box.GetCurSel();
+			int c = box.GetCurSel();
+			if (m_pModel->flag & OGMACAM_FLAG_GHOPTO)
+			{
+				if (1 == c)
+					c = 2;
+				else if (2 == c)
+					c = 1;
+			}
 			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_CG, c);
 			m_regkey.SetDWORDValue(L"cg", c);
 		}
@@ -466,10 +529,13 @@ private:
 				AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Exposure time out of range [%s, %s].", (LPCTSTR)FormatExpoTime(m_expoTimeRange[0]), (LPCTSTR)FormatExpoTime(m_expoTimeRange[1])), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
 				return 0;
 			}
-			if ((m_vecExpo[i].expoGain < m_expoGainRange[0]) || (m_vecExpo[i].expoGain > m_expoGainRange[1]))
+			if (m_bSupportGain)
 			{
-				AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Exposure gain out of range [%hu, %hu].", m_expoGainRange[0], m_expoGainRange[1]), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
-				return 0;
+				if ((m_vecExpo[i].expoGain < m_expoGainRange[0]) || (m_vecExpo[i].expoGain > m_expoGainRange[1]))
+				{
+					AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Exposure gain out of range [%hu, %hu].", m_expoGainRange[0], m_expoGainRange[1]), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
+					return 0;
+				}
 			}
 		}
 				
@@ -551,12 +617,13 @@ private:
 		m_regkey.SetBinaryValue(L"expo", &m_vecExpo[0], sizeof(Expo) * m_vecExpo.size());
 		m_regkey.SetDWORDValue(L"binvalue", m_bin);
 
-		if (E_NOTIMPL != Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
+		if (Ogmacam_get_MaxBitDepth(m_hcam) > 8)
 		{
-			const int bCheck = IsDlgButtonChecked(IDC_CHECK1) ? 1 : 0;
-			m_regkey.SetDWORDValue(L"bitdepth", bCheck);
-			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, bCheck);
-			if (bCheck)
+			CComboBox box(GetDlgItem(IDC_COMBO6));
+			int val = (int)(box.GetItemData(box.GetCurSel()));
+			m_regkey.SetDWORDValue(L"pixelformat", val);
+			Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_PIXEL_FORMAT, val);
+			if (GetPixelFormatBitDepth(val) > 8)
 			{
 				m_scale = ((CComboBox)GetDlgItem(IDC_COMBO4)).GetCurSel();
 				m_regkey.SetDWORDValue(L"scale", m_scale);
@@ -581,7 +648,7 @@ private:
 
 	LRESULT OnAdd(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		CExposureDlg dlg(m_expoTimeRange, m_expoGainRange);
+		CExposureDlg dlg(m_bSupportGain, m_expoTimeRange, m_expoGainRange);
 		if (IDOK == dlg.DoModal())
 		{
 			const Expo expo = { dlg.m_delayTime, dlg.m_expoTime, dlg.m_expoGain };
@@ -590,7 +657,8 @@ private:
 			CListViewCtrl ctrl(GetDlgItem(IDC_LIST1));
 			
 			ctrl.AddItem(m_vecExpo.size() - 1, 0, (LPCTSTR)FormatExpoTime(expo.expoTime));
-			ctrl.SetItemText(m_vecExpo.size() - 1, 1, (LPCTSTR)FormatString(L"%hu", expo.expoGain));
+			if (m_bSupportGain)
+				ctrl.SetItemText(m_vecExpo.size() - 1, 1, (LPCTSTR)FormatString(L"%hu", expo.expoGain));
 			ctrl.SetItemText(m_vecExpo.size() - 1, 2, (LPCTSTR)FormatString(L"%u", expo.delayTime));
 
 			GetDlgItem(IDOK).EnableWindow(!m_vecExpo.empty());
@@ -604,7 +672,7 @@ private:
 		NMITEMACTIVATE* pNMITEMACTIVATE = (NMITEMACTIVATE*)pnmh;
 		if (pNMITEMACTIVATE->iItem >= 0)
 		{
-			CExposureDlg dlg(m_expoTimeRange, m_expoGainRange, m_vecExpo[pNMITEMACTIVATE->iItem]);
+			CExposureDlg dlg(m_bSupportGain, m_expoTimeRange, m_expoGainRange, m_vecExpo[pNMITEMACTIVATE->iItem]);
 			if (IDOK == dlg.DoModal())
 			{
 				ATLASSERT(pNMITEMACTIVATE->iItem < m_vecExpo.size());
@@ -614,7 +682,8 @@ private:
 
 				CListViewCtrl ctrl(GetDlgItem(IDC_LIST1));
 				ctrl.SetItemText(pNMITEMACTIVATE->iItem, 0, (LPCTSTR)FormatExpoTime(dlg.m_expoTime));
-				ctrl.SetItemText(pNMITEMACTIVATE->iItem, 1, (LPCTSTR)FormatString(L"%hu", dlg.m_expoGain));
+				if (m_bSupportGain)
+					ctrl.SetItemText(pNMITEMACTIVATE->iItem, 1, (LPCTSTR)FormatString(L"%hu", dlg.m_expoGain));
 				ctrl.SetItemText(pNMITEMACTIVATE->iItem, 2, (LPCTSTR)FormatString(L"%u", dlg.m_delayTime));
 			}
 		}
@@ -642,10 +711,11 @@ private:
 		return 0;
 	}
 
-	LRESULT OnCheck1(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	LRESULT OnPixelFormat(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (E_NOTIMPL != Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_BITDEPTH, nullptr)) // support bitdepth
-			GetDlgItem(IDC_COMBO4).EnableWindow(IsDlgButtonChecked(IDC_CHECK1));
+		CComboBox box(GetDlgItem(IDC_COMBO6));
+		int val = (int)(box.GetItemData(box.GetCurSel()));
+		GetDlgItem(IDC_COMBO4).EnableWindow(GetPixelFormatBitDepth(val) > 8);
 		return 0;
 	}
 
@@ -1038,7 +1108,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	int				m_ymax, m_scale;
 	unsigned		m_area, m_bitdepth;
 	DWORD			m_tickLast;
-	bool			m_bTriggerMode, m_bWantTigger, m_bTemperature;
+	bool			m_bTriggerMode, m_bWantTigger, m_bTemperature, m_bSupportGain;
 	CVideoView		m_view;
 	CTabCtrl		m_tabCtrl;
 	CGraph			m_tempGraph; //temperature
@@ -1051,7 +1121,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 public:
 	CMainFrame()
 	: m_hcam(nullptr), m_pModel(nullptr), m_pRawData(nullptr), m_curGraph(nullptr), m_curWnd(nullptr), m_idxExpo(-1)
-	, m_bTriggerMode(false), m_bWantTigger(false), m_bTemperature(false), m_ymax(0), m_bitdepth(0), m_scale(1), m_area(5)
+	, m_bTriggerMode(false), m_bWantTigger(false), m_bTemperature(false), m_bSupportGain(true), m_ymax(0), m_bitdepth(0), m_scale(1), m_area(5)
 	, m_tempGraph(true)
 	{
 	}
@@ -1358,7 +1428,10 @@ public:
 							m_vecGraph[i].Init(m_vecPt.size(), m_ymax);
 							m_vecGraph[i].SetData(vv[i]);
 							m_vecGraph[i].Set(vb, voffset);
-							m_tabCtrl.AddItem((LPCTSTR)FormatString(L"%sms, %hu", (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime), m_vecExpo[i].expoGain));
+							if (m_bSupportGain)
+								m_tabCtrl.AddItem((LPCTSTR)FormatString(L"%sms, %hu", (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime), m_vecExpo[i].expoGain));
+							else
+								m_tabCtrl.AddItem((LPCTSTR)FormatString(L"%sms", (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime)));
 						}
 						m_curGraph = &m_vecGraph[0];
 						m_curWnd = m_curGraph;
@@ -1489,7 +1562,10 @@ public:
 				wchar_t str[MAX_PATH];
 				for (int i = 0; i < m_vecExpo.size(); ++i)
 				{
-					swprintf(str, L"%s-%sms-%u.csv", dlg.m_szFileName, (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime), m_vecExpo[i].expoGain);
+					if (m_bSupportGain)
+						swprintf(str, L"%s-%sms-%u.csv", dlg.m_szFileName, (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime), m_vecExpo[i].expoGain);
+					else
+						swprintf(str, L"%s-%sms.csv", dlg.m_szFileName, (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime));
 					m_vecGraph[i].OnCsv(str);
 				}
 				if (m_bTemperature && (m_tempGraph.dataNum() > 0))
@@ -1647,6 +1723,7 @@ private:
 			return;
 		}
 
+		m_bSupportGain = IsSupportGain(m_hcam);
 		m_pModel = Ogmacam_query_Model(m_hcam);
 		Ogmacam_put_eSize(m_hcam, 0); // always use the maximum resolution
 		Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_RAW, 1);
@@ -1704,7 +1781,10 @@ private:
 			{
 				m_vecGraph[i].Create(m_tabCtrl.m_hWnd, nullptr, nullptr, WS_CHILD | (i ? 0 : WS_VISIBLE));
 				m_vecGraph[i].Init(m_vecPt.size(), m_ymax);
-				m_tabCtrl.AddItem((LPCTSTR)FormatString(L"%sms, %hu", (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime), m_vecExpo[i].expoGain));
+				if (m_bSupportGain)
+					m_tabCtrl.AddItem((LPCTSTR)FormatString(L"%sms, %hu", (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime), m_vecExpo[i].expoGain));
+				else
+					m_tabCtrl.AddItem((LPCTSTR)FormatString(L"%sms", (LPCTSTR)FormatExpoTime(m_vecExpo[i].expoTime)));
 			}
 			m_curGraph = &m_vecGraph[0];
 			m_curWnd = m_curGraph;
@@ -1726,7 +1806,8 @@ private:
 			
 			m_idxExpo = 0;
 			Ogmacam_put_ExpoTime(m_hcam, m_vecExpo[m_idxExpo].expoTime);
-			Ogmacam_put_ExpoAGain(m_hcam, m_vecExpo[m_idxExpo].expoGain);
+			if (m_bSupportGain)
+				Ogmacam_put_ExpoAGain(m_hcam, m_vecExpo[m_idxExpo].expoGain);
 			Ogmacam_StartPullModeWithWndMsg(m_hcam, m_hWnd, MSG_CAMERA);
 			if (m_bTriggerMode)
 			{
@@ -1806,7 +1887,8 @@ private:
 			{
 				m_idxExpo = (++m_idxExpo) % m_vecExpo.size();
 				Ogmacam_put_ExpoTime(m_hcam, m_vecExpo[m_idxExpo].expoTime);
-				Ogmacam_put_ExpoAGain(m_hcam, m_vecExpo[m_idxExpo].expoGain);
+				if (m_bSupportGain)
+					Ogmacam_put_ExpoAGain(m_hcam, m_vecExpo[m_idxExpo].expoGain);
 			}
 			if (m_bTriggerMode)
 			{
