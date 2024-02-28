@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 55.24511.20240121
+'    Version: 55.24647.20240218
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -119,7 +119,7 @@ Friend Class Ogmacam
         OPTION_RAW = &H4                           ' raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0
         OPTION_HISTOGRAM = &H5                     ' 0 = only one, 1 = continue mode
         OPTION_BITDEPTH = &H6                      ' 0 = 8 bits mode, 1 = 16 bits mode
-        OPTION_FAN = &H7                           ' 0 = turn off the cooling fan, [1, max] = fan speed
+        OPTION_FAN = &H7                           ' 0 = turn off the cooling fan, [1, max] = fan speed, set to "-1" means to use default fan speed
         OPTION_TEC = &H8                           ' 0 = turn off the thermoelectric cooler, 1 = turn on the thermoelectric cooler
         OPTION_LINEAR = &H9                        ' 0 = turn off the builtin linear tone mapping, 1 = turn on the builtin linear tone mapping, default value: 1
         OPTION_CURVE = &HA                         ' 0 = turn off the builtin curve tone mapping, 1 = turn on the builtin polynomial curve tone mapping, 2 = logarithmic curve tone mapping, default value: 2
@@ -127,7 +127,7 @@ Friend Class Ogmacam
         OPTION_RGB = &HC                           ' 0 => RGB24; 1 => enable RGB48 format when bitdepth > 8; 2 => RGB32; 3 => 8 Bits Grey (only for mono camera); 4 => 16 Bits Grey (only for mono camera when bitdepth > 8); 64 => RGB64
         OPTION_COLORMATIX = &HD                    ' enable or disable the builtin color matrix, default value: 1
         OPTION_WBGAIN = &HE                        ' enable or disable the builtin white balance gain, default value: 1
-        OPTION_TECTARGET = &HF                     ' get or set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius
+        OPTION_TECTARGET = &HF                     ' get or set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius. Set "-2730" or below means using the default for that model
         ' auto exposure policy:
         '       0: Exposure Only
         '       1: Exposure Preferred
@@ -321,8 +321,8 @@ Friend Class Ogmacam
         OPTION_OVERCLOCK = &H5D                    ' overclock, default: 0
         OPTION_RESET_SENSOR = &H5E                 ' reset sensor
         OPTION_ISP = &H5F                          ' Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
-        OPTION_AUTOEXP_EXPOTIME_STEP = &H60        ' Auto exposure: time step (thousandths)
-        OPTION_AUTOEXP_GAIN_STEP = &H61            ' Auto exposure: gain step (thousandths)
+        OPTION_AUTOEXP_EXPOTIME_DAMP = &H60        ' Auto exposure damp: time (thousandths)
+        OPTION_AUTOEXP_GAIN_DAMP = &H61            ' Auto exposure damp: gain (thousandths)
         OPTION_MOTOR_NUMBER = &H62                 ' range: [1, 20]
         OPTION_MOTOR_POS = &H10000000              ' range: [1, 702]
         OPTION_PSEUDO_COLOR_START = &H63           ' Pseudo: start color, BGR format
@@ -372,6 +372,8 @@ Friend Class Ogmacam
         ' Policy 1 avoids the black screen, but the convergence speed is slower.
         ' Default: 0
         OPTION_OVEREXP_POLICY = &H68
+        ' Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
+        OPTION_READOUT_MODE = &H69
     End Enum
 
     ' HRESULT: Error code
@@ -439,9 +441,9 @@ Friend Class Ogmacam
     Public Const AUTOEXPO_THRESHOLD_DEF = 5        ' auto exposure threshold
     Public Const AUTOEXPO_THRESHOLD_MIN = 2        ' auto exposure threshold
     Public Const AUTOEXPO_THRESHOLD_MAX = 15       ' auto exposure threshold
-    Public Const AUTOEXPO_STEP_DEF = 1000     ' auto exposure step: thousandths
-    Public Const AUTOEXPO_STEP_MIN = 1        ' auto exposure step: thousandths
-    Public Const AUTOEXPO_STEP_MAX = 1000     ' auto exposure step: thousandths
+    Public Const AUTOEXPO_DAMP_DEF = 0        ' auto exposure damp: thousandths
+    Public Const AUTOEXPO_DAMP_MIN = 0        ' auto exposure damp: thousandths
+    Public Const AUTOEXPO_DAMP_MAX = 1000     ' auto exposure damp: thousandths
     Public Const BANDWIDTH_DEF = 100      ' bandwidth
     Public Const BANDWIDTH_MIN = 1        ' bandwidth
     Public Const BANDWIDTH_MAX = 100      ' bandwidth
@@ -764,7 +766,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 55.24511.20240121
+    ' get the version of this dll, which is: 55.24647.20240218
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -2355,6 +2357,7 @@ Friend Class Ogmacam
     End Function
 
     ' set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)
+    ' set "-2730" or below means using the default value of this model
     Public Function put_Temperature(nTemperature As Short) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False

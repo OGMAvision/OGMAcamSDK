@@ -1,4 +1,4 @@
-"""Version: 55.24511.20240121
+"""Version: 55.24647.20240218
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -103,7 +103,7 @@ OGMACAM_OPTION_THREAD_PRIORITY        = 0x02       # set the priority of the int
 OGMACAM_OPTION_RAW                    = 0x04       # raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0
 OGMACAM_OPTION_HISTOGRAM              = 0x05       # 0 = only one, 1 = continue mode
 OGMACAM_OPTION_BITDEPTH               = 0x06       # 0 = 8 bits mode, 1 = 16 bits mode
-OGMACAM_OPTION_FAN                    = 0x07       # 0 = turn off the cooling fan, [1, max] = fan speed
+OGMACAM_OPTION_FAN                    = 0x07       # 0 = turn off the cooling fan, [1, max] = fan speed, set to "-1" means to use default fan speed
 OGMACAM_OPTION_TEC                    = 0x08       # 0 = turn off the thermoelectric cooler, 1 = turn on the thermoelectric cooler
 OGMACAM_OPTION_LINEAR                 = 0x09       # 0 = turn off the builtin linear tone mapping, 1 = turn on the builtin linear tone mapping, default value: 1
 OGMACAM_OPTION_CURVE                  = 0x0a       # 0 = turn off the builtin curve tone mapping, 1 = turn on the builtin polynomial curve tone mapping, 2 = logarithmic curve tone mapping, default value: 2
@@ -111,7 +111,7 @@ OGMACAM_OPTION_TRIGGER                = 0x0b       # 0 = video mode, 1 = softwar
 OGMACAM_OPTION_RGB                    = 0x0c       # 0 => RGB24; 1 => enable RGB48 format when bitdepth > 8; 2 => RGB32; 3 => 8 Bits Grey (only for mono camera); 4 => 16 Bits Grey (only for mono camera when bitdepth > 8); 5 => 64(RGB64)
 OGMACAM_OPTION_COLORMATIX             = 0x0d       # enable or disable the builtin color matrix, default value: 1
 OGMACAM_OPTION_WBGAIN                 = 0x0e       # enable or disable the builtin white balance gain, default value: 1
-OGMACAM_OPTION_TECTARGET              = 0x0f       # get or set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius
+OGMACAM_OPTION_TECTARGET              = 0x0f       # get or set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius. Set "-2730" or below means using the default for that model
 OGMACAM_OPTION_AUTOEXP_POLICY         = 0x10       # auto exposure policy:
                                                    #      0: Exposure Only
                                                    #      1: Exposure Preferred
@@ -299,8 +299,8 @@ OGMACAM_OPTION_OVERCLOCK_MAX          = 0x5c       # get overclock range: [0, ma
 OGMACAM_OPTION_OVERCLOCK              = 0x5d       # overclock, default: 0
 OGMACAM_OPTION_RESET_SENSOR           = 0x5e       # reset sensor
 OGMACAM_OPTION_ISP                    = 0x5f       # Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
-OGMACAM_OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60       # Auto exposure: time step (thousandths)
-OGMACAM_OPTION_AUTOEXP_GAIN_STEP      = 0x61       # Auto exposure: gain step (thousandths)
+OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  = 0x60       # Auto exposure damp: time (thousandths)
+OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      = 0x61       # Auto exposure damp: gain (thousandths)
 OGMACAM_OPTION_MOTOR_NUMBER           = 0x62       # range: [1, 20]
 OGMACAM_OPTION_MOTOR_POS              = 0x10000000 # range: [1, 702]
 OGMACAM_OPTION_PSEUDO_COLOR_START     = 0x63       # Pseudo: start color, BGR format
@@ -349,6 +349,7 @@ OGMACAM_OPTION_OVEREXP_POLICY         = 0x68       # Auto exposure over exposure
                                                    # The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
                                                    # Policy 1 avoids the black screen, but the convergence speed is slower.
                                                    # Default: 0
+OPTION_READOUT_MODE                   = 0x69       # Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -576,9 +577,9 @@ OGMACAM_SHARPENING_THRESHOLD_MAX = 255      # sharpening threshold
 OGMACAM_AUTOEXPO_THRESHOLD_DEF   = 5        # auto exposure threshold
 OGMACAM_AUTOEXPO_THRESHOLD_MIN   = 2        # auto exposure threshold
 OGMACAM_AUTOEXPO_THRESHOLD_MAX   = 15       # auto exposure threshold
-OGMACAM_AUTOEXPO_STEP_DEF        = 1000     # auto exposure step: thousandths
-OGMACAM_AUTOEXPO_STEP_MIN        = 1        # auto exposure step: thousandths
-OGMACAM_AUTOEXPO_STEP_MAX        = 1000     # auto exposure step: thousandths
+OGMACAM_AUTOEXPO_DAMP_DEF        = 0        # auto exposure damp: thousandths
+OGMACAM_AUTOEXPO_DAMP_MIN        = 0        # auto exposure damp: thousandths
+OGMACAM_AUTOEXPO_DAMP_MAX        = 1000     # auto exposure damp: thousandths
 OGMACAM_BANDWIDTH_DEF            = 100      # bandwidth
 OGMACAM_BANDWIDTH_MIN            = 1        # bandwidth
 OGMACAM_BANDWIDTH_MAX            = 100      # bandwidth
@@ -844,7 +845,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 55.24511.20240121"""
+        """get the version of this dll, which is: 55.24647.20240218"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -1725,7 +1726,10 @@ class Ogmacam:
         return x.value
 
     def put_Temperature(self, nTemperature):
-        """set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)"""
+        """
+        set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)
+        set "-2730" or below means using the default value of this model
+        """
         self.__lib.Ogmacam_put_Temperature(self.__h, ctypes.c_short(nTemperature))
 
     def put_Roi(self, xOffset, yOffset, xWidth, yHeight):
@@ -2392,10 +2396,10 @@ class Ogmacam:
             cls.__lib.Ogmacam_put_XY.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
             cls.__lib.Ogmacam_put_SelfTrigger.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_SelfTrigger.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_put_SelfTrigger.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.__SelfTrigger)]
+            cls.__lib.Ogmacam_put_SelfTrigger.argtypes = [ctypes.c_void_p, ctypes.POINTER(cls.__SelfTrigger)]
             cls.__lib.Ogmacam_get_SelfTrigger.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_SelfTrigger.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_get_SelfTrigger.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.__SelfTrigger)]
+            cls.__lib.Ogmacam_get_SelfTrigger.argtypes = [ctypes.c_void_p, ctypes.POINTER(cls.__SelfTrigger)]
             cls.__lib.Ogmacam_get_LensInfo.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_LensInfo.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_get_LensInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
@@ -2404,7 +2408,7 @@ class Ogmacam:
             cls.__lib.Ogmacam_get_AFState.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
             cls.__lib.Ogmacam_put_AFMode.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_AFMode.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_put_AFMode.argtypes = [ctypes.c_void_p, c_uint]
+            cls.__lib.Ogmacam_put_AFMode.argtypes = [ctypes.c_void_p, ctypes.c_uint]
             cls.__lib.Ogmacam_put_AFRoi.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_AFRoi.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_AFRoi.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]

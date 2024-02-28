@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:55.24511.$WCDATE=%Y%m%d$</li></ul>
+<ul><li>版本:55.24647.$WCDATE=%Y%m%d$</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -1230,7 +1230,8 @@ typedef struct {
       <tr>
       	<td>OGMACAM_OPTION_FAN</td>
       	<td>一些型号的相机支持制冷风扇.<br/>
-      	  0 = 关闭风扇<br/>[1, max] = 风扇速率</td>
+      	  0 = 关闭风扇<br/>[1, max] = 风扇速率<br/>
+		  设置为"-1"表示使用本型号的默认值</td>
       	<td>型号特定</td>
       	<td>是</td>
       </tr>
@@ -1243,7 +1244,8 @@ typedef struct {
       </tr>    
       <tr>
       	<td>OGMACAM_OPTION_TECTARGET</td>
-      	<td>获取和设置TEC制冷的目标温度, 单位0.1℃. 例如, 125表示12.5℃, -35表示-3.5℃</td>
+      	<td>获取和设置TEC制冷的目标温度, 单位0.1℃. 例如, 125表示12.5℃, -35表示-3.5℃.<br/>
+		设置目标温度为"-2730"或以下表示使用本型号的默认值.</td>
       	<td>型号特定</td>
       	<td>是</td>
       </tr>
@@ -1724,15 +1726,15 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		<td>NA</td>
       </tr>
       <tr>
-        <td>OGMACAM_OPTION_AUTOEXP_EXPOTIME_STEP</td>
-        <td>自动曝光: 曝光时间步长 (千分数)</td>
-		<td>1000</td>
+        <td>OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP</td>
+        <td>自动曝光阻尼系数: 曝光时间 (千分数)</td>
+		<td>0</td>
 		<td>是</td>
       </tr>
       <tr>
-        <td>OGMACAM_OPTION_AUTOEXP_GAIN_STEP</td>
-        <td>自动曝光: 增益步长 (千分数)</td>
-		<td>1000</td>
+        <td>OGMACAM_OPTION_AUTOEXP_GAIN_DAMP</td>
+        <td>自动曝光阻尼系数: 增益 (千分数)</td>
+		<td>0</td>
 		<td>是</td>
       </tr>
       <tr>
@@ -2027,7 +2029,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>参数：</strong></p>
   <blockquote>
     <p>HOgmacam h：相机句柄</p>
-    <p>short nTemperature：以0.1℃为单位, 如32表示3.2℃, -35表示-3.5℃.</p>
+    <p>short nTemperature：以0.1℃为单位, 如32表示3.2℃, -35表示-3.5℃. 设置目标温度为"-2730"或以下表示使用本型号的默认值.</p>
   </blockquote>
   <p><strong>说明：</strong>读取传感器温度(OGMACAM_FLAG_GETTEMPERATURE表示支持读取温度).</p>
   <blockquote><p>设置传感器目标温度, 和Ogmacam_put_Option(, OGMACAM_OPTION_TECTARGET, )等价.</p></blockquote>

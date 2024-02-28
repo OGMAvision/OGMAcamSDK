@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 55.24511.20240121
+    Version: 55.24647.20240218
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -223,7 +223,7 @@ internal class Ogmacam : IDisposable
         OPTION_HISTOGRAM = 0x05,
         /* 0 = 8 bits mode, 1 = 16 bits mode */
         OPTION_BITDEPTH = 0x06,
-        /* 0 = turn off the cooling fan, [1, max] = fan speed */
+        /* 0 = turn off the cooling fan, [1, max] = fan speed, set to "-1" means to use default fan speed */
         OPTION_FAN = 0x07,
         /* 0 = turn off the thermoelectric cooler, 1 = turn on the thermoelectric cooler */
         OPTION_TEC = 0x08,
@@ -513,10 +513,10 @@ internal class Ogmacam : IDisposable
         OPTION_RESET_SENSOR = 0x5e,
         /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
         OPTION_ISP = 0x5f,
-        /* Auto exposure: time step (thousandths) */
-        OPTION_AUTOEXP_EXPOTIME_STEP = 0x60,
-        /* Auto exposure: gain step (thousandths) */
-        OPTION_AUTOEXP_GAIN_STEP = 0x61,
+        /* Auto exposure damp: time (thousandths) */
+        OPTION_AUTOEXP_EXPOTIME_DAMP = 0x60,
+        /* Auto exposure damp: gain (thousandths) */
+        OPTION_AUTOEXP_GAIN_DAMP = 0x61,
         /* range: [1, 20] */
         OPTION_MOTOR_NUMBER = 0x62,
         /* range: [1, 702] */
@@ -574,7 +574,9 @@ internal class Ogmacam : IDisposable
             Policy 1 avoids the black screen, but the convergence speed is slower.
             Default: 0
         */
-        OPTION_OVEREXP_POLICY = 0x68
+        OPTION_OVEREXP_POLICY = 0x68,
+        /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
+        OPTION_READOUT_MODE = 0x69
     };
 
     /* HRESULT: error code */
@@ -656,9 +658,9 @@ internal class Ogmacam : IDisposable
     public const int AUTOEXPO_THRESHOLD_DEF = 5;        /* auto exposure threshold */
     public const int AUTOEXPO_THRESHOLD_MIN = 2;        /* auto exposure threshold */
     public const int AUTOEXPO_THRESHOLD_MAX = 15;       /* auto exposure threshold */
-    public const int AUTOEXPO_STEP_DEF = 1000;     /* auto exposure step: thousandths */
-    public const int AUTOEXPO_STEP_MIN = 1;        /* auto exposure step: thousandths */
-    public const int AUTOEXPO_STEP_MAX = 1000;     /* auto exposure step: thousandths */
+    public const int AUTOEXPO_DAMP_DEF = 0;        /* auto exposure damp: thousandths */
+    public const int AUTOEXPO_DAMP_MIN = 0;        /* auto exposure damp: thousandths */
+    public const int AUTOEXPO_DAMP_MAX = 1000;     /* auto exposure damp: thousandths */
     public const int BANDWIDTH_DEF = 100;      /* bandwidth */
     public const int BANDWIDTH_MIN = 1;        /* bandwidth */
     public const int BANDWIDTH_MAX = 100;      /* bandwidth */
@@ -1065,7 +1067,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /* get the version of this dll/so, which is: 55.24511.20240121 */
+    /* get the version of this dll/so, which is: 55.24647.20240218 */
     public static string Version()
     {
         return Ogmacam_Version();
@@ -2837,7 +2839,9 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_Temperature(handle_, out pTemperature));
     }
 
-    /* set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius) */
+    /* set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)
+        set "-2730" or below means using the default value of this model
+    */
     public bool put_Temperature(short nTemperature)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)

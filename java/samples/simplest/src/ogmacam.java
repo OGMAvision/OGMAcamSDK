@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 55.24511.20240121
+    Version: 55.24647.20240218
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -111,7 +111,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_RAW                    = 0x04;       /* raw data mode, read the sensor "raw" data. This can be set only while camea is NOT running. 0 = rgb, 1 = raw, default value: 0 */
     public final static int OPTION_HISTOGRAM              = 0x05;       /* 0 = only one, 1 = continue mode */
     public final static int OPTION_BITDEPTH               = 0x06;       /* 0 = 8 bits mode, 1 = 16 bits mode */
-    public final static int OPTION_FAN                    = 0x07;       /* 0 = turn off the cooling fan, [1, max] = fan speed */
+    public final static int OPTION_FAN                    = 0x07;       /* 0 = turn off the cooling fan, [1, max] = fan speed, set to "-1" means to use default fan speed */
     public final static int OPTION_TEC                    = 0x08;       /* 0 = turn off the thermoelectric cooler, 1 = turn on the thermoelectric cooler */
     public final static int OPTION_LINEAR                 = 0x09;       /* 0 = turn off the builtin linear tone mapping, 1 = turn on the builtin linear tone mapping, default value: 1 */
     public final static int OPTION_CURVE                  = 0x0a;       /* 0 = turn off the builtin curve tone mapping, 1 = turn on the builtin polynomial curve tone mapping, 2 = logarithmic curve tone mapping, default value: 2 */
@@ -119,7 +119,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_RGB                    = 0x0c;       /* 0 => RGB24; 1 => enable RGB48 format when bitdepth > 8; 2 => RGB32; 3 => 8 Bits Grey (only for mono camera); 4 => 16 Bits Grey (only for mono camera when bitdepth > 8); 5 => 64(RGB64) */
     public final static int OPTION_COLORMATIX             = 0x0d;       /* enable or disable the builtin color matrix, default value: 1 */
     public final static int OPTION_WBGAIN                 = 0x0e;       /* enable or disable the builtin white balance gain, default value: 1 */
-    public final static int OPTION_TECTARGET              = 0x0f;       /* get or set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius */
+    public final static int OPTION_TECTARGET              = 0x0f;       /* get or set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius. Set "-2730" or below means using the default for that model */
     public final static int OPTION_AUTOEXP_POLICY         = 0x10;       /* auto exposure policy:
                                                                               0: Exposure Only
                                                                               1: Exposure Preferred
@@ -312,8 +312,8 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_OVERCLOCK              = 0x5d;       /* overclock, default: 0 */
     public final static int OPTION_RESET_SENSOR           = 0x5e;       /* reset sensor */
     public final static int OPTION_ISP                    = 0x5f;       /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
-    public final static int OPTION_AUTOEXP_EXPOTIME_STEP  = 0x60;       /* Auto exposure: time step (thousandths) */
-    public final static int OPTION_AUTOEXP_GAIN_STEP      = 0x61;       /* Auto exposure: gain step (thousandths) */
+    public final static int OPTION_AUTOEXP_EXPOTIME_DAMP  = 0x60;       /* Auto exposure damp: step (thousandths) */
+    public final static int OPTION_AUTOEXP_GAIN_DAMP      = 0x61;       /* Auto exposure damp: step (thousandths) */
     public final static int OPTION_MOTOR_NUMBER           = 0x62;       /* range: [1, 20] */
     public final static int OPTION_MOTOR_POS              = 0x10000000; /* range: [1, 702] */
     public final static int OPTION_PSEUDO_COLOR_START     = 0x63;       /* Pseudo: start color, BGR format */
@@ -363,6 +363,7 @@ public class ogmacam implements AutoCloseable {
                                                                             Policy 1 avoids the black screen, but the convergence speed is slower.
                                                                             Default: 0
                                                                         */
+    public final static int OPTION_READOUT_MODE           = 0x69;       /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
 
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -559,9 +560,9 @@ public class ogmacam implements AutoCloseable {
     public final static int AUTOEXPO_THRESHOLD_DEF   = 5;        /* auto exposure threshold */
     public final static int AUTOEXPO_THRESHOLD_MIN   = 2;        /* auto exposure threshold */
     public final static int AUTOEXPO_THRESHOLD_MAX   = 15;       /* auto exposure threshold */
-    public final static int AUTOEXPO_STEP_DEF        = 1000;     /* auto exposure step: thousandths */
-    public final static int AUTOEXPO_STEP_MIN        = 1;        /* auto exposure step: thousandths */
-    public final static int AUTOEXPO_STEP_MAX        = 1000;     /* auto exposure step: thousandths */
+    public final static int AUTOEXPO_DAMP_DEF        = 0;        /* auto exposure damp: thousandths */
+    public final static int AUTOEXPO_DAMP_MIN        = 0;        /* auto exposure damp: thousandths */
+    public final static int AUTOEXPO_DAMP_MAX        = 1000;     /* auto exposure damp: thousandths */
     public final static int BANDWIDTH_DEF            = 100;      /* bandwidth */
     public final static int BANDWIDTH_MIN            = 1;        /* bandwidth */
     public final static int BANDWIDTH_MAX            = 100;      /* bandwidth */
@@ -1119,7 +1120,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 55.24511.20240121 */
+    /* get the version of this dll/so/dylib, which is: 55.24647.20240218 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -2265,7 +2266,9 @@ public class ogmacam implements AutoCloseable {
         return p.getValue();
     }
     
-    /* set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius) */
+    /* set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)
+        set "-2730" or below means using the default value of this model
+    */
     public void put_Temperature(short nTemperature) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_Temperature(_handle, nTemperature));
     }
