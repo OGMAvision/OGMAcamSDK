@@ -306,12 +306,12 @@ void CMainFrame::OnExampleFliphorizontal()
 {
 	if (m_pDshowContext)
 	{
-		CComPtr<IOgmacam> spIcam;
-		if (SUCCEEDED(m_pDshowContext->queryinterface(IID_IOgmacam, (void**)&spIcam)))
+		CComPtr<IOgmacam> spI;
+		if (SUCCEEDED(m_pDshowContext->queryinterface(IID_IOgmacam, (void**)&spI)))
 		{
 			BOOL bHFlip;
-			if  (SUCCEEDED(spIcam->get_HFlip(&bHFlip)))
-				spIcam->put_HFlip(!bHFlip);
+			if  (SUCCEEDED(spI->get_HFlip(&bHFlip)))
+				spI->put_HFlip(!bHFlip);
 		}
 	}
 }
@@ -320,12 +320,12 @@ void CMainFrame::OnExampleFlipvertical()
 {
 	if (m_pDshowContext)
 	{
-		CComPtr<IOgmacam> spIcam;
-		if (SUCCEEDED(m_pDshowContext->queryinterface(IID_IOgmacam, (void**)&spIcam)))
+		CComPtr<IOgmacam> spI;
+		if (SUCCEEDED(m_pDshowContext->queryinterface(IID_IOgmacam, (void**)&spI)))
 		{
 			BOOL bHFlip;
-			if  (SUCCEEDED(spIcam->get_VFlip(&bHFlip)))
-				spIcam->put_VFlip(!bHFlip);
+			if  (SUCCEEDED(spI->get_VFlip(&bHFlip)))
+				spI->put_VFlip(!bHFlip);
 		}
 	}
 }

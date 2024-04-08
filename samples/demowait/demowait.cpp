@@ -33,7 +33,7 @@ int main(int, char**)
             {
                 printf("press Ctrl-C to exit\n");
                 while (true)
-                { 
+                {
                     OgmacamFrameInfoV3 info = { 0 };
                     const HRESULT hr = Ogmacam_WaitImageV3(g_hcam, 1000, g_pImageData, 0, 24, 0, &info);
                     if (hr == 0x8001011f)

@@ -32,7 +32,6 @@ class CdemoafDlg : public CDialog
 	OgmacamLensInfo m_afLensInfo;
 
 	bool m_bLensCal_Update_Done;
-	bool m_bLensStatus_Update_Done;
 	unsigned char m_ucAM_Max_Previous;
 
 public:
@@ -71,12 +70,10 @@ public:
 	afx_msg void OnExitSizeMove();
 	afx_msg void OnCbnSelchangeComboF();
 	afx_msg void OnBnClickedRadioManual();
-	afx_msg void OnBnClickedStatusDefault();
 	afx_msg void OnBnClickedRadioAuto();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnBnClickedButtonOnepush();
 	afx_msg void OnEnSetfocusFocusmotorstep();
-	afx_msg void OnBnClickedButtonSaveStatus();
 private:
 	void StartAFLensControll();
 	void StartDevice();
@@ -94,11 +91,8 @@ private:
 	void SetAEAuxRect();
 	void SetClarityRect();
 	void SetFrameRateLimit();
-	void SetLensStatus();
 	CRect SetDisplayLimit(CRect rect);
 	void AF_FocusDlg_Init();
 	void AF_APDlg_Init();
-	void SetFocusFNControll(BOOL bControll);
-public:
-	void GetLensName();
+	void SetFocusFNControl(BOOL bControll);
 };

@@ -1,5 +1,5 @@
-#ifndef __MAIN_H__
-#define __MAIN_H__
+#ifndef __demotwoqt_H__
+#define __demotwoqt_H__
 
 #include <QPushButton>
 #include <QLabel>

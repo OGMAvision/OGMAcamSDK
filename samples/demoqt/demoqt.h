@@ -1,5 +1,5 @@
-#ifndef __MAIN_H__
-#define __MAIN_H__
+#ifndef __demoqt_H__
+#define __demoqt_H__
 
 #include <QPushButton>
 #include <QComboBox>

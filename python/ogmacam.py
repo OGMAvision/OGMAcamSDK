@@ -1,4 +1,4 @@
-"""Version: 55.24647.20240218
+"""Version: 55.25159.20240404
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -349,7 +349,8 @@ OGMACAM_OPTION_OVEREXP_POLICY         = 0x68       # Auto exposure over exposure
                                                    # The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
                                                    # Policy 1 avoids the black screen, but the convergence speed is slower.
                                                    # Default: 0
-OPTION_READOUT_MODE                   = 0x69       # Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
+OGMACAM_OPTION_READOUT_MODE           = 0x69       # Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
+OGMACAM_OPTION_TAILLIGHT              = 0x6a       # Turn on/off tail Led light: 0 => off, 1 => on; default: on
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -452,6 +453,7 @@ OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE     = 0x36
 OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37  # Output Counter Value, range: [0 ~ 65535]
 OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38
 OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a  # Output pause: 1 => puase, 0 => unpause
+OGMACAM_IOCONTROLTYPE_GET_INPUT_STATE           = 0x3c  # Input state: 0 (low level) or 1 (high level)
 
 OGMACAM_IOCONTROL_DELAYTIME_MAX                 = 5 * 1000 * 1000
 
@@ -475,8 +477,8 @@ OGMACAM_AFSTATUS_UNFINISH     = 0x8   # The focus is not complete. At the beginn
 OGMACAM_AAF_SETPOSITION     = 0x01
 OGMACAM_AAF_GETPOSITION     = 0x02
 OGMACAM_AAF_SETZERO         = 0x03
-OGMACAM_AAF_GETZERO         = 0x04
 OGMACAM_AAF_SETDIRECTION    = 0x05
+OGMACAM_AAF_GETDIRECTION    = 0x06
 OGMACAM_AAF_SETMAXINCREMENT = 0x07
 OGMACAM_AAF_GETMAXINCREMENT = 0x08
 OGMACAM_AAF_SETFINE         = 0x09
@@ -532,10 +534,10 @@ E_TIMEOUT       = 0x8001011f # This operation returned because the timeout perio
 OGMACAM_EXPOGAIN_DEF             = 100      # exposure gain, default value
 OGMACAM_EXPOGAIN_MIN             = 100      # exposure gain, minimum value
 OGMACAM_TEMP_DEF                 = 6503     # color temperature, default value
-OGMACAM_TEMP_MIN                 = 2000     # color temperature, minimum value
-OGMACAM_TEMP_MAX                 = 15000    # color temperature, maximum value
+OGMACAM_TEMP_MIN                 = 1000     # color temperature, minimum value
+OGMACAM_TEMP_MAX                 = 25000    # color temperature, maximum value
 OGMACAM_TINT_DEF                 = 1000     # tint
-OGMACAM_TINT_MIN                 = 200      # tint
+OGMACAM_TINT_MIN                 = 100      # tint
 OGMACAM_TINT_MAX                 = 2500     # tint
 OGMACAM_HUE_DEF                  = 0        # hue
 OGMACAM_HUE_MIN                  = -180     # hue
@@ -544,11 +546,11 @@ OGMACAM_SATURATION_DEF           = 128      # saturation
 OGMACAM_SATURATION_MIN           = 0        # saturation
 OGMACAM_SATURATION_MAX           = 255      # saturation
 OGMACAM_BRIGHTNESS_DEF           = 0        # brightness
-OGMACAM_BRIGHTNESS_MIN           = -64      # brightness
-OGMACAM_BRIGHTNESS_MAX           = 64       # brightness
+OGMACAM_BRIGHTNESS_MIN           = -128     # brightness
+OGMACAM_BRIGHTNESS_MAX           = 128      # brightness
 OGMACAM_CONTRAST_DEF             = 0        # contrast
-OGMACAM_CONTRAST_MIN             = -100     # contrast
-OGMACAM_CONTRAST_MAX             = 100      # contrast
+OGMACAM_CONTRAST_MIN             = -150     # contrast
+OGMACAM_CONTRAST_MAX             = 150      # contrast
 OGMACAM_GAMMA_DEF                = 100      # gamma
 OGMACAM_GAMMA_MIN                = 20       # gamma
 OGMACAM_GAMMA_MAX                = 180      # gamma
@@ -618,13 +620,13 @@ def TDIBWIDTHBYTES(bits):
 |-----------------------------------------------------------------|
 | Auto Exposure Target    |   16~235      |   120                 |
 | Exposure Gain           |   100~        |   100                 |
-| Temp                    |   2000~15000  |   6503                |
-| Tint                    |   200~2500    |   1000                |
+| Temp                    |   1000~25000  |   6503                |
+| Tint                    |   100~2500    |   1000                |
 | LevelRange              |   0~255       |   Low = 0, High = 255 |
-| Contrast                |   -100~100    |   0                   |
+| Contrast                |   -150~150    |   0                   |
 | Hue                     |   -180~180    |   0                   |
 | Saturation              |   0~255       |   128                 |
-| Brightness              |   -64~64      |   0                   |
+| Brightness              |   -128~128    |   0                   |
 | Gamma                   |   20~180      |   100                 |
 | WBGain                  |   -127~127    |   0                   |
 ------------------------------------------------------------------|
@@ -845,7 +847,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 55.24647.20240218"""
+        """get the version of this dll, which is: 55.25159.20240404"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -890,7 +892,7 @@ class Ogmacam:
     @classmethod
     def HotPlug(cls, fun, ctx):
         """
-        USB hotplug is only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
+        This function is only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
             (1) On Windows, please refer to the MSDN
                 (a) Device Management, https://docs.microsoft.com/en-us/windows/win32/devio/device-management
                 (b) Detecting Media Insertion or Removal, https://docs.microsoft.com/en-us/windows/win32/devio/detecting-media-insertion-or-removal
@@ -1206,18 +1208,18 @@ class Ogmacam:
         """
         self.__lib.Ogmacam_Trigger(self.__h, ctypes.c_ushort(nNumber))
 
-    def TriggerSync(self, nTimeout, pImageData, bits, rowPitch, pInfo):
+    def TriggerSync(self, nWaitMS, pImageData, bits, rowPitch, pInfo):
         """
         trigger synchronously
-        nTimeout:   0:              by default, exposure * 102% + 4000 milliseconds
+        nWaitMS:    0:              by default, exposure * 102% + 4000 milliseconds
                     0xffffffff:     wait infinite
                     other:          milliseconds to wait
         """
         if pInfo is None:
-            self.__lib.TriggerSync(self.__h, nTimeout, pImageData, bits, rowPitch, None)
+            self.__lib.Ogmacam_TriggerSync(self.__h, nWaitMS, pImageData, bits, rowPitch, None)
         else:
             x = self.__FrameInfoV3()
-            self.__lib.TriggerSync(self.__h, nTimeout, pImageData, bits, rowPitch, ctypes.byref(x))
+            self.__lib.Ogmacam_TriggerSync(self.__h, nWaitMS, pImageData, bits, rowPitch, ctypes.byref(x))
             self.__convertFrameInfoV3(pInfo, x)
 
     def put_Size(self, nWidth, nHeight):
@@ -1745,6 +1747,15 @@ class Ogmacam:
         self.__lib.Ogmacam_get_Roi(self.__h, ctypes.byref(x), ctypes.byref(y), ctypes.byref(w), ctypes.byref(h))
         return (x.value, y.value, w.value, h.value)
 
+    def put_RoiN(self, xOffset, yOffset, xWidth, yHeight):
+        '''multiple Roi'''
+        Num = len(xOffset)
+        pxOffset = (ctypes.c_uint * Num)(*xOffset)
+        pyOffset = (ctypes.c_uint * Num)(*yOffset)
+        pxWidth = (ctypes.c_uint * Num)(*xWidth)
+        pyHeight = (ctypes.c_uint * Num)(*yHeight)
+        self.__lib.Ogmacam_put_RoiN(self.__h, pxOffset, pyOffset, pxWidth, pyHeight, Num)
+
     def put_XY(self, x, y):
         self.__lib.Ogmacam_put_XY(self.__h, ctypes.c_int(x), ctypes.c_int(y))
 
@@ -1831,41 +1842,41 @@ class Ogmacam:
     def FpncOnce(self):
         self.__lib.Ogmacam_FpncOnce(self.__h)
 
-    def DfcExport(self, filepath):
+    def DfcExport(self, filePath):
         if sys.platform == 'win32':
-            self.__lib.Ogmacam_DfcExport(self.__h, filepath)
+            self.__lib.Ogmacam_DfcExport(self.__h, filePath)
         else:
-            self.__lib.Ogmacam_DfcExport(self.__h, filepath.encode())
+            self.__lib.Ogmacam_DfcExport(self.__h, filePath.encode())
 
-    def FfcExport(self, filepath):
+    def FfcExport(self, filePath):
         if sys.platform == 'win32':
-            self.__lib.Ogmacam_FfcExport(self.__h, filepath)
+            self.__lib.Ogmacam_FfcExport(self.__h, filePath)
         else:
-            self.__lib.Ogmacam_FfcExport(self.__h, filepath.encode())
+            self.__lib.Ogmacam_FfcExport(self.__h, filePath.encode())
 
-    def DfcImport(self, filepath):
+    def DfcImport(self, filePath):
         if sys.platform == 'win32':
-            self.__lib.Ogmacam_DfcImport(self.__h, filepath)
+            self.__lib.Ogmacam_DfcImport(self.__h, filePath)
         else:
-            self.__lib.Ogmacam_DfcImport(self.__h, filepath.encode())
+            self.__lib.Ogmacam_DfcImport(self.__h, filePath.encode())
 
-    def FfcImport(self, filepath):
+    def FfcImport(self, filePath):
         if sys.platform == 'win32':
-            self.__lib.Ogmacam_FfcImport(self.__h, filepath)
+            self.__lib.Ogmacam_FfcImport(self.__h, filePath)
         else:
-            self.__lib.Ogmacam_FfcImport(self.__h, filepath.encode())
+            self.__lib.Ogmacam_FfcImport(self.__h, filePath.encode())
 
-    def FpncExport(self, filepath):
+    def FpncExport(self, filePath):
         if sys.platform == 'win32':
-            self.__lib.Ogmacam_FpncExport(self.__h, filepath)
+            self.__lib.Ogmacam_FpncExport(self.__h, filePath)
         else:
-            self.__lib.Ogmacam_FpncExport(self.__h, filepath.encode())
+            self.__lib.Ogmacam_FpncExport(self.__h, filePath.encode())
 
-    def FpncImport(self, filepath):
+    def FpncImport(self, filePath):
         if sys.platform == 'win32':
-            self.__lib.Ogmacam_FpncImport(self.__h, filepath)
+            self.__lib.Ogmacam_FpncImport(self.__h, filePath)
         else:
-            self.__lib.Ogmacam_FpncImport(self.__h, filepath.encode())
+            self.__lib.Ogmacam_FpncImport(self.__h, filePath.encode())
 
     def IoControl(self, ioLineNumber, eType, outVal):
         x = ctypes.c_int(0)
@@ -1881,6 +1892,14 @@ class Ogmacam:
         x = self.__FocusMotor()
         self.__lib.Ogmacam_get_FocusMotor(self.__h, ctypes.byref(x))
         return OgmacamFocusMotor(x.imax.value, x.imin.value, x.idef.value, x.imaxabs.value, x.iminabs.value, x.zoneh.value, x.zonev.value)
+
+    def set_Name(self, name):
+        self.__lib.Ogmacam_set_Name(self.__h, name.encode())
+
+    def query_Name(self):
+        str = (ctypes.c_char * 64)()
+        self.__lib.Ogmacam_query_Name(self.__h, str)
+        return str.value.decode()
 
     @staticmethod
     def __histogramCallbackFun(aHist, nFlag, ctx):
@@ -1899,6 +1918,24 @@ class Ogmacam:
         self.__ctxhistogram = ctx
         self.__cbhistogram = __class__.__HISTOGRAM_CALLBACK(__class__.__histogramCallbackFun)
         self.__lib.Ogmacam_GetHistogramV2(self.__h, self.__cbhistogram, ctypes.py_object(self))
+
+    @classmethod
+    def put_Name(cls, camId, name):
+        cls.__initlib()
+        if sys.platform == 'win32':
+            return cls.__lib.Ogmacam_put_Name(camId, name)
+        else:
+            return cls.__lib.Ogmacam_put_Name(camId.encode('ascii'), name)
+
+    @classmethod
+    def get_Name(cls, camId):
+        cls.__initlib()
+        str = (ctypes.c_char * 64)()
+        if sys.platform == 'win32':
+            cls.__lib.Ogmacam_get_Name(camId, str)
+        else:
+            cls.__lib.Ogmacam_get_Name(camId.encode('ascii'), str)
+        return str.value.decode()
 
     @classmethod
     def PixelFormatName(cls, val):
@@ -1990,21 +2027,35 @@ class Ogmacam:
             cls.__lib.Ogmacam_EnumV2.argtypes = [_DeviceV2 * OGMACAM_MAX]
             cls.__lib.Ogmacam_EnumWithName.restype = ctypes.c_uint
             cls.__lib.Ogmacam_EnumWithName.argtypes = [_DeviceV2 * OGMACAM_MAX]
+            cls.__lib.Ogmacam_put_Name.restype = ctypes.c_int
+            cls.__lib.Ogmacam_get_Name.restype = ctypes.c_int
             cls.__lib.Ogmacam_Open.restype = ctypes.c_void_p
             cls.__lib.Ogmacam_Replug.restype = ctypes.c_int
             cls.__lib.Ogmacam_Update.restype = ctypes.c_int
             if sys.platform == 'win32':
                 cls.__lib.Ogmacam_Version.restype = ctypes.c_wchar_p
+                cls.__lib.Ogmacam_put_Name.argtypes = [ctypes.c_wchar_p, ctypes.c_char_p]
+                cls.__lib.Ogmacam_get_Name.argtypes = [ctypes.c_wchar_p, ctypes.c_char * 64]
                 cls.__lib.Ogmacam_Open.argtypes = [ctypes.c_wchar_p]
                 cls.__lib.Ogmacam_Replug.argtypes = [ctypes.c_wchar_p]
                 cls.__lib.Ogmacam_Update.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, cls.__PROGRESS_CALLBACK, ctypes.py_object]
             else:
                 cls.__lib.Ogmacam_Version.restype = ctypes.c_char_p
+                cls.__lib.Ogmacam_put_Name.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+                cls.__lib.Ogmacam_get_Name.argtypes = [ctypes.c_char_p, ctypes.c_char * 64]
                 cls.__lib.Ogmacam_Open.argtypes = [ctypes.c_char_p]
                 cls.__lib.Ogmacam_Replug.argtypes = [ctypes.c_char_p]
                 cls.__lib.Ogmacam_Update.argtypes = [ctypes.c_char_p, ctypes.c_char_p, cls.__PROGRESS_CALLBACK, ctypes.py_object]
+            cls.__lib.Ogmacam_put_Name.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_get_Name.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_Replug.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_Update.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_set_Name.restype = ctypes.c_int
+            cls.__lib.Ogmacam_set_Name.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+            cls.__lib.Ogmacam_set_Name.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_query_Name.restype = ctypes.c_int
+            cls.__lib.Ogmacam_query_Name.argtypes = [ctypes.c_void_p, ctypes.c_char * 64]
+            cls.__lib.Ogmacam_query_Name.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_OpenByIndex.restype = ctypes.c_void_p
             cls.__lib.Ogmacam_OpenByIndex.argtypes = [ctypes.c_uint]
             cls.__lib.Ogmacam_Close.restype = None
@@ -2391,6 +2442,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_get_Roi.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_Roi.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_get_Roi.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
+            cls.__lib.Ogmacam_put_RoiN.restype = ctypes.c_int
+            cls.__lib.Ogmacam_put_RoiN.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_put_RoiN.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.c_uint]
             cls.__lib.Ogmacam_put_XY.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_XY.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_XY.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]

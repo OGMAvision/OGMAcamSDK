@@ -8,7 +8,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Collections.Generic;
 using System.Threading;
 using System.Runtime.InteropServices.ComTypes;
-using static Ogmacam;
+using Ogmacam;
 
 internal class Liveedf : IDisposable
 {

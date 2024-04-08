@@ -85,7 +85,7 @@ static BOOL SaveImageByWIC(const wchar_t* strFilename, const void* pData, const 
 
 CdemoafDlg::CdemoafDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CdemoafDlg::IDD, pParent), m_hcam(NULL), m_pImageData(NULL), m_dFV(0), m_dLum(0)
-	, m_bLensCal_Update_Done(false), m_bLensStatus_Update_Done(false), m_ucAM_Max_Previous(0)
+	, m_bLensCal_Update_Done(false), m_ucAM_Max_Previous(0)
 {
 	memset(&m_header, 0, sizeof(m_header));
 	m_header.biSize = sizeof(m_header);
@@ -116,12 +116,10 @@ BEGIN_MESSAGE_MAP(CdemoafDlg, CDialog)
 	ON_BN_CLICKED(IDC_FOCUSMOTORDOWN, &CdemoafDlg::OnBnClickedFocusmotordown)
 	ON_CBN_SELCHANGE(IDC_COMBO_F, &CdemoafDlg::OnCbnSelchangeComboF)
 	ON_BN_CLICKED(IDC_RADIO_MANUAL, &CdemoafDlg::OnBnClickedRadioManual)
-	ON_BN_CLICKED(IDC_STATUS_DEFAULT, &CdemoafDlg::OnBnClickedStatusDefault)
 	ON_BN_CLICKED(IDC_RADIO_AUTO, &CdemoafDlg::OnBnClickedRadioAuto)
 	ON_WM_SIZE()
 	ON_BN_CLICKED(IDC_BUTTON_ONEPUSH, &CdemoafDlg::OnBnClickedButtonOnepush)
 	ON_EN_SETFOCUS(IDC_FOCUSMOTORSTEP, &CdemoafDlg::OnEnSetfocusFocusmotorstep)
-	ON_BN_CLICKED(IDC_BUTTON_SAVE_STATUS, &CdemoafDlg::OnBnClickedButtonSaveStatus)
 END_MESSAGE_MAP()
 
 BOOL CdemoafDlg::OnInitDialog()
@@ -136,15 +134,13 @@ BOOL CdemoafDlg::OnInitDialog()
 	GetDlgItem(IDC_SLIDER3)->EnableWindow(FALSE);
 	GetDlgItem(IDC_COMBO1)->EnableWindow(FALSE);
 
-	SetFocusFNControll(FALSE);
+	SetFocusFNControl(FALSE);
 	((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(FALSE);
 	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(FALSE);
 	GetDlgItem(IDC_LENSCAL)->EnableWindow(FALSE);
 	GetDlgItem(IDC_BUTTON_ONEPUSH)->EnableWindow(FALSE);
 	GetDlgItem(IDC_RADIO_MANUAL)->EnableWindow(FALSE);
 	GetDlgItem(IDC_RADIO_AUTO)->EnableWindow(FALSE);
-
-	GetDlgItem(IDC_STATUS_DEFAULT)->EnableWindow(FALSE);
 
 	return TRUE;
 }
@@ -161,7 +157,6 @@ void CdemoafDlg::OnBnClickedButton1()
 		return;
 	}
 	Ogmacam_get_Revision(m_hcam, &m_revision);
-
 	CComboBox* pCombox = (CComboBox*)GetDlgItem(IDC_COMBO1);//Resolution combobox
 	pCombox->ResetContent();
 	const int n = (int)Ogmacam_get_ResolutionNumber(m_hcam);
@@ -187,20 +182,8 @@ void CdemoafDlg::OnBnClickedButton1()
 
 void CdemoafDlg::StartAFLensControll()
 {
-	bool bLoadStatus;
-	Ogmacam_read_EEPROM(m_hcam, 0, (unsigned char*)&bLoadStatus, sizeof(bool));
-	if (bLoadStatus)
-	{
-		((CButton*)GetDlgItem(IDC_STATUS_DEFAULT))->SetCheck(TRUE);
-		m_bLensStatus_Update_Done = false;
-	}
-	else
-	{
-		((CButton*)GetDlgItem(IDC_STATUS_DEFAULT))->SetCheck(FALSE);
-		m_bLensStatus_Update_Done = true;
-	}
 	m_bLensCal_Update_Done = false;
-	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_CALIBRATE);
+	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_CALIBRATE, 0, 0, 0);
 }
 
 void CdemoafDlg::StartDevice()
@@ -259,7 +242,7 @@ void CdemoafDlg::OnCbnSelchangeCombo1()
 
 	if (nResolutionIndex != nSel)
 	{
-		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_NONE);
+		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_NONE, 0, 0, 0);
 		hr = Ogmacam_Stop(m_hcam);
 		if (FAILED(hr))
 			return;
@@ -267,7 +250,7 @@ void CdemoafDlg::OnCbnSelchangeCombo1()
 		Ogmacam_put_eSize(m_hcam, nSel);
 
 		StartDevice();
-		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_MANUAL);
+		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_MANUAL, 0, 0, 0);
 	}
 }
 
@@ -724,7 +707,7 @@ void CdemoafDlg::AF_APDlg_Init()
 
 void CdemoafDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	if (1 == nIDEvent)
+	if ((1 == nIDEvent) && m_hcam)
 	{
 		TCHAR str_frame[64] = { 0 }, str_fv_lum[128] = { 0 };
 		_stprintf(str_frame, _T("%u, fps = %.1f"), m_nTotalFrame, m_nFrame * 1000.0 / m_nTime);
@@ -735,53 +718,46 @@ void CdemoafDlg::OnTimer(UINT_PTR nIDEvent)
 		OgmacamAFState afStatus;
 		if (SUCCEEDED(Ogmacam_get_AFState(m_hcam, &afStatus)) && SUCCEEDED(Ogmacam_get_LensInfo(m_hcam, &m_afLensInfo)))
 		{
-			if (afStatus.AF_LensManual_Flag)
+			if (!m_bLensCal_Update_Done)//data needs to be updated after calibration is completed
 			{
-				if (!m_bLensCal_Update_Done)//data needs to be updated after calibration is completed
+				AF_FocusDlg_Init();
+				AF_APDlg_Init();
+				SetDlgItemInt(IDC_EDIT_LENSID, m_afLensInfo.lensID);
+				SetDlgItemInt(IDC_EDIT_LENSFMIN, m_afLensInfo.minFocalLength);
+				SetDlgItemInt(IDC_EDIT_LENSFMAX, m_afLensInfo.maxFocalLength);
+				SetDlgItemInt(IDC_EDIT_LENSFCUR, m_afLensInfo.curFocalLength);
+				SetDlgItemInt(IDC_EDIT_LENSFOCUSMOTOR, m_afLensInfo.curFM);
+				SetDlgItemText(IDC_FOCUSMOTORSTEP, L"Step");
+				GetDlgItem(IDC_EDIT_LENSMFAF)->SetWindowText((0x80 == m_afLensInfo.statusAfmf) ? L"MF" : L"AF");
+				if (m_afLensInfo.lensName)
 				{
-					AF_FocusDlg_Init();
-					AF_APDlg_Init();
-					GetLensName();
-					SetDlgItemInt(IDC_EDIT_LENSID, m_afLensInfo.lensID);
-					SetDlgItemInt(IDC_EDIT_LENSFMIN, m_afLensInfo.minFocalLength);
-					SetDlgItemInt(IDC_EDIT_LENSFMAX, m_afLensInfo.maxFocalLength);
-					SetDlgItemInt(IDC_EDIT_LENSFCUR, m_afLensInfo.curFocalLength);
-					SetDlgItemInt(IDC_EDIT_LENSFOCUSMOTOR, m_afLensInfo.curFM);
-					SetDlgItemText(IDC_FOCUSMOTORSTEP, L"Step");
-					GetDlgItem(IDC_EDIT_LENSMFAF)->SetWindowText((0x80 == m_afLensInfo.statusAfmf) ? L"MF" : L"AF");
-					m_ucAM_Max_Previous = m_afLensInfo.maxAM;
-					m_bLensCal_Update_Done = true;
+					CA2W a2w(m_afLensInfo.lensName);
+					SetDlgItemText(IDC_EDIT_LENSNAME, a2w);
 				}
-				else if (!m_bLensStatus_Update_Done)
-				{
-					if (((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->GetCheck())
-						SetLensStatus();
-				}
-				if (m_ucAM_Max_Previous != m_afLensInfo.maxAM && afStatus.AF_LensAP_Update_Flag)
-				{
-					AF_APDlg_Init();
-					m_ucAM_Max_Previous = m_afLensInfo.maxAM;
-				}
+				m_ucAM_Max_Previous = m_afLensInfo.maxAM;
+				m_bLensCal_Update_Done = true;
+			}
+			if (m_ucAM_Max_Previous != m_afLensInfo.maxAM && afStatus.AF_LensAP_Update_Flag)
+			{
+				AF_APDlg_Init();
+				m_ucAM_Max_Previous = m_afLensInfo.maxAM;
 			}
 			if (((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->GetCheck())
-			{
 				SetDlgItemText(IDC_STATIC_FNUMBER, CA2W(m_afLensInfo.arrayFN[m_afLensInfo.posAM]));
-			}
 			else
 			{
 				if (afStatus.AF_Mode == OgmacamAFMode_MANUAL)
 				{
 					((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(TRUE);
 					((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(FALSE);
-					SetFocusFNControll(TRUE);
+					SetFocusFNControl(TRUE);
 					GetDlgItem(IDC_LENSCAL)->EnableWindow(TRUE);
 					GetDlgItem(IDC_BUTTON_ONEPUSH)->EnableWindow(TRUE);
 					GetDlgItem(IDC_RADIO_MANUAL)->EnableWindow(TRUE);
 					GetDlgItem(IDC_RADIO_AUTO)->EnableWindow(TRUE);
-					GetDlgItem(IDC_STATUS_DEFAULT)->EnableWindow(TRUE);
 					GetDlgItem(IDC_BUTTON_ONEPUSH)->SetWindowText(L"Once");
 				}
-				else if (m_bLensCal_Update_Done && m_bLensStatus_Update_Done)
+				else if (m_bLensCal_Update_Done)
 				{
 					m_slider_foc.SetPos(m_afLensInfo.curFM);
 				}
@@ -820,43 +796,6 @@ void CdemoafDlg::OnCbnSelchangeComboF()
 	SetDlgItemText(IDC_STATIC_FNUMBER, strTmp);
 }
 
-void CdemoafDlg::SetLensStatus()
-{
-	LensStatusInEEPROM SetStatus;
-	Ogmacam_read_EEPROM(m_hcam, 0, (unsigned char*)&SetStatus, sizeof(LensStatusInEEPROM));
-	if (SetStatus.usID == m_afLensInfo.lensID)
-	{
-		m_slider_ap.SetPos(SetStatus.cFNumber_Index);
-		m_slider_foc.SetPos(SetStatus.sFM_Cur);
-		m_combo_aperture.SetCurSel(SetStatus.cFNumber_Index);
-		Ogmacam_put_AFAperture(m_hcam, SetStatus.cFNumber_Index);
-		Ogmacam_put_AFFMPos(m_hcam, SetStatus.sFM_Cur);
-
-		if (0 < SetStatus.uiExpTime && SetStatus.uiExpTime < 1000)
-		{
-			Ogmacam_put_ExpoTime(m_hcam, SetStatus.uiExpTime * 1000);
-			((CSliderCtrl*)GetDlgItem(IDC_SLIDER_EXP))->SetPos(SetStatus.uiExpTime);
-			SetDlgItemInt(IDC_STATIC_EXP, SetStatus.uiExpTime, TRUE);
-		}
-		if (0 < SetStatus.usGain && SetStatus.usGain < 1000)
-		{
-			Ogmacam_put_ExpoAGain(m_hcam, SetStatus.usGain);
-			((CSliderCtrl*)GetDlgItem(IDC_SLIDER_GAIN))->SetPos(SetStatus.usGain);
-			SetDlgItemInt(IDC_STATIC_GAIN, SetStatus.usGain, TRUE);
-		}
-	}
-	m_bLensStatus_Update_Done = true;
-}
-
-void CdemoafDlg::OnBnClickedStatusDefault()
-{
-	UpdateData(TRUE);
-	LensStatusInEEPROM SetStatus;
-	Ogmacam_read_EEPROM(m_hcam, 0, ( unsigned char*)&SetStatus, sizeof(LensStatusInEEPROM));
-	SetStatus.bSet_Default = ((CButton*)GetDlgItem(IDC_STATUS_DEFAULT))->GetCheck();
-	Ogmacam_write_EEPROM(m_hcam, 0, (const unsigned char*)&SetStatus, sizeof(LensStatusInEEPROM));
-}
-
 void CdemoafDlg::OnSize(UINT nType, int cx, int cy)
 {
 	CDialog::OnSize(nType, cx, cy);
@@ -870,24 +809,21 @@ void CdemoafDlg::OnSize(UINT nType, int cx, int cy)
 void CdemoafDlg::OnBnClickedLenscal()//Manual focus
 {
 	m_bLensCal_Update_Done = false;
-	if (((CButton*)GetDlgItem(IDC_STATUS_DEFAULT))->GetCheck())
-		m_bLensStatus_Update_Done = false;
 	((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(FALSE);
 	((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(FALSE);
-	SetFocusFNControll(FALSE);
+	SetFocusFNControl(FALSE);
 	GetDlgItem(IDC_LENSCAL)->EnableWindow(FALSE);
 	GetDlgItem(IDC_RADIO_MANUAL)->EnableWindow(FALSE);
 	GetDlgItem(IDC_RADIO_AUTO)->EnableWindow(FALSE);
 	GetDlgItem(IDC_BUTTON_ONEPUSH)->EnableWindow(FALSE);
-	GetDlgItem(IDC_STATUS_DEFAULT)->EnableWindow(FALSE);
 
-	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_CALIBRATE);
+	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_CALIBRATE, 0, 0, 0);
 }
 
 void CdemoafDlg::OnBnClickedRadioManual()
 {
-	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_MANUAL);
-	SetFocusFNControll(TRUE);
+	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_MANUAL, 0, 0, 0);
+	SetFocusFNControl(TRUE);
 	GetDlgItem(IDC_LENSCAL)->EnableWindow(TRUE);
 	GetDlgItem(IDC_RADIO_AUTO)->EnableWindow(TRUE);
 	GetDlgItem(IDC_BUTTON_ONEPUSH)->EnableWindow(TRUE);
@@ -895,8 +831,8 @@ void CdemoafDlg::OnBnClickedRadioManual()
 
 void CdemoafDlg::OnBnClickedRadioAuto()
 {
-	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_AUTO);
-	SetFocusFNControll(FALSE);
+	Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_AUTO, 0, 0, 0);
+	SetFocusFNControl(FALSE);
 	GetDlgItem(IDC_LENSCAL)->EnableWindow(TRUE);
 	GetDlgItem(IDC_RADIO_MANUAL)->EnableWindow(TRUE);
 	GetDlgItem(IDC_BUTTON_ONEPUSH)->EnableWindow(FALSE);
@@ -908,15 +844,15 @@ void CdemoafDlg::OnBnClickedButtonOnepush()
 	Ogmacam_get_AFState(m_hcam, &afStatus);
 	if (afStatus.AF_Mode == OgmacamAFMode_ONCE)
 	{
-		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_MANUAL);
+		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_MANUAL, 0, 0, 0);
 		GetDlgItem(IDC_BUTTON_ONEPUSH)->SetWindowText(L"Once");
 	}
 	else
 	{
-		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_ONCE);
+		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_ONCE, 0, 0, 0);
 		((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->SetCheck(FALSE);
 		((CButton*)GetDlgItem(IDC_RADIO_AUTO))->SetCheck(FALSE);
-		SetFocusFNControll(FALSE);
+		SetFocusFNControl(FALSE);
 		GetDlgItem(IDC_LENSCAL)->EnableWindow(FALSE);
 		GetDlgItem(IDC_RADIO_MANUAL)->EnableWindow(FALSE);
 		GetDlgItem(IDC_RADIO_AUTO)->EnableWindow(FALSE);
@@ -924,7 +860,7 @@ void CdemoafDlg::OnBnClickedButtonOnepush()
 	}
 }
 
-void CdemoafDlg::SetFocusFNControll(BOOL bControll)
+void CdemoafDlg::SetFocusFNControl(BOOL bControll)
 {
 	GetDlgItem(IDC_COMBO_F)->EnableWindow(bControll);
 	GetDlgItem(IDC_SLIDER_AP)->EnableWindow(bControll);
@@ -932,42 +868,6 @@ void CdemoafDlg::SetFocusFNControll(BOOL bControll)
 	GetDlgItem(IDC_FOCUSMOTORSTEP)->EnableWindow(bControll);
 	GetDlgItem(IDC_FOCUSMOTORUP)->EnableWindow(bControll);
 	GetDlgItem(IDC_FOCUSMOTORDOWN)->EnableWindow(bControll);
-}
-
-void CdemoafDlg::GetLensName()
-{
-	char cID_Model[256];
-	FILE* FLens_ID_Model = _wfopen(L"Canon_Lens_ID_Model.txt", L"r");
-	if (FLens_ID_Model)
-	{
-		while (fgets(cID_Model, 256, FLens_ID_Model))
-		{
-			USHORT usLensID;
-			char cLensModel[256];
-			if (sscanf_s(cID_Model, "%hu = %[^\n]", &usLensID, cLensModel, 256) == 2)
-			{
-				if (usLensID == m_afLensInfo.lensID)
-				{
-					cLensModel[255] = '\0';
-					SetDlgItemText(IDC_EDIT_LENSNAME, (CString)cLensModel);
-					break;
-				}
-			}
-		}
-		fclose(FLens_ID_Model);
-	}
-}
-
-void CdemoafDlg::OnBnClickedButtonSaveStatus()
-{
-	LensStatusInEEPROM SaveStatus;
-	SaveStatus.bSet_Default = ((CButton*)GetDlgItem(IDC_STATUS_DEFAULT))->GetCheck();
-	SaveStatus.usID = m_afLensInfo.lensID;
-	SaveStatus.sFM_Cur = m_afLensInfo.posFM;
-	SaveStatus.cFNumber_Index = m_afLensInfo.posAM;
-	SaveStatus.uiExpTime = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER_EXP))->GetPos();
-	SaveStatus.usGain = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER_GAIN))->GetPos();
-	Ogmacam_write_EEPROM(m_hcam, 0, (const unsigned char*)&SaveStatus, sizeof(LensStatusInEEPROM));
 }
 
 void CdemoafDlg::OnEnSetfocusFocusmotorstep()

@@ -1516,14 +1516,14 @@ HRESULT TDshowContext::queryinterface(const IID& riid, void** ppvObj)
 HRESULT TDshowContext::set_roi(unsigned xOffset, unsigned yOffset, unsigned xWidth, unsigned yHeight)
 {
 	HRESULT hr = E_NOTIMPL;
-	IOgmacam* pIOgmacam = NULL;
-	if (m_pSource && SUCCEEDED(m_pSource->QueryInterface(IID_IOgmacam, (void**)&pIOgmacam)) && pIOgmacam)
+	IOgmacam* pI = NULL;
+	if (m_pSource && SUCCEEDED(m_pSource->QueryInterface(IID_IOgmacam, (void**)&pI)) && pI)
 	{
 		StopPreview();
 		if (m_fPreviewGraphBuilt)
 			TearDownGraph();
-		hr = pIOgmacam->put_Roi(xOffset, yOffset, xWidth, yHeight);
-		pIOgmacam->Release();
+		hr = pI->put_Roi(xOffset, yOffset, xWidth, yHeight);
+		pI->Release();
 
 		if (SUCCEEDED(BuildPreviewGraph()))
 			StartPreview();
@@ -1534,11 +1534,11 @@ HRESULT TDshowContext::set_roi(unsigned xOffset, unsigned yOffset, unsigned xWid
 HRESULT TDshowContext::get_roi(unsigned* pxOffset, unsigned* pyOffset, unsigned* pxWidth, unsigned* pyHeight)
 {
 	HRESULT hr = E_NOTIMPL;
-	IOgmacam* pIOgmacam = NULL;
-	if (m_pSource && SUCCEEDED(m_pSource->QueryInterface(IID_IOgmacam, (void**)&pIOgmacam)) && pIOgmacam)
+	IOgmacam* pI = NULL;
+	if (m_pSource && SUCCEEDED(m_pSource->QueryInterface(IID_IOgmacam, (void**)&pI)) && pI)
 	{
-		hr = pIOgmacam->get_Roi(pxOffset, pyOffset, pxWidth, pyHeight);
-		pIOgmacam->Release();
+		hr = pI->get_Roi(pxOffset, pyOffset, pxWidth, pyHeight);
+		pI->Release();
 	}
 	return hr;
 }

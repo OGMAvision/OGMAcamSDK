@@ -14,10 +14,10 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
         const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 24, 0, &info);
         if (FAILED(hr))
             printf("failed to pull image, hr = %08x\n", hr);
-        else
+        else if ((++g_totalVideo) % 100 == 0)
         {
             /* After we get the image data, we can do anything for the data we want to do */
-            printf("pull image ok, total = %u, res = %u x %u\n", ++g_totalVideo, info.width, info.height);
+            printf("pull image ok, total = %u, res = %u x %u\n", g_totalVideo, info.width, info.height);
         }
     }
     else if (OGMACAM_EVENT_STILLIMAGE == nEvent)

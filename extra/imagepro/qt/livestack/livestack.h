@@ -1,5 +1,5 @@
-#ifndef __MAIN_H__
-#define __MAIN_H__
+#ifndef __livestack_H__
+#define __livestack_H__
 
 #include <QPushButton>
 #include <QComboBox>
@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <ogmacam.h>
 #include <imagepro.h>
+#include <imagepro_ogmacam.h>
 #include <mutex>
 
 class MainWidget : public QWidget

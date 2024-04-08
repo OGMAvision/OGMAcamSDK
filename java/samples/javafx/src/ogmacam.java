@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 55.24647.20240218
+    Version: 55.25159.20240404
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -364,6 +364,7 @@ public class ogmacam implements AutoCloseable {
                                                                             Default: 0
                                                                         */
     public final static int OPTION_READOUT_MODE           = 0x69;       /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
+    public final static int OPTION_TAILLIGHT              = 0x6a;       /* Turn on/off tail Led light: 0 => off, 1 => on; default: on */
 
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -475,6 +476,7 @@ public class ogmacam implements AutoCloseable {
     public final static int IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37; /* Output Counter Value, range: [0 ~ 65535] */
     public final static int IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38;
     public final static int IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a; /* Output pause: 1 => puase, 0 => unpause */
+    public final static int IOCONTROLTYPE_GET_INPUT_STATE           = 0x3c; /* Input state: 0 (low level) or 1 (high level) */
     
     public final static int IOCONTROL_DELAYTIME_MAX                 = 5 * 1000 * 1000;
     
@@ -482,8 +484,8 @@ public class ogmacam implements AutoCloseable {
     public final static int AAF_SETPOSITION     = 0x01;
     public final static int AAF_GETPOSITION     = 0x02;
     public final static int AAF_SETZERO         = 0x03;
-    public final static int AAF_GETZERO         = 0x04;
     public final static int AAF_SETDIRECTION    = 0x05;
+    public final static int AAF_GETDIRECTION    = 0x06;
     public final static int AAF_SETMAXINCREMENT = 0x07;
     public final static int AAF_GETMAXINCREMENT = 0x08;
     public final static int AAF_SETFINE         = 0x09;
@@ -515,10 +517,10 @@ public class ogmacam implements AutoCloseable {
     public final static int EXPOGAIN_DEF             = 100;      /* exposure gain, default value */
     public final static int EXPOGAIN_MIN             = 100;      /* exposure gain, minimum value */
     public final static int TEMP_DEF                 = 6503;     /* color temperature, default value */
-    public final static int TEMP_MIN                 = 2000;     /* color temperature, minimum value */
-    public final static int TEMP_MAX                 = 15000;    /* color temperature, maximum value */
+    public final static int TEMP_MIN                 = 1000;     /* color temperature, minimum value */
+    public final static int TEMP_MAX                 = 25000;    /* color temperature, maximum value */
     public final static int TINT_DEF                 = 1000;     /* tint */
-    public final static int TINT_MIN                 = 200;      /* tint */
+    public final static int TINT_MIN                 = 100;      /* tint */
     public final static int TINT_MAX                 = 2500;     /* tint */
     public final static int HUE_DEF                  = 0;        /* hue */
     public final static int HUE_MIN                  = -180;     /* hue */
@@ -527,11 +529,11 @@ public class ogmacam implements AutoCloseable {
     public final static int SATURATION_MIN           = 0;        /* saturation */
     public final static int SATURATION_MAX           = 255;      /* saturation */
     public final static int BRIGHTNESS_DEF           = 0;        /* brightness */
-    public final static int BRIGHTNESS_MIN           = -64;      /* brightness */
-    public final static int BRIGHTNESS_MAX           = 64;       /* brightness */
+    public final static int BRIGHTNESS_MIN           = -128;     /* brightness */
+    public final static int BRIGHTNESS_MAX           = 128;      /* brightness */
     public final static int CONTRAST_DEF             = 0;        /* contrast */
-    public final static int CONTRAST_MIN             = -100;     /* contrast */
-    public final static int CONTRAST_MAX             = 100;      /* contrast */
+    public final static int CONTRAST_MIN             = -150;     /* contrast */
+    public final static int CONTRAST_MAX             = 150;      /* contrast */
     public final static int GAMMA_DEF                = 100;      /* gamma */
     public final static int GAMMA_MIN                = 20;       /* gamma */
     public final static int GAMMA_MAX                = 180;      /* gamma */
@@ -819,7 +821,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_SnapN(Pointer h, int nResolutionIndex, int nNumber);
         int Ogmacam_SnapR(Pointer h, int nResolutionIndex, int nNumber);
         int Ogmacam_Trigger(Pointer h, short nNumber);
-        int Ogmacam_TriggerSync(Pointer h, int nTimeout, Pointer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
+        int Ogmacam_TriggerSync(Pointer h, int nWaitMS, Pointer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_put_Size(Pointer h, int nWidth, int nHeight);
         int Ogmacam_get_Size(Pointer h, IntByReference nWidth, IntByReference nHeight);
         int Ogmacam_put_eSize(Pointer h, int nResolutionIndex);
@@ -837,6 +839,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_put_Temperature(Pointer h, short nTemperature);
         int Ogmacam_get_Roi(Pointer h, IntByReference pxOffset, IntByReference pyOffset, IntByReference pxWidth, IntByReference pyHeight);
         int Ogmacam_put_Roi(Pointer h, int xOffset, int yOffset, int xWidth, int yHeight);
+        int Ogmacam_put_RoiN(Pointer h, int[] xOffset, int[] yOffset, int[] xWidth, int[] yHeight, int Num);
         int Ogmacam_put_XY(Pointer h, int x, int y);
         int Ogmacam_get_AutoExpoEnable(Pointer h, IntByReference bAutoExposure);
         int Ogmacam_put_AutoExpoEnable(Pointer h, int bAutoExposure);
@@ -944,7 +947,7 @@ public class ogmacam implements AutoCloseable {
         int TOgmacam_put_AFFMPos(Pointer h, int iFMPos);
         int Ogmacam_get_FocusMotor(Pointer h, FocusMotor pFocusMotor);
         
-        int Ogmacam_TriggerSyncArray(Pointer h, int nTimeout, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
+        int Ogmacam_TriggerSyncArray(Pointer h, int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_PullImageV3Array(Pointer h, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_WaitImageV3Array(Pointer h, int nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_PullImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
@@ -974,12 +977,12 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_Replug(WString camId);
         int Ogmacam_StartPullModeWithCallback(Pointer h, EVENT_CALLBACK funEvent, Pointer ctxEvent);
         int Ogmacam_StartPullModeWithWndMsg(Pointer h, Pointer hWnd, int nMsg);
-        int Ogmacam_FfcImport(Pointer h, WString filepath);
-        int Ogmacam_FfcExport(Pointer h, WString filepath);
-        int Ogmacam_DfcImport(Pointer h, WString filepath);
-        int Ogmacam_DfcExport(Pointer h, WString filepath);
-        int Ogmacam_FpncImport(Pointer h, WString filepath);
-        int Ogmacam_FpncExport(Pointer h, WString filepath);
+        int Ogmacam_FfcImport(Pointer h, WString filePath);
+        int Ogmacam_FfcExport(Pointer h, WString filePath);
+        int Ogmacam_DfcImport(Pointer h, WString filePath);
+        int Ogmacam_DfcExport(Pointer h, WString filePath);
+        int Ogmacam_FpncImport(Pointer h, WString filePath);
+        int Ogmacam_FpncExport(Pointer h, WString filePath);
 
         interface PROGRESS_CALLBACK extends StdCallCallback {
             void invoke(int percent, Pointer ctxProgress);
@@ -1006,12 +1009,12 @@ public class ogmacam implements AutoCloseable {
         Pointer Ogmacam_Open(String camId);
         int Ogmacam_Replug(String camId);
         int Ogmacam_StartPullModeWithCallback(Pointer h, EVENT_CALLBACK funEvent, Pointer ctxEvent);
-        int Ogmacam_FfcImport(Pointer h, String filepath);
-        int Ogmacam_FfcExport(Pointer h, String filepath);
-        int Ogmacam_DfcImport(Pointer h, String filepath);
-        int Ogmacam_DfcExport(Pointer h, String filepath);
-        int Ogmacam_FpncImport(Pointer h, String filepath);
-        int Ogmacam_FpncExport(Pointer h, String filepath);
+        int Ogmacam_FfcImport(Pointer h, String filePath);
+        int Ogmacam_FfcExport(Pointer h, String filePath);
+        int Ogmacam_DfcImport(Pointer h, String filePath);
+        int Ogmacam_DfcExport(Pointer h, String filePath);
+        int Ogmacam_FpncImport(Pointer h, String filePath);
+        int Ogmacam_FpncExport(Pointer h, String filePath);
         
         interface HOTPLUG_CALLBACK extends Callback {
             void invoke(Pointer ctxHotPlug);
@@ -1120,7 +1123,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 55.24647.20240218 */
+    /* get the version of this dll/so/dylib, which is: 55.25159.20240404 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -1129,7 +1132,7 @@ public class ogmacam implements AutoCloseable {
     }
     
     /*
-        USB hotplug is only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
+        This function is only available on macOS and Linux, it's unnecessary on Windows & Android. To process the device plug in / pull out:
             (1) On Windows, please refer to the MSDN
                 (a) Device Management, https://docs.microsoft.com/en-us/windows/win32/devio/device-management
                 (b) Detecting Media Insertion or Removal, https://docs.microsoft.com/en-us/windows/win32/devio/detecting-media-insertion-or-removal
@@ -1588,21 +1591,21 @@ public class ogmacam implements AutoCloseable {
     
     /*
       trigger synchronously
-      nTimeout:     0:              by default, exposure * 102% + 4000 milliseconds
+      nWaitMS:      0:              by default, exposure * 102% + 4000 milliseconds
                     0xffffffff:     wait infinite
                     other:          milliseconds to wait
     */
-    public void TriggerSync(int nTimeout, ByteBuffer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
+    public void TriggerSync(int nWaitMS, ByteBuffer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
-            errCheck(_lib.Ogmacam_TriggerSync(_handle, nTimeout, Native.getDirectBufferPointer(pImageData), bits, rowPitch, pInfo));
+            errCheck(_lib.Ogmacam_TriggerSync(_handle, nWaitMS, Native.getDirectBufferPointer(pImageData), bits, rowPitch, pInfo));
         else if (pImageData.hasArray())
-            TriggerSync(nTimeout, pImageData.array(), bits, rowPitch, pInfo);
+            TriggerSync(nWaitMS, pImageData.array(), bits, rowPitch, pInfo);
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
     
-    public void TriggerSync(int nTimeout, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
-        errCheck(_lib.Ogmacam_TriggerSyncArray(_handle, nTimeout, pImageData, bits, rowPitch, pInfo));
+    public void TriggerSync(int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
+        errCheck(_lib.Ogmacam_TriggerSyncArray(_handle, nWaitMS, pImageData, bits, rowPitch, pInfo));
     }
     
     public void put_Size(int nWidth, int nHeight) throws HRESULTException {
@@ -1724,13 +1727,13 @@ public class ogmacam implements AutoCloseable {
         |-----------------------------------------------------------------|
         | Auto Exposure Target    |   16~235      |   120                 |
         | Exposure Gain           |   100~        |   100                 |
-        | Temp                    |   2000~15000  |   6503                |
-        | Tint                    |   200~2500    |   1000                |
+        | Temp                    |   1000~25000  |   6503                |
+        | Tint                    |   100~2500    |   1000                |
         | LevelRange              |   0~255       |   Low = 0, High = 255 |
-        | Contrast                |   -100~100    |   0                   |
+        | Contrast                |   -150~150    |   0                   |
         | Hue                     |   -180~180    |   0                   |
         | Saturation              |   0~255       |   128                 |
-        | Brightness              |   -64~64      |   0                   |
+        | Brightness              |   -128~128    |   0                   |
         | Gamma                   |   20~180      |   100                 |
         | WBGain                  |   -127~127    |   0                   |
         ------------------------------------------------------------------|
@@ -2287,6 +2290,10 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_get_Roi(_handle, p, q, r, s));
         return new int[] { p.getValue(), q.getValue(), r.getValue(), s.getValue() };
     }
+
+    public void put_RoiN(int[] xOffset, int[] yOffset, int[] xWidth, int[] yHeight) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_RoiN(_handle, xOffset, yOffset, xWidth, yHeight, xOffset.length));
+    }
     
     public void put_XY(int x, int y) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_XY(_handle, x, y));
@@ -2350,46 +2357,46 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_FpncOnce(_handle));
     }
     
-    public void FfcExport(String filepath) throws HRESULTException {
+    public void FfcExport(String filePath) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_FfcExport(_handle, new WString(filepath)));
+            errCheck(((WinLibrary)_lib).Ogmacam_FfcExport(_handle, new WString(filePath)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_FfcExport(_handle, filepath));
+            errCheck(((CLibrary)_lib).Ogmacam_FfcExport(_handle, filePath));
     }
     
-    public void FfcImport(String filepath) throws HRESULTException {
+    public void FfcImport(String filePath) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_FfcImport(_handle, new WString(filepath)));
+            errCheck(((WinLibrary)_lib).Ogmacam_FfcImport(_handle, new WString(filePath)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_FfcImport(_handle, filepath));
+            errCheck(((CLibrary)_lib).Ogmacam_FfcImport(_handle, filePath));
     }
     
-    public void DfcExport(String filepath) throws HRESULTException {
+    public void DfcExport(String filePath) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_DfcExport(_handle, new WString(filepath)));
+            errCheck(((WinLibrary)_lib).Ogmacam_DfcExport(_handle, new WString(filePath)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_DfcExport(_handle, filepath));
+            errCheck(((CLibrary)_lib).Ogmacam_DfcExport(_handle, filePath));
     }
     
-    public void DfcImport(String filepath) throws HRESULTException {
+    public void DfcImport(String filePath) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_DfcImport(_handle, new WString(filepath)));
+            errCheck(((WinLibrary)_lib).Ogmacam_DfcImport(_handle, new WString(filePath)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_DfcImport(_handle, filepath));
+            errCheck(((CLibrary)_lib).Ogmacam_DfcImport(_handle, filePath));
     }
     
-    public void FpncExport(String filepath) throws HRESULTException {
+    public void FpncExport(String filePath) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_FpncExport(_handle, new WString(filepath)));
+            errCheck(((WinLibrary)_lib).Ogmacam_FpncExport(_handle, new WString(filePath)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_FpncExport(_handle, filepath));
+            errCheck(((CLibrary)_lib).Ogmacam_FpncExport(_handle, filePath));
     }
     
-    public void FpncImport(String filepath) throws HRESULTException {
+    public void FpncImport(String filePath) throws HRESULTException {
         if (Platform.isWindows())
-            errCheck(((WinLibrary)_lib).Ogmacam_FpncImport(_handle, new WString(filepath)));
+            errCheck(((WinLibrary)_lib).Ogmacam_FpncImport(_handle, new WString(filePath)));
         else
-            errCheck(((CLibrary)_lib).Ogmacam_FpncImport(_handle, filepath));
+            errCheck(((CLibrary)_lib).Ogmacam_FpncImport(_handle, filePath));
     }
     
     public int IoControl(int ioLineNumber, int eType, int outVal) throws HRESULTException {

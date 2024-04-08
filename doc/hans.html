@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:55.24647.$WCDATE=%Y%m%d$</li></ul>
+<ul><li>版本:55.25159.$WCDATE=%Y%m%d$</li></ul>
 <ul>
   <li>平台
     <ul>
@@ -776,7 +776,17 @@ typedef struct{
     <p><strong>返回值：</strong>相机句柄. 失败时返回NULL（如设备被突然拔出等等）</p>
     <p><strong>参数：</strong>Ogmacam相机实例, 由Ogmacam_EnumV2枚举得到.<strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
     <p><strong>说明：</strong>打开相机实例.</p>
-    <p>(1) 在camId后面支持附着一些额外参数(用;分割, 如Ogmacam_Open(L"0-1010;registry=;wb=rgb")), 见下表:</p>
+    <p>(1) 在camId后面支持附着一些额外参数(<strong>用分号;分割, 区分大小写</strong>), 如:</p>
+    <blockquote>
+    <table width="100%" border="0" bgcolor="#B0D0B0">
+      <tr>
+        <td><div align="center">
+		Ogmacam_Open(L"\\?\usb#vid_0547&amp;pid_1134#d&amp;397c94f3&amp;0&amp;3<strong>;registry=;wb=rgb</strong>"))
+		</div></td>
+      </tr>
+    </table>
+  </blockquote>
+	<p>见下表:</p>
   <div align="center">
     <table width="100%" border="1" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0">
       <tr>
@@ -1049,6 +1059,19 @@ typedef struct {
       <p>unsigned short nNumber: 0xffff(一直触发),0(取消触发), 其他值(触发图片的张数)</p>
     </blockquote>
   <p><strong>说明：</strong>触发模式下, 调用本函数进行软件触发. 触发成功之后, 如果是Pull Mode, 则通过OGMACAM_EVENT_IMAGE通知. 如果是Push Mode则通过POGMACAM_DATA_CALLBACK_V4/V3回调函数返回, 其中回调函数的参数BOOL bSnap设为FALSE.</p>
+</li></ul>
+<ul><li><h2><font color="#0000FF">Ogmacam_TriggerSync</font></h2>
+    <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
+    <p><strong>参数：</strong></p>
+    <blockquote>
+      <p>HOgmacam h：相机句柄</p>
+      <p>unsigned nWaitMS: 超时值(毫秒). 如果nWaitMS为零, 表示使用默认值(曝光时间 * 102% + 4000毫秒), 0xffffffff表示永久等待, 其它值表示具体毫秒数</p>
+<p>void* pImageData：数据缓冲区. 用户应用程序必须确保改缓冲区足够大以容纳图像数据. 缓冲区大小必须 &gt;= rowPitch * nHeight</p>
+    <p>int bits：图像颜色位数, 支持24, 32, 48, 8, 16和64, 分别代表RGB24, RGB32, RGB48, 8位灰度, 16位灰度, RGB64图像. bits = 0表示使用基于<a href="#rgb">OGMACAM_OPTION_RGB</a>的默认值. 本参数在RAW模式下没有意义, 被忽略</p>
+    <p>int rowPitch: 行间距(Stride, 跨距), 行与行之间的间距, =0表示默认使用行间距, =-1表示最小行间距(零填充)</p>
+	<p>OgmacamFrameInfoV3* pInfo：输出参数, 本帧图像Info</p>	  
+    </blockquote>
+  <p><strong>说明：</strong>触发模式下, 调用本函数进行<strong>单次</strong>软件触发, 并等待图像到达.</p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_put_Size<br/>Ogmacam_get_Size<br/>Ogmacam_put_eSize<br/>Ogmacam_get_eSize</font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
@@ -1745,7 +1768,7 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		策略0的优点是收敛速度更快，缺点是有黑屏.<br/>
 		策略1避免黑屏, 但是收敛速度更慢.</td>
 		<td>是</td>
-		<td>Yes</td>
+		<td>是</td>
       </tr>
       <tr>
         <td>OGMACAM_OPTION_AUTOEXPO_TRIGGER</td>
@@ -1825,15 +1848,31 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
       	<td>NA</td>
       </tr>
       <tr>
+      	<td>OGMACAM_OPTION_READOUT_MODE</td>
+      	<td>读出模式:<br/>
+		0 = IWR (边读出边积分, Integrate While Read)<br/>
+		1 = ITR (先积分后读出, Integrate Then Read)</td>
+      	<td>NA</td>
+      	<td>是</td>
+      </tr>
+      <tr>
+      	<td>OGMACAM_OPTION_TAILLIGHT</td>
+      	<td>打开关闭尾灯:<br/>
+		0 =&gt; 关<br/>
+		1 =&gt; 开</td>
+      	<td>1</td>
+      	<td>是</td>
+      </tr>
+      <tr>
       	<td>OGMACAM_OPTION_PSEUDO_COLOR_START</td>
       	<td>伪彩色: 起始颜色, BGR格式</td>
-      	<td></td>
+      	<td>NA</td>
       	<td>是</td>
       </tr>
       <tr>
       	<td>OGMACAM_OPTION_PSEUDO_COLOR_END</td>
       	<td>伪彩色: 结束颜色, BGR格式</td>
-      	<td></td>
+      	<td>NA</td>
       	<td>是</td>
       </tr>
       <tr>
@@ -2405,6 +2444,10 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
    <td>OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE</td>
    <td>输出暂停: 1 =&gt; 暂停, 0 =&gt; 继续</td>
  </tr>
+  <tr>
+   <td>OGMACAM_IOCONTROLTYPE_GET_INPUT_STATE</td>
+   <td>输入状态: 0 (低电平) 或 1 (高电平)</td>
+ </tr>
     </table>
   </div>
   </blockquote>
@@ -2518,7 +2561,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td width="13%" rowspan="5">白平衡</td>
         <td width="10%" rowspan="2">Temp/Tint模式</td>
         <td width="8%">Temp(色温)</td>
-        <td>2000~15000</td>
+        <td>1000~25000</td>
         <td>6503</td>
         <td rowspan="2">Ogmacam_get_TempTint</td>
         <td rowspan="2">Ogmacam_put_TempTint</td>
@@ -2526,7 +2569,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
       </tr>
       <tr>
         <td>Tint</td>
-        <td>200~2500</td>
+        <td>100~2500</td>
         <td>1000</td>
       </tr>
       <tr>
@@ -2572,7 +2615,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 	  </tr>
       <tr>
         <td colspan="3">Contrast(对比度)</td>
-        <td>-100~100</td>
+        <td>-150~150</td>
         <td>0</td>
         <td>Ogmacam_get_Contrast</td>
         <td>Ogmacam_put_Contrast</td>
@@ -2596,7 +2639,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
       </tr>
       <tr>
         <td colspan="3">Brightness(亮度)</td>
-        <td>-64~64</td>
+        <td>-128~128</td>
         <td>0</td>
         <td>Ogmacam_get_Brightness</td>
         <td>Ogmacam_put_Brightness</td>

@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 55.24647.20240218
+'    Version: 55.25159.20240404
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -374,6 +374,8 @@ Friend Class Ogmacam
         OPTION_OVEREXP_POLICY = &H68
         ' Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
         OPTION_READOUT_MODE = &H69
+        ' Turn on/off tail Led light: 0 => off, 1 => on; default: on
+        OPTION_TAILLIGHT = &H6A
     End Enum
 
     ' HRESULT: Error code
@@ -396,10 +398,10 @@ Friend Class Ogmacam
     Public Const EXPOGAIN_DEF = 100      ' exposure gain, default value
     Public Const EXPOGAIN_MIN = 100      ' exposure gain, minimum value
     Public Const TEMP_DEF = 6503     ' color temperature, default value
-    Public Const TEMP_MIN = 2000     ' color temperature, minimum value
-    Public Const TEMP_MAX = 15000    ' color temperature, maximum value
+    Public Const TEMP_MIN = 1000     ' color temperature, minimum value
+    Public Const TEMP_MAX = 25000    ' color temperature, maximum value
     Public Const TINT_DEF = 1000     ' tint
-    Public Const TINT_MIN = 200      ' tint
+    Public Const TINT_MIN = 100      ' tint
     Public Const TINT_MAX = 2500     ' tint
     Public Const HUE_DEF = 0        ' hue
     Public Const HUE_MIN = -180     ' hue
@@ -408,11 +410,11 @@ Friend Class Ogmacam
     Public Const SATURATION_MIN = 0        ' saturation
     Public Const SATURATION_MAX = 255      ' saturation
     Public Const BRIGHTNESS_DEF = 0        ' brightness
-    Public Const BRIGHTNESS_MIN = -64      ' brightness
-    Public Const BRIGHTNESS_MAX = 64       ' brightness
+    Public Const BRIGHTNESS_MIN = -128     ' brightness
+    Public Const BRIGHTNESS_MAX = 128      ' brightness
     Public Const CONTRAST_DEF = 0        ' contrast
-    Public Const CONTRAST_MIN = -100     ' contrast
-    Public Const CONTRAST_MAX = 100      ' contrast
+    Public Const CONTRAST_MIN = -150     ' contrast
+    Public Const CONTRAST_MAX = 150      ' contrast
     Public Const GAMMA_DEF = 100      ' gamma
     Public Const GAMMA_MIN = 20       ' gamma
     Public Const GAMMA_MAX = 180      ' gamma
@@ -584,6 +586,7 @@ Friend Class Ogmacam
         IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE = &H37    ' Output Counter Value, range: [0 ~ 65535]
         IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE = &H38
         IOCONTROLTYPE_SET_OUTPUT_PAUSE = &H3A          ' Output pause: 1 => puase, 0 => unpause
+        IOCONTROLTYPE_GET_INPUT_STATE = &H3C           ' Input state: 0 (low level) or 1 (high level)
     End Enum
 
     Public Const IOCONTROL_DELAYTIME_MAX = 5 * 1000 * 1000
@@ -593,8 +596,8 @@ Friend Class Ogmacam
         AAF_SETPOSITION = &H1
         AAF_GETPOSITION = &H2
         AAF_SETZERO = &H3
-        AAF_GETZERO = &H4
         AAF_SETDIRECTION = &H5
+        AAF_GETDIRECTION = &H6
         AAF_SETMAXINCREMENT = &H7
         AAF_GETMAXINCREMENT = &H8
         AAF_SETFINE = &H9
@@ -766,7 +769,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 55.24647.20240218
+    ' get the version of this dll, which is: 55.25159.20240404
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -1398,32 +1401,32 @@ Friend Class Ogmacam
     End Function
 
     '  trigger synchronously
-    '  nTimeout:    0:              by default, exposure * 102% + 4000 milliseconds
+    '  nWaitMS:     0:              by default, exposure * 102% + 4000 milliseconds
     '               0xffffffff:     wait infinite
     '               other:          milliseconds to wait
     '
-    Public Function TriggerSync(nTimeout As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    Public Function TriggerSync(nWaitMS As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
 
-        Return CheckHResult(Ogmacam_TriggerSync(handle_, nTimeout, pImageData, bits, rowPitch, pInfo))
+        Return CheckHResult(Ogmacam_TriggerSync(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
     End Function
 
-    Public Function TriggerSync(nTimeout As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    Public Function TriggerSync(nWaitMS As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
 
-        Return CheckHResult(Ogmacam_TriggerSync(handle_, nTimeout, pImageData, bits, rowPitch, pInfo))
+        Return CheckHResult(Ogmacam_TriggerSync(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
     End Function
 
-    Public Function TriggerSync(nTimeout As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    Public Function TriggerSync(nWaitMS As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
 
-        Return CheckHResult(Ogmacam_TriggerSync(handle_, nTimeout, pImageData, bits, rowPitch, pInfo))
+        Return CheckHResult(Ogmacam_TriggerSync(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
     End Function
 
     '
@@ -2383,6 +2386,16 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_put_Roi(handle_, xOffset, yOffset, xWidth, yHeight))
     End Function
 
+    '
+    ' multiple Roi
+    '
+    Public Function put_RoiN(xOffset As UInteger(), yOffset As UInteger(), xWidth As UInteger(), yHeight As UInteger()) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Return CheckHResult(Ogmacam_put_RoiN(handle_, xOffset, yOffset, xWidth, yHeight, xOffset.Length))
+    End Function
+
     Public Function put_XY(x As Integer, y As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -2442,32 +2455,32 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_FpncOnce(handle_))
     End Function
 
-    Public Function FfcExport(filepath As String) As Boolean
+    Public Function FfcExport(filePath As String) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_FfcExport(handle_, filepath))
+        Return CheckHResult(Ogmacam_FfcExport(handle_, filePath))
     End Function
 
-    Public Function FfcImport(filepath As String) As Boolean
+    Public Function FfcImport(filePath As String) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_FfcImport(handle_, filepath))
+        Return CheckHResult(Ogmacam_FfcImport(handle_, filePath))
     End Function
 
-    Public Function DfcExport(filepath As String) As Boolean
+    Public Function DfcExport(filePath As String) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_DfcExport(handle_, filepath))
+        Return CheckHResult(Ogmacam_DfcExport(handle_, filePath))
     End Function
 
-    Public Function DfcImport(filepath As String) As Boolean
+    Public Function DfcImport(filePath As String) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_DfcImport(handle_, filepath))
+        Return CheckHResult(Ogmacam_DfcImport(handle_, filePath))
     End Function
 
     Public Function IoControl(ioLineNumber As UInteger, eType As eIoControType, inVal As Integer, ByRef outVal As UInteger) As Boolean
@@ -3155,13 +3168,13 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_Trigger(h As SafeCamHandle, nNumber As UShort) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nTimeout As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nWaitMS As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nTimeout As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nWaitMS As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nTimeout As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
+    Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nWaitMS As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -3214,10 +3227,13 @@ Friend Class Ogmacam
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_get_Roi(h As SafeCamHandle, ByRef xOffsett As UInteger, ByRef yOffsett As UInteger, ByRef xWidtht As UInteger, ByRef yHeightt As UInteger) As Integer
+    Private Shared Function Ogmacam_get_Roi(h As SafeCamHandle, ByRef pxOffset As UInteger, ByRef pyOffsett As UInteger, ByRef pxWidtht As UInteger, ByRef pyHeightt As UInteger) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_put_Roi(h As SafeCamHandle, pxOffset As UInteger, pyOffset As UInteger, pxWidth As UInteger, pyHeight As UInteger) As Integer
+    Private Shared Function Ogmacam_put_Roi(h As SafeCamHandle, xOffsett As UInteger, yOffset As UInteger, xWidth As UInteger, yHeight As UInteger) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_put_RoiN(h As SafeCamHandle, xOffset As UInteger(), yOffset As UInteger(), xWidth As UInteger(), yHeight As UInteger(), nNum As UInteger) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_XY(h As SafeCamHandle, x As Integer, y As Integer) As Integer
@@ -3229,13 +3245,13 @@ Friend Class Ogmacam
     '  |-----------------------------------------------------------------|
     '  | Auto Exposure Target    |   16~235      |   120                 |
     '  | Exposure Gain           |   100~        |   100                 |
-    '  | Temp                    |   2000~15000  |   6503                |
-    '  | Tint                    |   200~2500    |   1000                |
+    '  | Temp                    |   1000~25000  |   6503                |
+    '  | Tint                    |   100~2500    |   1000                |
     '  | LevelRange              |   0~255       |   Low = 0, High = 255 |
-    '  | Contrast                |   -100~100    |   0                   |
+    '  | Contrast                |   -150~150    |   0                   |
     '  | Hue                     |   -180~180    |   0                   |
     '  | Saturation              |   0~255       |   128                 |
-    '  | Brightness              |   -64~64      |   0                   |
+    '  | Brightness              |   -128~128    |   0                   |
     '  | Gamma                   |   20~180      |   100                 |
     '  | WBGain                  |   -127~127    |   0                   |
     '  ------------------------------------------------------------------|
@@ -3597,22 +3613,22 @@ Friend Class Ogmacam
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_FfcImport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filepath As String) As Integer
+    Private Shared Function Ogmacam_FfcImport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filePath As String) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_FfcExport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filepath As String) As Integer
+    Private Shared Function Ogmacam_FfcExport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filePath As String) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_DfcImport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filepath As String) As Integer
+    Private Shared Function Ogmacam_DfcImport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filePath As String) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_DfcExport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filepath As String) As Integer
+    Private Shared Function Ogmacam_DfcExport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filePath As String) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_FpncImport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filepath As String) As Integer
+    Private Shared Function Ogmacam_FpncImport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filePath As String) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_FpncExport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filepath As String) As Integer
+    Private Shared Function Ogmacam_FpncExport(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPWStr)> filePath As String) As Integer
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
