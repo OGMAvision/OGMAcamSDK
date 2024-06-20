@@ -1,4 +1,4 @@
-"""Version: 55.25159.20240404
+"""Version: 56.25817.20240616
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -119,7 +119,7 @@ OGMACAM_OPTION_AUTOEXP_POLICY         = 0x10       # auto exposure policy:
                                                    #      3: Gain Preferred
                                                    #      default value: 1
                                                    #
-OGMACAM_OPTION_FRAMERATE              = 0x11       # limit the frame rate, range=[0, 63], the default value 0 means no limit
+OGMACAM_OPTION_FRAMERATE              = 0x11       # limit the frame rate, the default value 0 means no limit
 OGMACAM_OPTION_DEMOSAIC               = 0x12       # demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0
 OGMACAM_OPTION_DEMOSAIC_VIDEO         = 0x13       # demosaic method for video
 OGMACAM_OPTION_DEMOSAIC_STILL         = 0x14       # demosaic method for still image
@@ -299,8 +299,8 @@ OGMACAM_OPTION_OVERCLOCK_MAX          = 0x5c       # get overclock range: [0, ma
 OGMACAM_OPTION_OVERCLOCK              = 0x5d       # overclock, default: 0
 OGMACAM_OPTION_RESET_SENSOR           = 0x5e       # reset sensor
 OGMACAM_OPTION_ISP                    = 0x5f       # Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
-OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  = 0x60       # Auto exposure damp: time (thousandths)
-OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      = 0x61       # Auto exposure damp: gain (thousandths)
+OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  = 0x60       # Auto exposure damp: damping coefficient (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes
+OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      = 0x61       # Auto exposure damp: damping coefficient (thousandths). The larger the damping coefficient, the smoother and slower the gain changes
 OGMACAM_OPTION_MOTOR_NUMBER           = 0x62       # range: [1, 20]
 OGMACAM_OPTION_MOTOR_POS              = 0x10000000 # range: [1, 702]
 OGMACAM_OPTION_PSEUDO_COLOR_START     = 0x63       # Pseudo: start color, BGR format
@@ -330,6 +330,9 @@ OGMACAM_OPTION_PSEUDO_COLOR_ENABLE    = 0x65       # Pseudo: -1 => custom: use s
                                                    #          21 => twilight
                                                    #          22 => twilight_shifted
                                                    #          23 => turbo
+                                                   #          24 => red
+                                                   #          25 => green
+                                                   #          26 => blue
                                                    #
 OGMACAM_OPTION_LOW_POWERCONSUMPTION   = 0x66       # Low Power Consumption: 0 => disable, 1 => enable
 OGMACAM_OPTION_FPNC                   = 0x67       # Fix Pattern Noise Correction
@@ -346,11 +349,18 @@ OGMACAM_OPTION_FPNC                   = 0x67       # Fix Pattern Noise Correctio
 OGMACAM_OPTION_OVEREXP_POLICY         = 0x68       # Auto exposure over exposure policy: when overexposed,
                                                    #        0 => directly reduce the exposure time/gain to the minimum value; or
                                                    #        1 => reduce exposure time/gain in proportion to current and target brightness.
+                                                   #        n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
                                                    # The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
                                                    # Policy 1 avoids the black screen, but the convergence speed is slower.
                                                    # Default: 0
 OGMACAM_OPTION_READOUT_MODE           = 0x69       # Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
 OGMACAM_OPTION_TAILLIGHT              = 0x6a       # Turn on/off tail Led light: 0 => off, 1 => on; default: on
+OGMACAM_OPTION_LENSSTATE              = 0x6b       # Load/Save lens state to EEPROM: 0 => load, 1 => save
+OGMACAM_OPTION_AWB_CONTINUOUS         = 0x6c       # Auto White Balance: continuous mode
+                                                   #        0:  disable (default)
+                                                   #        n>0: every n millisecond(s)
+                                                   #        n<0: every -n frame
+OGMACAM_OPTION_TECTARGET_RANGE        = 0x6d       # TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff)
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -380,80 +390,89 @@ OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL     = 0x00000010   # black level
 OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ     = 0x00000020   # sequence shutter counter
 OGMACAM_FRAMEINFO_FLAG_STILL          = 0x00008000   # still image
 
-OGMACAM_IOCONTROLTYPE_GET_SUPPORTEDMODE         = 0x01  # 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output
-OGMACAM_IOCONTROLTYPE_GET_GPIODIR               = 0x03  # 0x01 => Input, 0x02 => Output
-OGMACAM_IOCONTROLTYPE_SET_GPIODIR               = 0x04
-OGMACAM_IOCONTROLTYPE_GET_FORMAT                = 0x05  # 0x00 => not connected
-                                                        # 0x01 => Tri-state: Tri-state mode (Not driven)
-                                                        # 0x02 => TTL: TTL level signals
-                                                        # 0x03 => LVDS: LVDS level signals
-                                                        # 0x04 => RS422: RS422 level signals
-                                                        # 0x05 => Opto-coupled
-OGMACAM_IOCONTROLTYPE_SET_FORMAT                = 0x06
-OGMACAM_IOCONTROLTYPE_GET_OUTPUTINVERTER        = 0x07  # boolean, only support output signal
-OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER        = 0x08
-OGMACAM_IOCONTROLTYPE_GET_INPUTACTIVATION       = 0x09  # 0x00 => Rising edge, 0x01 => Falling edge, 0x02 => Level high, 0x03 => Level low
-OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION       = 0x0a
-OGMACAM_IOCONTROLTYPE_GET_DEBOUNCERTIME         = 0x0b  # debouncer time in microseconds, range: [0, 20000]
-OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME         = 0x0c
-OGMACAM_IOCONTROLTYPE_GET_TRIGGERSOURCE         = 0x0d  # 0x00 => Opto-isolated input
-                                                        # 0x01 => GPIO0
-                                                        # 0x02 => GPIO1
-                                                        # 0x03 => Counter
-                                                        # 0x04 => PWM
-                                                        # 0x05 => Software
-OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE         = 0x0e
-OGMACAM_IOCONTROLTYPE_GET_TRIGGERDELAY          = 0x0f  # Trigger delay time in microseconds, range: [0, 5000000]
-OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY          = 0x10
-OGMACAM_IOCONTROLTYPE_GET_BURSTCOUNTER          = 0x11  # Burst Counter, range: [1 ~ 65535]
-OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER          = 0x12
-OGMACAM_IOCONTROLTYPE_GET_COUNTERSOURCE         = 0x13  # 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1
-OGMACAM_IOCONTROLTYPE_SET_COUNTERSOURCE         = 0x14
-OGMACAM_IOCONTROLTYPE_GET_COUNTERVALUE          = 0x15  # Counter Value, range: [1 ~ 65535]
-OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE          = 0x16
-OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER          = 0x18
-OGMACAM_IOCONTROLTYPE_GET_PWM_FREQ              = 0x19
-OGMACAM_IOCONTROLTYPE_SET_PWM_FREQ              = 0x1a
-OGMACAM_IOCONTROLTYPE_GET_PWM_DUTYRATIO         = 0x1b
-OGMACAM_IOCONTROLTYPE_SET_PWM_DUTYRATIO         = 0x1c
-OGMACAM_IOCONTROLTYPE_GET_PWMSOURCE             = 0x1d  # 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1
-OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE             = 0x1e
-OGMACAM_IOCONTROLTYPE_GET_OUTPUTMODE            = 0x1f  # 0x00 => Frame Trigger Wait
-                                                        # 0x01 => Exposure Active
-                                                        # 0x02 => Strobe
-                                                        # 0x03 => User output
-                                                        # 0x04 => Counter Output
-                                                        # 0x05 => Timer Output
-OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE            = 0x20
-OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYMODE       = 0x21  # boolean, 1 => delay, 0 => pre-delay; compared to exposure active signal
-OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE       = 0x22
-OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYTIME       = 0x23  # Strobe delay or pre-delay time in microseconds, range: [0, 5000000]
-OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME       = 0x24
-OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION        = 0x25  # Strobe duration time in microseconds, range: [0, 5000000]
-OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION        = 0x26
-OGMACAM_IOCONTROLTYPE_GET_USERVALUE             = 0x27  # bit0 => Opto-isolated output
-                                                        # bit1 => GPIO0 output
-                                                        # bit2 => GPIO1 output
-OGMACAM_IOCONTROLTYPE_SET_USERVALUE             = 0x28
-OGMACAM_IOCONTROLTYPE_GET_UART_ENABLE           = 0x29  # enable: 1 => on; 0 => off
-OGMACAM_IOCONTROLTYPE_SET_UART_ENABLE           = 0x2a
-OGMACAM_IOCONTROLTYPE_GET_UART_BAUDRATE         = 0x2b  # baud rate: 0 => 9600; 1 => 19200; 2 => 38400; 3 => 57600; 4 => 115200
-OGMACAM_IOCONTROLTYPE_SET_UART_BAUDRATE         = 0x2c
-OGMACAM_IOCONTROLTYPE_GET_UART_LINEMODE         = 0x2d  # line mode: 0 => TX(GPIO_0)/RX(GPIO_1); 1 => TX(GPIO_1)/RX(GPIO_0)
-OGMACAM_IOCONTROLTYPE_SET_UART_LINEMODE         = 0x2e
-OGMACAM_IOCONTROLTYPE_GET_EXPO_ACTIVE_MODE      = 0x2f  # exposure time signal: 0 => specified line, 1 => common exposure time
-OGMACAM_IOCONTROLTYPE_SET_EXPO_ACTIVE_MODE      = 0x30
-OGMACAM_IOCONTROLTYPE_GET_EXPO_START_LINE       = 0x31  # exposure start line, default: 0
-OGMACAM_IOCONTROLTYPE_SET_EXPO_START_LINE       = 0x32
-OGMACAM_IOCONTROLTYPE_GET_EXPO_END_LINE         = 0x33  # exposure end line, default: 0
-                                                        # end line must be no less than start line
-OGMACAM_IOCONTROLTYPE_SET_EXPO_END_LINE         = 0x34
-OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE     = 0x35  # exposure event: 0 => specified line, 1 => common exposure time
-OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE     = 0x36
-OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE    = 0x37  # Output Counter Value, range: [0 ~ 65535]
-OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE    = 0x38
-OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE          = 0x3a  # Output pause: 1 => puase, 0 => unpause
-OGMACAM_IOCONTROLTYPE_GET_INPUT_STATE           = 0x3c  # Input state: 0 (low level) or 1 (high level)
+OGMACAM_IOCONTROLTYPE_GET_SUPPORTEDMODE            = 0x01  # 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output
+OGMACAM_IOCONTROLTYPE_GET_GPIODIR                  = 0x03  # 0x01 => Input, 0x02 => Output
+OGMACAM_IOCONTROLTYPE_SET_GPIODIR                  = 0x04
+OGMACAM_IOCONTROLTYPE_GET_FORMAT                   = 0x05  # 0x00 => not connected
+                                                           # 0x01 => Tri-state: Tri-state mode (Not driven)
+                                                           # 0x02 => TTL: TTL level signals
+                                                           # 0x03 => LVDS: LVDS level signals
+                                                           # 0x04 => RS422: RS422 level signals
+                                                           # 0x05 => Opto-coupled
+OGMACAM_IOCONTROLTYPE_SET_FORMAT                   = 0x06
+OGMACAM_IOCONTROLTYPE_GET_OUTPUTINVERTER           = 0x07  # boolean, only support output signal
+OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER           = 0x08
+OGMACAM_IOCONTROLTYPE_GET_INPUTACTIVATION          = 0x09  # 0x00 => Rising edge, 0x01 => Falling edge, 0x02 => Level high, 0x03 => Level low
+OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION          = 0x0a
+OGMACAM_IOCONTROLTYPE_GET_DEBOUNCERTIME            = 0x0b  # debouncer time in microseconds, range: [0, 20000]
+OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME            = 0x0c
+OGMACAM_IOCONTROLTYPE_GET_TRIGGERSOURCE            = 0x0d  # 0x00 => Opto-isolated input
+                                                           # 0x01 => GPIO0
+                                                           # 0x02 => GPIO1
+                                                           # 0x03 => Counter
+                                                           # 0x04 => PWM
+                                                           # 0x05 => Software
+OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE            = 0x0e
+OGMACAM_IOCONTROLTYPE_GET_TRIGGERDELAY             = 0x0f  # Trigger delay time in microseconds, range: [0, 5000000]
+OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY             = 0x10
+OGMACAM_IOCONTROLTYPE_GET_BURSTCOUNTER             = 0x11  # Burst Counter, range: [1 ~ 65535]
+OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER             = 0x12
+OGMACAM_IOCONTROLTYPE_GET_COUNTERSOURCE            = 0x13  # 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1
+OGMACAM_IOCONTROLTYPE_SET_COUNTERSOURCE            = 0x14
+OGMACAM_IOCONTROLTYPE_GET_COUNTERVALUE             = 0x15  # Counter Value, range: [1 ~ 65535]
+OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE             = 0x16
+OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER             = 0x18
+OGMACAM_IOCONTROLTYPE_GET_PWM_FREQ                 = 0x19
+OGMACAM_IOCONTROLTYPE_SET_PWM_FREQ                 = 0x1a
+OGMACAM_IOCONTROLTYPE_GET_PWM_DUTYRATIO            = 0x1b
+OGMACAM_IOCONTROLTYPE_SET_PWM_DUTYRATIO            = 0x1c
+OGMACAM_IOCONTROLTYPE_GET_PWMSOURCE                = 0x1d  # 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1
+OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE                = 0x1e
+OGMACAM_IOCONTROLTYPE_GET_OUTPUTMODE               = 0x1f  # 0x00 => Frame Trigger Wait
+                                                           # 0x01 => Exposure Active
+                                                           # 0x02 => Strobe
+                                                           # 0x03 => User output
+                                                           # 0x04 => Counter Output
+                                                           # 0x05 => Timer Output
+OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE               = 0x20
+OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYMODE          = 0x21  # boolean, 1 => delay, 0 => pre-delay; compared to exposure active signal
+OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE          = 0x22
+OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYTIME          = 0x23  # Strobe delay or pre-delay time in microseconds, range: [0, 5000000]
+OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME          = 0x24
+OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION           = 0x25  # Strobe duration time in microseconds, range: [0, 5000000]
+OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION           = 0x26
+OGMACAM_IOCONTROLTYPE_GET_USERVALUE                = 0x27  # bit0 => Opto-isolated output
+                                                           # bit1 => GPIO0 output
+                                                           # bit2 => GPIO1 output
+OGMACAM_IOCONTROLTYPE_SET_USERVALUE                = 0x28
+OGMACAM_IOCONTROLTYPE_GET_UART_ENABLE              = 0x29  # enable: 1 => on; 0 => off
+OGMACAM_IOCONTROLTYPE_SET_UART_ENABLE              = 0x2a
+OGMACAM_IOCONTROLTYPE_GET_UART_BAUDRATE            = 0x2b  # baud rate: 0 => 9600; 1 => 19200; 2 => 38400; 3 => 57600; 4 => 115200
+OGMACAM_IOCONTROLTYPE_SET_UART_BAUDRATE            = 0x2c
+OGMACAM_IOCONTROLTYPE_GET_UART_LINEMODE            = 0x2d  # line mode: 0 => TX(GPIO_0)/RX(GPIO_1); 1 => TX(GPIO_1)/RX(GPIO_0)
+OGMACAM_IOCONTROLTYPE_SET_UART_LINEMODE            = 0x2e
+OGMACAM_IOCONTROLTYPE_GET_EXPO_ACTIVE_MODE         = 0x2f  # exposure time signal: 0 => specified line, 1 => common exposure time
+OGMACAM_IOCONTROLTYPE_SET_EXPO_ACTIVE_MODE         = 0x30
+OGMACAM_IOCONTROLTYPE_GET_EXPO_START_LINE          = 0x31  # exposure start line, default: 0
+OGMACAM_IOCONTROLTYPE_SET_EXPO_START_LINE          = 0x32
+OGMACAM_IOCONTROLTYPE_GET_EXPO_END_LINE            = 0x33  # exposure end line, default: 0
+                                                           # end line must be no less than start line
+OGMACAM_IOCONTROLTYPE_SET_EXPO_END_LINE            = 0x34
+OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE        = 0x35  # exposure event: 0 => specified line, 1 => common exposure time
+OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE        = 0x36
+OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE       = 0x37  # Output Counter Value, range: [0 ~ 65535]
+OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE       = 0x38
+OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE             = 0x3a  # Output pause: 1 => puase, 0 => unpause
+OGMACAM_IOCONTROLTYPE_GET_INPUT_STATE              = 0x3b  # Input state: 0 (low level) or 1 (high level)
+OGMACAM_IOCONTROLTYPE_GET_USER_PULSE_HIGH          = 0x3d  # User pulse high level time: us
+OGMACAM_IOCONTROLTYPE_SET_USER_PULSE_HIGH          = 0x3e
+OGMACAM_IOCONTROLTYPE_GET_USER_PULSE_LOW           = 0x3f  # User pulse low level time: us
+OGMACAM_IOCONTROLTYPE_SET_USER_PULSE_LOW           = 0x40
+OGMACAM_IOCONTROLTYPE_GET_USER_PULSE_NUMBER        = 0x41  # User pulse number: default 0
+OGMACAM_IOCONTROLTYPE_SET_USER_PULSE_NUMBER        = 0x42
+OGMACAM_IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER  = 0x43  # External trigger number
+OGMACAM_IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = 0x45  # Trigger signal number after debounce
+OGMACAM_IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = 0x47  # Effective trigger signal number
 
 OGMACAM_IOCONTROL_DELAYTIME_MAX                 = 5 * 1000 * 1000
 
@@ -464,6 +483,7 @@ OGMACAM_AFMODE_AUTO           = 0x3   # autofocus mode
 OGMACAM_AFMODE_NONE           = 0x4   # no active selection of focus mode
 OGMACAM_AFMODE_IDLE           = 0x5
 
+OGMACAM_AFSTATUS_NA           = 0x0   # Not available
 OGMACAM_AFSTATUS_PEAKPOINT    = 0x1   # Focus completed, find the focus position
 OGMACAM_AFSTATUS_DEFOCUS      = 0x2   # End of focus, defocus
 OGMACAM_AFSTATUS_NEAR         = 0x3   # Focusing ended, object too close
@@ -534,10 +554,10 @@ E_TIMEOUT       = 0x8001011f # This operation returned because the timeout perio
 OGMACAM_EXPOGAIN_DEF             = 100      # exposure gain, default value
 OGMACAM_EXPOGAIN_MIN             = 100      # exposure gain, minimum value
 OGMACAM_TEMP_DEF                 = 6503     # color temperature, default value
-OGMACAM_TEMP_MIN                 = 1000     # color temperature, minimum value
-OGMACAM_TEMP_MAX                 = 25000    # color temperature, maximum value
+OGMACAM_TEMP_MIN                 = 2000     # color temperature, minimum value
+OGMACAM_TEMP_MAX                 = 15000    # color temperature, maximum value
 OGMACAM_TINT_DEF                 = 1000     # tint
-OGMACAM_TINT_MIN                 = 100      # tint
+OGMACAM_TINT_MIN                 = 200      # tint
 OGMACAM_TINT_MAX                 = 2500     # tint
 OGMACAM_HUE_DEF                  = 0        # hue
 OGMACAM_HUE_MIN                  = -180     # hue
@@ -579,18 +599,15 @@ OGMACAM_SHARPENING_THRESHOLD_MAX = 255      # sharpening threshold
 OGMACAM_AUTOEXPO_THRESHOLD_DEF   = 5        # auto exposure threshold
 OGMACAM_AUTOEXPO_THRESHOLD_MIN   = 2        # auto exposure threshold
 OGMACAM_AUTOEXPO_THRESHOLD_MAX   = 15       # auto exposure threshold
-OGMACAM_AUTOEXPO_DAMP_DEF        = 0        # auto exposure damp: thousandths
-OGMACAM_AUTOEXPO_DAMP_MIN        = 0        # auto exposure damp: thousandths
-OGMACAM_AUTOEXPO_DAMP_MAX        = 1000     # auto exposure damp: thousandths
+OGMACAM_AUTOEXPO_DAMP_DEF        = 0        # auto exposure damping coefficient: thousandths
+OGMACAM_AUTOEXPO_DAMP_MIN        = 0        # auto exposure damping coefficient: thousandths
+OGMACAM_AUTOEXPO_DAMP_MAX        = 1000     # auto exposure damping coefficient: thousandths
 OGMACAM_BANDWIDTH_DEF            = 100      # bandwidth
 OGMACAM_BANDWIDTH_MIN            = 1        # bandwidth
 OGMACAM_BANDWIDTH_MAX            = 100      # bandwidth
 OGMACAM_DENOISE_DEF              = 0        # denoise
 OGMACAM_DENOISE_MIN              = 0        # denoise
 OGMACAM_DENOISE_MAX              = 100      # denoise
-OGMACAM_TEC_TARGET_MIN           = -500     # TEC target: -50.0 degrees Celsius
-OGMACAM_TEC_TARGET_DEF           = 100      # TEC target: 10.0 degrees Celsius
-OGMACAM_TEC_TARGET_MAX           = 400      # TEC target: 40.0 degrees Celsius
 OGMACAM_HEARTBEAT_MIN            = 100      # millisecond
 OGMACAM_HEARTBEAT_MAX            = 10000    # millisecond
 OGMACAM_AE_PERCENT_MIN           = 0        # auto exposure percent; 0 or 100 => full roi average, means "disabled"
@@ -847,7 +864,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 55.25159.20240404"""
+        """get the version of this dll, which is: 56.25817.20240616"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -1721,6 +1738,17 @@ class Ogmacam:
         else:
             raise HRESULTException(0x80070057)
 
+    def get_TecTargetRange(self):
+        """TEC Target range: [min, max]"""
+        x = ctypes.c_int(0)
+        self.__lib.Ogmacam_get_Option(self.__h, OGMACAM_OPTION_TECTARGET_RANGE, ctypes.byref(x))
+        low, high = x.value & 0xffff, (x.value >> 16) & 0xffff
+        if low > 32767:
+            low = low - 65536
+        if high > 32767:
+            high = high - 65536
+        return (low, high)
+    
     def get_Temperature(self):
         """get the temperature of the sensor, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)"""
         x = ctypes.c_short(0)

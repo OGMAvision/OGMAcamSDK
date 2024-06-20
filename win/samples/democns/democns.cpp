@@ -423,13 +423,18 @@ private:
 			DWORD val = 0;
 			m_regkey.QueryDWORDValue(L"tec", val);
 			CheckDlgButton(IDC_CHECK3, val ? 1 : 0);
-			val = OGMACAM_TEC_TARGET_DEF;
+			val = 0;
 			m_regkey.QueryDWORDValue(L"tectarget", val);
 			int tectarget = (int)val;
-			if (tectarget < OGMACAM_TEC_TARGET_MIN)
-				tectarget = OGMACAM_TEC_TARGET_MIN;
-			else if (tectarget > OGMACAM_TEC_TARGET_MAX)
-				tectarget = OGMACAM_TEC_TARGET_MAX;
+			{
+				int range = 0;
+				Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TECTARGET_RANGE, &range);
+				const short minr = range & 0xffff, maxr = (range >> 16) & 0xffff;
+				if (tectarget < minr)
+					tectarget = minr;
+				else if (tectarget > maxr)
+					tectarget = maxr;
+			}
 			SetDlgItemText(IDC_EDIT7, (LPCTSTR)FormatString(L"%.1f", tectarget / 10.0));
 		}
 		else
@@ -486,10 +491,15 @@ private:
 				if (GetDlgDouble(this, IDC_EDIT7, d))
 					return 0;
 				const int n = (int)(d * 10.0);
-				if ((n < OGMACAM_TEC_TARGET_MIN) || (n > OGMACAM_TEC_TARGET_MAX))
 				{
-					AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Tec target out of range [%.1f, %.1f].", OGMACAM_TEC_TARGET_MIN / 10.0, OGMACAM_TEC_TARGET_MAX / 10.0), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
-					return 0;
+					int range = 0;
+					Ogmacam_get_Option(m_hcam, OGMACAM_OPTION_TECTARGET_RANGE, &range);
+					const short minr = range & 0xffff, maxr = (range >> 16) & 0xffff;
+					if ((n < minr) || (n > maxr))
+					{
+						AtlMessageBox(m_hWnd, (LPCTSTR)FormatString(L"Tec target out of range [%.1f, %.1f].", minr / 10.0, maxr / 10.0), (LPCTSTR)nullptr, MB_OK | MB_ICONWARNING);
+						return 0;
+					}
 				}
 				Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_TECTARGET, n);
 				m_regkey.SetDWORDValue(L"tectarget", (DWORD)n);

@@ -3,16 +3,6 @@
 
 #define MY_EXPOTUER_TIME_MAX 500000
 
-struct LensStatusInEEPROM
-{
-	bool        bSet_Default;
-	USHORT      usID;
-	SHORT       sFM_Cur;
-	char        cFNumber_Index;
-	unsigned	uiExpTime;
-	USHORT      usGain;
-};
-
 typedef struct
 {
 	USHORT usSize_X;
@@ -32,7 +22,10 @@ class CdemoafDlg : public CDialog
 	OgmacamLensInfo m_afLensInfo;
 
 	bool m_bLensCal_Update_Done;
-	unsigned char m_ucAM_Max_Previous;
+	bool m_bLensStatus_Update_Done;
+	const char* m_cFNMax_Previous;
+	int m_iNearFM;
+	int m_iFarFM;
 
 public:
 	CdemoafDlg(CWnd* pParent = NULL);
@@ -91,8 +84,12 @@ private:
 	void SetAEAuxRect();
 	void SetClarityRect();
 	void SetFrameRateLimit();
+	void SetLensStatus();
 	CRect SetDisplayLimit(CRect rect);
 	void AF_FocusDlg_Init();
 	void AF_APDlg_Init();
 	void SetFocusFNControl(BOOL bControll);
+public:
+	afx_msg void OnBnClickedButtonSaveStatus();
+	afx_msg void OnBnClickedButtonLoadStatus();
 };

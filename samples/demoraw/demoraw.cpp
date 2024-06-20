@@ -109,10 +109,7 @@ int main(int, char**)
                 bool bloop = true;
                 while (bloop)
                 {
-                    if (tdev[0].model->still)
-                        printf("press x to exit, s to save raw, any other key to snap\n");
-                    else
-                        printf("press s to save raw, any other key to exit\n");
+                    printf("press s to save raw, any other key to exit\n");
                     switch (getch())
                     {
                     case 'x':

@@ -1,7 +1,7 @@
 #ifndef __ogmacam_h__
 #define __ogmacam_h__
 
-/* Version: 55.25159.20240404 */
+/* Version: 56.25817.20240616 */
 /*
    Platform & Architecture:
        (1) Win32:
@@ -175,10 +175,10 @@ typedef struct Ogmacam_t { int unused; } *HOgmacam;
 #define OGMACAM_EXPOGAIN_DEF             100     /* exposure gain, default value */
 #define OGMACAM_EXPOGAIN_MIN             100     /* exposure gain, minimum value */
 #define OGMACAM_TEMP_DEF                 6503    /* color temperature, default value */
-#define OGMACAM_TEMP_MIN                 1000    /* color temperature, minimum value */
-#define OGMACAM_TEMP_MAX                 25000   /* color temperature, maximum value */
+#define OGMACAM_TEMP_MIN                 2000    /* color temperature, minimum value */
+#define OGMACAM_TEMP_MAX                 15000   /* color temperature, maximum value */
 #define OGMACAM_TINT_DEF                 1000    /* tint */
-#define OGMACAM_TINT_MIN                 100     /* tint */
+#define OGMACAM_TINT_MIN                 200     /* tint */
 #define OGMACAM_TINT_MAX                 2500    /* tint */
 #define OGMACAM_HUE_DEF                  0       /* hue */
 #define OGMACAM_HUE_MIN                  (-180)  /* hue */
@@ -220,18 +220,15 @@ typedef struct Ogmacam_t { int unused; } *HOgmacam;
 #define OGMACAM_AUTOEXPO_THRESHOLD_DEF   5       /* auto exposure threshold */
 #define OGMACAM_AUTOEXPO_THRESHOLD_MIN   2       /* auto exposure threshold */
 #define OGMACAM_AUTOEXPO_THRESHOLD_MAX   15      /* auto exposure threshold */
-#define OGMACAM_AUTOEXPO_DAMP_DEF        0       /* auto exposure damp: thousandths */
-#define OGMACAM_AUTOEXPO_DAMP_MIN        0       /* auto exposure damp: thousandths */
-#define OGMACAM_AUTOEXPO_DAMP_MAX        1000    /* auto exposure damp: thousandths */
+#define OGMACAM_AUTOEXPO_DAMP_DEF        0       /* auto exposure damping coefficient: thousandths */
+#define OGMACAM_AUTOEXPO_DAMP_MIN        0       /* auto exposure damping coefficient: thousandths */
+#define OGMACAM_AUTOEXPO_DAMP_MAX        1000    /* auto exposure damping coefficient: thousandths */
 #define OGMACAM_BANDWIDTH_DEF            100     /* bandwidth */
 #define OGMACAM_BANDWIDTH_MIN            1       /* bandwidth */
 #define OGMACAM_BANDWIDTH_MAX            100     /* bandwidth */
 #define OGMACAM_DENOISE_DEF              0       /* denoise */
 #define OGMACAM_DENOISE_MIN              0       /* denoise */
 #define OGMACAM_DENOISE_MAX              100     /* denoise */
-#define OGMACAM_TEC_TARGET_MIN           (-500)  /* TEC target: -50.0 degrees Celsius */
-#define OGMACAM_TEC_TARGET_DEF           100     /* 10.0 degrees Celsius */
-#define OGMACAM_TEC_TARGET_MAX           400     /* TEC target: 40.0 degrees Celsius */
 #define OGMACAM_HEARTBEAT_MIN            100     /* millisecond */
 #define OGMACAM_HEARTBEAT_MAX            10000   /* millisecond */
 #define OGMACAM_AE_PERCENT_MIN           0       /* auto exposure percent; 0 or 100 => full roi average, means "disabled" */
@@ -275,21 +272,21 @@ typedef struct {
     float               xpixsz;      /* physical pixel size in micrometer */
     float               ypixsz;      /* physical pixel size in micrometer */
     OgmacamResolution   res[16];
-} OgmacamModelV2; /* camera model v2 */
+} OgmacamModelV2; /* device model v2 */
 
 typedef struct {
 #if defined(_WIN32)
-    wchar_t               displayname[64];    /* display name */
+    wchar_t               displayname[64];    /* display name: model name or user-defined name (if any and Ogmacam_EnumWithName) */
     wchar_t               id[64];             /* unique and opaque id of a connected camera, for Ogmacam_Open */
 #else
-    char                  displayname[64];    /* display name */
+    char                  displayname[64];    /* display name: model name or user-defined name (if any and Ogmacam_EnumWithName) */
     char                  id[64];             /* unique and opaque id of a connected camera, for Ogmacam_Open */
 #endif
     const OgmacamModelV2* model;
-} OgmacamDeviceV2; /* camera instance for enumerating */
+} OgmacamDeviceV2; /* device instance for enumerating */
 
 /*
-    get the version of this dll/so/dylib, which is: 55.25159.20240404
+    get the version of this dll/so/dylib, which is: 56.25817.20240616
 */
 #if defined(_WIN32)
 OGMACAM_API(const wchar_t*)   Ogmacam_Version();
@@ -847,7 +844,7 @@ OGMACAM_API(HRESULT)  Ogmacam_feed_Pipe(HOgmacam h, unsigned pipeId);
                                                              3: Gain Preferred
                                                              default value: 1
                                                          */
-#define OGMACAM_OPTION_FRAMERATE              0x11       /* limit the frame rate, range=[0, 63], the default value 0 means no limit */
+#define OGMACAM_OPTION_FRAMERATE              0x11       /* limit the frame rate, the default value 0 means no limit */
 #define OGMACAM_OPTION_DEMOSAIC               0x12       /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0 */
 #define OGMACAM_OPTION_DEMOSAIC_VIDEO         0x13       /* demosaic method for video */
 #define OGMACAM_OPTION_DEMOSAIC_STILL         0x14       /* demosaic method for still image */
@@ -1032,8 +1029,8 @@ OGMACAM_API(HRESULT)  Ogmacam_feed_Pipe(HOgmacam h, unsigned pipeId);
 #define OGMACAM_OPTION_OVERCLOCK              0x5d       /* overclock, default: 0 */
 #define OGMACAM_OPTION_RESET_SENSOR           0x5e       /* reset sensor */
 #define OGMACAM_OPTION_ISP                    0x5f       /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
-#define OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  0x60       /* Auto exposure damp: time (thousandths) */
-#define OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      0x61       /* Auto exposure damp: gain (thousandths) */
+#define OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  0x60       /* Auto exposure damping coefficient: time (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes */
+#define OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      0x61       /* Auto exposure damping coefficient: gain (thousandths). The larger the damping coefficient, the smoother and slower the gain changes */
 #define OGMACAM_OPTION_MOTOR_NUMBER           0x62       /* range: [1, 20] */
 #define OGMACAM_OPTION_MOTOR_POS              0x10000000 /* range: [1, 702] */
 #define OGMACAM_OPTION_PSEUDO_COLOR_START     0x63       /* Pseudo: start color, BGR format */
@@ -1063,6 +1060,9 @@ OGMACAM_API(HRESULT)  Ogmacam_feed_Pipe(HOgmacam h, unsigned pipeId);
                                                                     21 => twilight
                                                                     22 => twilight_shifted
                                                                     23 => turbo
+                                                                    24 => red
+                                                                    25 => green
+                                                                    26 => blue
                                                          */
 #define OGMACAM_OPTION_LOW_POWERCONSUMPTION   0x66       /* Low Power Consumption: 0 => disable, 1 => enable */
 #define OGMACAM_OPTION_FPNC                   0x67       /* Fix Pattern Noise Correction
@@ -1079,12 +1079,20 @@ OGMACAM_API(HRESULT)  Ogmacam_feed_Pipe(HOgmacam h, unsigned pipeId);
 #define OGMACAM_OPTION_OVEREXP_POLICY         0x68       /* Auto exposure over exposure policy: when overexposed,
                                                                 0 => directly reduce the exposure time/gain to the minimum value; or
                                                                 1 => reduce exposure time/gain in proportion to current and target brightness.
+                                                                n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
                                                             The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
                                                             Policy 1 avoids the black screen, but the convergence speed is slower.
                                                             Default: 0
                                                          */
 #define OGMACAM_OPTION_READOUT_MODE           0x69       /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
 #define OGMACAM_OPTION_TAILLIGHT              0x6a       /* Turn on/off tail Led light: 0 => off, 1 => on; default: on */
+#define OGMACAM_OPTION_LENSSTATE              0x6b       /* Load/Save lens state to EEPROM: 0 => load, 1 => save */
+#define OGMACAM_OPTION_AWB_CONTINUOUS         0x6c       /* Auto White Balance: continuous mode
+                                                                0:  disable (default)
+                                                                n>0: every n millisecond(s)
+                                                                n<0: every -n frame
+                                                         */
+#define OGMACAM_OPTION_TECTARGET_RANGE        0x6d       /* TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff) */
 
 /* pixel format */
 #define OGMACAM_PIXELFORMAT_RAW8              0x00
@@ -1130,91 +1138,100 @@ OGMACAM_API(HRESULT)  Ogmacam_put_RoiN(HOgmacam h, unsigned xOffset[], unsigned 
 
 OGMACAM_API(HRESULT)  Ogmacam_put_XY(HOgmacam h, int x, int y);
 
-#define OGMACAM_IOCONTROLTYPE_GET_SUPPORTEDMODE           0x01 /* 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output */
-#define OGMACAM_IOCONTROLTYPE_GET_GPIODIR                 0x03 /* 0x00 => Input, 0x01 => Output */
-#define OGMACAM_IOCONTROLTYPE_SET_GPIODIR                 0x04
-#define OGMACAM_IOCONTROLTYPE_GET_FORMAT                  0x05 /*
-                                                                   0x00 => not connected
-                                                                   0x01 => Tri-state: Tri-state mode (Not driven)
-                                                                   0x02 => TTL: TTL level signals
-                                                                   0x03 => LVDS: LVDS level signals
-                                                                   0x04 => RS422: RS422 level signals
-                                                                   0x05 => Opto-coupled
-                                                               */
-#define OGMACAM_IOCONTROLTYPE_SET_FORMAT                  0x06
-#define OGMACAM_IOCONTROLTYPE_GET_OUTPUTINVERTER          0x07 /* boolean, only support output signal */
-#define OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER          0x08
-#define OGMACAM_IOCONTROLTYPE_GET_INPUTACTIVATION         0x09 /* 0x00 => Rising edge, 0x01 => Falling edge, 0x02 => Level high, 0x03 => Level low */
-#define OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION         0x0a
-#define OGMACAM_IOCONTROLTYPE_GET_DEBOUNCERTIME           0x0b /* debouncer time in microseconds, range: [0, 20000] */
-#define OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME           0x0c
-#define OGMACAM_IOCONTROLTYPE_GET_TRIGGERSOURCE           0x0d /*
-                                                                  0x00 => Opto-isolated input
-                                                                  0x01 => GPIO0
-                                                                  0x02 => GPIO1
-                                                                  0x03 => Counter
-                                                                  0x04 => PWM
-                                                                  0x05 => Software
-                                                               */
-#define OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE           0x0e
-#define OGMACAM_IOCONTROLTYPE_GET_TRIGGERDELAY            0x0f /* Trigger delay time in microseconds, range: [0, 5000000] */
-#define OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY            0x10
-#define OGMACAM_IOCONTROLTYPE_GET_BURSTCOUNTER            0x11 /* Burst Counter, range: [1 ~ 65535] */
-#define OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER            0x12
-#define OGMACAM_IOCONTROLTYPE_GET_COUNTERSOURCE           0x13 /* 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1 */
-#define OGMACAM_IOCONTROLTYPE_SET_COUNTERSOURCE           0x14
-#define OGMACAM_IOCONTROLTYPE_GET_COUNTERVALUE            0x15 /* Counter Value, range: [1 ~ 65535] */
-#define OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE            0x16
-#define OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER            0x18
-#define OGMACAM_IOCONTROLTYPE_GET_PWM_FREQ                0x19
-#define OGMACAM_IOCONTROLTYPE_SET_PWM_FREQ                0x1a
-#define OGMACAM_IOCONTROLTYPE_GET_PWM_DUTYRATIO           0x1b
-#define OGMACAM_IOCONTROLTYPE_SET_PWM_DUTYRATIO           0x1c
-#define OGMACAM_IOCONTROLTYPE_GET_PWMSOURCE               0x1d /* 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1 */
-#define OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE               0x1e
-#define OGMACAM_IOCONTROLTYPE_GET_OUTPUTMODE              0x1f /*
-                                                                  0x00 => Frame Trigger Wait
-                                                                  0x01 => Exposure Active
-                                                                  0x02 => Strobe
-                                                                  0x03 => User output
-                                                                  0x04 => Counter Output
-                                                                  0x05 => Timer Output
-                                                               */
-#define OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE              0x20
-#define OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYMODE         0x21 /* boolean, 0 => pre-delay, 1 => delay; compared to exposure active signal */
-#define OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE         0x22
-#define OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYTIME         0x23 /* Strobe delay or pre-delay time in microseconds, range: [0, 5000000] */
-#define OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME         0x24
-#define OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION          0x25 /* Strobe duration time in microseconds, range: [0, 5000000] */
-#define OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION          0x26
-#define OGMACAM_IOCONTROLTYPE_GET_USERVALUE               0x27 /*
-                                                                  bit0 => Opto-isolated output
-                                                                  bit1 => GPIO0 output
-                                                                  bit2 => GPIO1 output
-                                                               */
-#define OGMACAM_IOCONTROLTYPE_SET_USERVALUE               0x28
-#define OGMACAM_IOCONTROLTYPE_GET_UART_ENABLE             0x29 /* enable: 1 => on; 0 => off */
-#define OGMACAM_IOCONTROLTYPE_SET_UART_ENABLE             0x2a
-#define OGMACAM_IOCONTROLTYPE_GET_UART_BAUDRATE           0x2b /* baud rate: 0 => 9600; 1 => 19200; 2 => 38400; 3 => 57600; 4 => 115200 */
-#define OGMACAM_IOCONTROLTYPE_SET_UART_BAUDRATE           0x2c
-#define OGMACAM_IOCONTROLTYPE_GET_UART_LINEMODE           0x2d /* line mode: 0 => TX(GPIO_0)/RX(GPIO_1); 1 => TX(GPIO_1)/RX(GPIO_0) */
-#define OGMACAM_IOCONTROLTYPE_SET_UART_LINEMODE           0x2e
-#define OGMACAM_IOCONTROLTYPE_GET_EXPO_ACTIVE_MODE        0x2f /* exposure time signal: 0 => specified line, 1 => common exposure time */
-#define OGMACAM_IOCONTROLTYPE_SET_EXPO_ACTIVE_MODE        0x30
-#define OGMACAM_IOCONTROLTYPE_GET_EXPO_START_LINE         0x31 /* exposure start line, default: 0 */
-#define OGMACAM_IOCONTROLTYPE_SET_EXPO_START_LINE         0x32
-#define OGMACAM_IOCONTROLTYPE_GET_EXPO_END_LINE           0x33 /* exposure end line, default: 0
-                                                                  end line must be no less than start line
-                                                               */
-#define OGMACAM_IOCONTROLTYPE_SET_EXPO_END_LINE           0x34
-#define OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE       0x35 /* exposure event: 0 => specified line, 1 => common exposure time */
-#define OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE       0x36
-#define OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE      0x37 /* Output Counter Value, range: [0 ~ 65535] */
-#define OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE      0x38
-#define OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE            0x3a /* Output pause: 1 => puase, 0 => unpause */
-#define OGMACAM_IOCONTROLTYPE_GET_INPUT_STATE             0x3c /* Input state: 0 (low level) or 1 (high level) */
+#define OGMACAM_IOCONTROLTYPE_GET_SUPPORTEDMODE            0x01 /* 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output */
+#define OGMACAM_IOCONTROLTYPE_GET_GPIODIR                  0x03 /* 0x00 => Input, 0x01 => Output */
+#define OGMACAM_IOCONTROLTYPE_SET_GPIODIR                  0x04
+#define OGMACAM_IOCONTROLTYPE_GET_FORMAT                   0x05 /*
+                                                                    0x00 => not connected
+                                                                    0x01 => Tri-state: Tri-state mode (Not driven)
+                                                                    0x02 => TTL: TTL level signals
+                                                                    0x03 => LVDS: LVDS level signals
+                                                                    0x04 => RS422: RS422 level signals
+                                                                    0x05 => Opto-coupled
+                                                                */
+#define OGMACAM_IOCONTROLTYPE_SET_FORMAT                   0x06
+#define OGMACAM_IOCONTROLTYPE_GET_OUTPUTINVERTER           0x07 /* boolean, only support output signal */
+#define OGMACAM_IOCONTROLTYPE_SET_OUTPUTINVERTER           0x08
+#define OGMACAM_IOCONTROLTYPE_GET_INPUTACTIVATION          0x09 /* 0x00 => Rising edge, 0x01 => Falling edge, 0x02 => Level high, 0x03 => Level low */
+#define OGMACAM_IOCONTROLTYPE_SET_INPUTACTIVATION          0x0a
+#define OGMACAM_IOCONTROLTYPE_GET_DEBOUNCERTIME            0x0b /* debouncer time in microseconds, range: [0, 20000] */
+#define OGMACAM_IOCONTROLTYPE_SET_DEBOUNCERTIME            0x0c
+#define OGMACAM_IOCONTROLTYPE_GET_TRIGGERSOURCE            0x0d /*
+                                                                   0x00 => Opto-isolated input
+                                                                   0x01 => GPIO0
+                                                                   0x02 => GPIO1
+                                                                   0x03 => Counter
+                                                                   0x04 => PWM
+                                                                   0x05 => Software
+                                                                */
+#define OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE            0x0e
+#define OGMACAM_IOCONTROLTYPE_GET_TRIGGERDELAY             0x0f /* Trigger delay time in microseconds, range: [0, 5000000] */
+#define OGMACAM_IOCONTROLTYPE_SET_TRIGGERDELAY             0x10
+#define OGMACAM_IOCONTROLTYPE_GET_BURSTCOUNTER             0x11 /* Burst Counter, range: [1 ~ 65535] */
+#define OGMACAM_IOCONTROLTYPE_SET_BURSTCOUNTER             0x12
+#define OGMACAM_IOCONTROLTYPE_GET_COUNTERSOURCE            0x13 /* 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1 */
+#define OGMACAM_IOCONTROLTYPE_SET_COUNTERSOURCE            0x14
+#define OGMACAM_IOCONTROLTYPE_GET_COUNTERVALUE             0x15 /* Counter Value, range: [1 ~ 65535] */
+#define OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE             0x16
+#define OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER             0x18
+#define OGMACAM_IOCONTROLTYPE_GET_PWM_FREQ                 0x19
+#define OGMACAM_IOCONTROLTYPE_SET_PWM_FREQ                 0x1a
+#define OGMACAM_IOCONTROLTYPE_GET_PWM_DUTYRATIO            0x1b
+#define OGMACAM_IOCONTROLTYPE_SET_PWM_DUTYRATIO            0x1c
+#define OGMACAM_IOCONTROLTYPE_GET_PWMSOURCE                0x1d /* 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1 */
+#define OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE                0x1e
+#define OGMACAM_IOCONTROLTYPE_GET_OUTPUTMODE               0x1f /*
+                                                                   0x00 => Frame Trigger Wait
+                                                                   0x01 => Exposure Active
+                                                                   0x02 => Strobe
+                                                                   0x03 => User output
+                                                                   0x04 => Counter Output
+                                                                   0x05 => Timer Output
+                                                                */
+#define OGMACAM_IOCONTROLTYPE_SET_OUTPUTMODE               0x20
+#define OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYMODE          0x21 /* boolean, 0 => pre-delay, 1 => delay; compared to exposure active signal */
+#define OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYMODE          0x22
+#define OGMACAM_IOCONTROLTYPE_GET_STROBEDELAYTIME          0x23 /* Strobe delay or pre-delay time in microseconds, range: [0, 5000000] */
+#define OGMACAM_IOCONTROLTYPE_SET_STROBEDELAYTIME          0x24
+#define OGMACAM_IOCONTROLTYPE_GET_STROBEDURATION           0x25 /* Strobe duration time in microseconds, range: [0, 5000000] */
+#define OGMACAM_IOCONTROLTYPE_SET_STROBEDURATION           0x26
+#define OGMACAM_IOCONTROLTYPE_GET_USERVALUE                0x27 /*
+                                                                   bit0 => Opto-isolated output
+                                                                   bit1 => GPIO0 output
+                                                                   bit2 => GPIO1 output
+                                                                */
+#define OGMACAM_IOCONTROLTYPE_SET_USERVALUE                0x28
+#define OGMACAM_IOCONTROLTYPE_GET_UART_ENABLE              0x29 /* enable: 1 => on; 0 => off */
+#define OGMACAM_IOCONTROLTYPE_SET_UART_ENABLE              0x2a
+#define OGMACAM_IOCONTROLTYPE_GET_UART_BAUDRATE            0x2b /* baud rate: 0 => 9600; 1 => 19200; 2 => 38400; 3 => 57600; 4 => 115200 */
+#define OGMACAM_IOCONTROLTYPE_SET_UART_BAUDRATE            0x2c
+#define OGMACAM_IOCONTROLTYPE_GET_UART_LINEMODE            0x2d /* line mode: 0 => TX(GPIO_0)/RX(GPIO_1); 1 => TX(GPIO_1)/RX(GPIO_0) */
+#define OGMACAM_IOCONTROLTYPE_SET_UART_LINEMODE            0x2e
+#define OGMACAM_IOCONTROLTYPE_GET_EXPO_ACTIVE_MODE         0x2f /* exposure time signal: 0 => specified line, 1 => common exposure time */
+#define OGMACAM_IOCONTROLTYPE_SET_EXPO_ACTIVE_MODE         0x30
+#define OGMACAM_IOCONTROLTYPE_GET_EXPO_START_LINE          0x31 /* exposure start line, default: 0 */
+#define OGMACAM_IOCONTROLTYPE_SET_EXPO_START_LINE          0x32
+#define OGMACAM_IOCONTROLTYPE_GET_EXPO_END_LINE            0x33 /* exposure end line, default: 0
+                                                                   end line must be no less than start line
+                                                                */
+#define OGMACAM_IOCONTROLTYPE_SET_EXPO_END_LINE            0x34
+#define OGMACAM_IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE        0x35 /* exposure event: 0 => specified line, 1 => common exposure time */
+#define OGMACAM_IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE        0x36
+#define OGMACAM_IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE       0x37 /* Output Counter Value, range: [0 ~ 65535] */
+#define OGMACAM_IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE       0x38
+#define OGMACAM_IOCONTROLTYPE_SET_OUTPUT_PAUSE             0x3a /* Output pause: 1 => puase, 0 => unpause */
+#define OGMACAM_IOCONTROLTYPE_GET_INPUT_STATE              0x3b /* Input state: 0 (low level) or 1 (high level) */
+#define OGMACAM_IOCONTROLTYPE_GET_USER_PULSE_HIGH          0x3d /* User pulse high level time: us */
+#define OGMACAM_IOCONTROLTYPE_SET_USER_PULSE_HIGH          0x3e
+#define OGMACAM_IOCONTROLTYPE_GET_USER_PULSE_LOW           0x3f /* User pulse low level time: us */
+#define OGMACAM_IOCONTROLTYPE_SET_USER_PULSE_LOW           0x40
+#define OGMACAM_IOCONTROLTYPE_GET_USER_PULSE_NUMBER        0x41 /* User pulse number: default 0 */
+#define OGMACAM_IOCONTROLTYPE_SET_USER_PULSE_NUMBER        0x42
+#define OGMACAM_IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER  0x43 /* External trigger number */
+#define OGMACAM_IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER 0x45 /* Trigger signal number after debounce */
+#define OGMACAM_IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER 0x47 /* Effective trigger signal number */
 
-#define OGMACAM_IOCONTROL_DELAYTIME_MAX                   (5 * 1000 * 1000)
+#define OGMACAM_IOCONTROL_DELAYTIME_MAX                    (5 * 1000 * 1000)
 
 /*
   ioLineNumber:
@@ -1283,6 +1300,17 @@ Recommendation: for better rubustness, when notify of device insertion arrives, 
 OGMACAM_API(void)   Ogmacam_HotPlug(POGMACAM_HOTPLUG funHotPlug, void* ctxHotPlug);
 #endif
 
+OGMACAM_API(unsigned) Ogmacam_EnumWithName(OgmacamDeviceV2 pti[OGMACAM_MAX]);
+OGMACAM_API(HRESULT)  Ogmacam_set_Name(HOgmacam h, const char* name);
+OGMACAM_API(HRESULT)  Ogmacam_query_Name(HOgmacam h, char name[64]);
+#if defined(_WIN32)
+OGMACAM_API(HRESULT)  Ogmacam_put_Name(const wchar_t* camId, const char* name);
+OGMACAM_API(HRESULT)  Ogmacam_get_Name(const wchar_t* camId, char name[64]);
+#else
+OGMACAM_API(HRESULT)  Ogmacam_put_Name(const char* camId, const char* name);
+OGMACAM_API(HRESULT)  Ogmacam_get_Name(const char* camId, char name[64]);
+#endif
+
 typedef struct {
     unsigned short lensID;
     unsigned char  lensType;
@@ -1325,6 +1353,7 @@ typedef enum
 
 typedef enum
 {
+    OgmacamAFStatus_NA           = 0x0,/* Not available */
     OgmacamAFStatus_PEAKPOINT    = 0x1,/* Focus completed, find the focus position */
     OgmacamAFStatus_DEFOCUS      = 0x2,/* End of focus, defocus */
     OgmacamAFStatus_NEAR         = 0x3,/* Focusing ended, object too close */
@@ -1607,18 +1636,6 @@ OGMACAM_API(HRESULT)  Ogmacam_get_VignetMidPointInt(HOgmacam h, int* nMidPoint);
 #define OGMACAM_FLAG_BITDEPTH12    OGMACAM_FLAG_RAW12  /* pixel format, RAW 12bits */
 #define OGMACAM_FLAG_BITDEPTH14    OGMACAM_FLAG_RAW14  /* pixel format, RAW 14bits */
 #define OGMACAM_FLAG_BITDEPTH16    OGMACAM_FLAG_RAW16  /* pixel format, RAW 16bits */
-
-
-OGMACAM_API(HRESULT)  Ogmacam_set_Name(HOgmacam h, const char* name);
-OGMACAM_API(HRESULT)  Ogmacam_query_Name(HOgmacam h, char name[64]);
-#if defined(_WIN32)
-OGMACAM_API(HRESULT)  Ogmacam_put_Name(const wchar_t* camId, const char* name);
-OGMACAM_API(HRESULT)  Ogmacam_get_Name(const wchar_t* camId, char name[64]);
-#else
-OGMACAM_API(HRESULT)  Ogmacam_put_Name(const char* camId, const char* name);
-OGMACAM_API(HRESULT)  Ogmacam_get_Name(const char* camId, char name[64]);
-#endif
-OGMACAM_API(unsigned) Ogmacam_EnumWithName(OgmacamDeviceV2 pti[OGMACAM_MAX]);
 
 OGMACAM_API(HRESULT)  Ogmacam_log_File(const
 #if defined(_WIN32)

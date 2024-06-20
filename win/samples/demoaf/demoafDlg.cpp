@@ -85,7 +85,6 @@ static BOOL SaveImageByWIC(const wchar_t* strFilename, const void* pData, const 
 
 CdemoafDlg::CdemoafDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CdemoafDlg::IDD, pParent), m_hcam(NULL), m_pImageData(NULL), m_dFV(0), m_dLum(0)
-	, m_bLensCal_Update_Done(false), m_ucAM_Max_Previous(0)
 {
 	memset(&m_header, 0, sizeof(m_header));
 	m_header.biSize = sizeof(m_header);
@@ -120,6 +119,8 @@ BEGIN_MESSAGE_MAP(CdemoafDlg, CDialog)
 	ON_WM_SIZE()
 	ON_BN_CLICKED(IDC_BUTTON_ONEPUSH, &CdemoafDlg::OnBnClickedButtonOnepush)
 	ON_EN_SETFOCUS(IDC_FOCUSMOTORSTEP, &CdemoafDlg::OnEnSetfocusFocusmotorstep)
+	ON_BN_CLICKED(IDC_BUTTON_SAVE_STATUS, &CdemoafDlg::OnBnClickedButtonSaveStatus)
+	ON_BN_CLICKED(IDC_BUTTON_LOAD_STATUS, &CdemoafDlg::OnBnClickedButtonLoadStatus)
 END_MESSAGE_MAP()
 
 BOOL CdemoafDlg::OnInitDialog()
@@ -541,7 +542,7 @@ void CdemoafDlg::SetClarityRect()
 	m_ClarityROI.usSize_X = rect.right - rect.left;
 	m_ClarityROI.usSize_Y = rect.bottom - rect.top;
 	m_ClarityROI.usOffset_X = rect.left;
-	m_ClarityROI.usOffset_Y = m_header.biHeight - rect.bottom;
+	m_ClarityROI.usOffset_Y = rect.bottom - m_ClarityROI.usSize_Y;
 	Ogmacam_put_AFRoi(m_hcam, m_ClarityROI.usOffset_X, m_ClarityROI.usOffset_Y, m_ClarityROI.usSize_X, m_ClarityROI.usSize_Y);
 }
 
@@ -606,7 +607,7 @@ void CdemoafDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 		unsigned curTime = 0;
 		unsigned time = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER_EXP))->GetPos();
 		Ogmacam_get_ExpoTime(m_hcam, &curTime);
-		if(time != curTime)
+		if (time != curTime)
 		{
 			Ogmacam_put_ExpoTime(m_hcam, time * 1000);
 			SetDlgItemInt(IDC_STATIC_EXP, time, TRUE);
@@ -682,22 +683,24 @@ void CdemoafDlg::OnBnClickedFocusmotordown()
 
 void CdemoafDlg::AF_FocusDlg_Init()
 {
-	SetDlgItemInt(IDC_FOCUSMOTORMIN, 0);
+	SetDlgItemInt(IDC_FOCUSMOTORMIN, m_afLensInfo.nearFM);
 	SetDlgItemInt(IDC_FOCUSMOTORMAX, m_afLensInfo.farFM);
 	m_slider_foc.SetRange(0, m_afLensInfo.farFM);
 	m_slider_foc.SetTicFreq(200);
-	m_slider_foc.SetPos(0);
+	m_slider_foc.SetPos(m_afLensInfo.curFM);
 	SetDlgItemInt(IDC_STATIC_FOCUSMOTOR, m_afLensInfo.curFM);
+	m_iNearFM = m_afLensInfo.nearFM;
+	m_iFarFM = m_afLensInfo.farFM;
 }
 
 void CdemoafDlg::AF_APDlg_Init()
 {
 	m_slider_ap.SetRange(0, m_afLensInfo.sizeFN - 1);
-	m_slider_ap.SetPos(0);
+	m_slider_ap.SetPos(m_afLensInfo.posAM);
 
 	SetDlgItemText(IDC_FNUMBERMIN, CA2W(m_afLensInfo.arrayFN[0]));
 	SetDlgItemText(IDC_FNUMBERMAX, CA2W(m_afLensInfo.arrayFN[m_afLensInfo.sizeFN - 1]));
-
+	m_cFNMax_Previous = m_afLensInfo.arrayFN[0];
 	m_combo_aperture.ResetContent();
 	for (int i = 0; i < m_afLensInfo.sizeFN; i++)
 		m_combo_aperture.AddString(CA2W(m_afLensInfo.arrayFN[i]));
@@ -716,34 +719,34 @@ void CdemoafDlg::OnTimer(UINT_PTR nIDEvent)
 		SetDlgItemText(IDC_STATIC_FV_LUM, str_fv_lum);
 		UpdateData(TRUE);
 		OgmacamAFState afStatus;
-		if (SUCCEEDED(Ogmacam_get_AFState(m_hcam, &afStatus)) && SUCCEEDED(Ogmacam_get_LensInfo(m_hcam, &m_afLensInfo)))
+		if (SUCCEEDED(Ogmacam_get_LensInfo(m_hcam, &m_afLensInfo)) && SUCCEEDED(Ogmacam_get_AFState(m_hcam, &afStatus)))
 		{
-			if (!m_bLensCal_Update_Done)//data needs to be updated after calibration is completed
+			if ( ((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->GetCheck())
 			{
-				AF_FocusDlg_Init();
-				AF_APDlg_Init();
-				SetDlgItemInt(IDC_EDIT_LENSID, m_afLensInfo.lensID);
-				SetDlgItemInt(IDC_EDIT_LENSFMIN, m_afLensInfo.minFocalLength);
-				SetDlgItemInt(IDC_EDIT_LENSFMAX, m_afLensInfo.maxFocalLength);
-				SetDlgItemInt(IDC_EDIT_LENSFCUR, m_afLensInfo.curFocalLength);
-				SetDlgItemInt(IDC_EDIT_LENSFOCUSMOTOR, m_afLensInfo.curFM);
-				SetDlgItemText(IDC_FOCUSMOTORSTEP, L"Step");
-				GetDlgItem(IDC_EDIT_LENSMFAF)->SetWindowText((0x80 == m_afLensInfo.statusAfmf) ? L"MF" : L"AF");
-				if (m_afLensInfo.lensName)
+				if (!m_bLensCal_Update_Done)//data needs to be updated after calibration is completed
 				{
-					CA2W a2w(m_afLensInfo.lensName);
-					SetDlgItemText(IDC_EDIT_LENSNAME, a2w);
+					AF_FocusDlg_Init();
+					AF_APDlg_Init();
+					SetDlgItemInt(IDC_EDIT_LENSID, m_afLensInfo.lensID);
+					SetDlgItemInt(IDC_EDIT_LENSFMIN, m_afLensInfo.minFocalLength);
+					SetDlgItemInt(IDC_EDIT_LENSFMAX, m_afLensInfo.maxFocalLength);
+					SetDlgItemInt(IDC_EDIT_LENSFCUR, m_afLensInfo.curFocalLength);
+					SetDlgItemInt(IDC_EDIT_LENSFOCUSMOTOR, m_afLensInfo.curFM);
+					SetDlgItemText(IDC_FOCUSMOTORSTEP, L"Step");
+					GetDlgItem(IDC_EDIT_LENSMFAF)->SetWindowText((0x80 == m_afLensInfo.statusAfmf) ? L"MF" : L"AF");
+					if (m_afLensInfo.lensName)
+					{
+						CA2W a2w(m_afLensInfo.lensName);
+						SetDlgItemText(IDC_EDIT_LENSNAME, a2w);
+					}
+					m_bLensCal_Update_Done = true;
 				}
-				m_ucAM_Max_Previous = m_afLensInfo.maxAM;
-				m_bLensCal_Update_Done = true;
-			}
-			if (m_ucAM_Max_Previous != m_afLensInfo.maxAM && afStatus.AF_LensAP_Update_Flag)
-			{
-				AF_APDlg_Init();
-				m_ucAM_Max_Previous = m_afLensInfo.maxAM;
-			}
-			if (((CButton*)GetDlgItem(IDC_RADIO_MANUAL))->GetCheck())
+				if (m_cFNMax_Previous != m_afLensInfo.arrayFN[0] && afStatus.AF_LensAP_Update_Flag)//Aperture data update
+					AF_APDlg_Init();
 				SetDlgItemText(IDC_STATIC_FNUMBER, CA2W(m_afLensInfo.arrayFN[m_afLensInfo.posAM]));
+				if (m_afLensInfo.nearFM != m_iFarFM || m_afLensInfo.nearFM != m_iNearFM)
+					AF_FocusDlg_Init();
+			}
 			else
 			{
 				if (afStatus.AF_Mode == OgmacamAFMode_MANUAL)
@@ -765,7 +768,6 @@ void CdemoafDlg::OnTimer(UINT_PTR nIDEvent)
 			SetDlgItemInt(IDC_STATIC_FOCUSMOTOR, m_afLensInfo.curFM);
 			SetDlgItemInt(IDC_EDIT_LENSFOCUSMOTOR, m_afLensInfo.curFM);
 			SetDlgItemInt(IDC_EDIT_LENSFCUR, m_afLensInfo.curFocalLength);
-
 			GetDlgItem(IDC_EDIT_LENSMFAF)->SetWindowText((0x80 == m_afLensInfo.statusAfmf) ? L"MF" : L"AF");
 		}
 	}
@@ -879,4 +881,23 @@ void CdemoafDlg::OnEnSetfocusFocusmotorstep()
 		return;
 	SetDlgItemText(IDC_FOCUSMOTORSTEP, L"");
 	UpdateData(FALSE);
+}
+
+void CdemoafDlg::OnBnClickedButtonSaveStatus()
+{
+	Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_LENSSTATE, 1);
+}
+
+void CdemoafDlg::SetLensStatus()
+{
+	Ogmacam_put_Option(m_hcam, OGMACAM_OPTION_LENSSTATE, 0);
+	Ogmacam_get_LensInfo(m_hcam, &m_afLensInfo);
+	m_slider_ap.SetPos(m_afLensInfo.posAM);
+	m_slider_foc.SetPos(m_afLensInfo.posFM);
+	m_combo_aperture.SetCurSel(m_afLensInfo.posAM);
+}
+
+void CdemoafDlg::OnBnClickedButtonLoadStatus()
+{
+	SetLensStatus();
 }

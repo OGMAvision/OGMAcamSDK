@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 55.25159.20240404
+    Version: 56.25817.20240616
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -513,9 +513,9 @@ internal class Ogmacam : IDisposable
         OPTION_RESET_SENSOR = 0x5e,
         /* Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
         OPTION_ISP = 0x5f,
-        /* Auto exposure damp: time (thousandths) */
+        /* Auto exposure damp: time (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes */
         OPTION_AUTOEXP_EXPOTIME_DAMP = 0x60,
-        /* Auto exposure damp: gain (thousandths) */
+        /* Auto exposure damp: gain (thousandths). The larger the damping coefficient, the smoother and slower the gain changes */
         OPTION_AUTOEXP_GAIN_DAMP = 0x61,
         /* range: [1, 20] */
         OPTION_MOTOR_NUMBER = 0x62,
@@ -525,7 +525,7 @@ internal class Ogmacam : IDisposable
         OPTION_PSEUDO_COLOR_START = 0x63,
         /* Pseudo: end color, BGR format */
         OPTION_PSEUDO_COLOR_END = 0x64,
-        /*  Pseudo: 
+        /*  Pseudo:
             -1 => custom: use startcolor & endcolor to generate the colormap
             0 => disable
             1 => spot
@@ -551,6 +551,9 @@ internal class Ogmacam : IDisposable
             21 => twilight
             22 => twilight_shifted
             23 => turbo
+            24 => red
+            25 => green
+            26 => blue
         */
         OPTION_PSEUDO_COLOR_ENABLE = 0x65,
         /* Low Power Consumption: 0 => disable, 1 => enable */
@@ -570,6 +573,7 @@ internal class Ogmacam : IDisposable
         /* Auto exposure over exposure policy: when overexposed,
                 0 => directly reduce the exposure time/gain to the minimum value; or
                 1 => reduce exposure time/gain in proportion to current and target brightness.
+                n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
             The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
             Policy 1 avoids the black screen, but the convergence speed is slower.
             Default: 0
@@ -578,7 +582,17 @@ internal class Ogmacam : IDisposable
         /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
         OPTION_READOUT_MODE = 0x69,
         /* Turn on/off tail Led light: 0 => off, 1 => on; default: on */
-        OPTION_TAILLIGHT = 0x6a
+        OPTION_TAILLIGHT = 0x6a,
+        /* Load/Save lens state to EEPROM: 0 => load, 1 => save */
+        OPTION_LENSSTATE = 0x6b,
+        /* Auto White Balance: continuous mode
+               0:  disable (default)
+               n>0: every n millisecond(s)
+               n<0: every -n frame
+        */
+        OPTION_AWB_CONTINUOUS = 0x6c,
+        /* TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff) */
+        OPTION_TECTARGET_RANGE = 0x6d
     };
 
     /* HRESULT: error code */
@@ -615,10 +629,10 @@ internal class Ogmacam : IDisposable
     public const int EXPOGAIN_DEF = 100;      /* exposure gain, default value */
     public const int EXPOGAIN_MIN = 100;      /* exposure gain, minimum value */
     public const int TEMP_DEF = 6503;     /* color temperature, default value */
-    public const int TEMP_MIN = 1000;     /* color temperature, minimum value */
-    public const int TEMP_MAX = 25000;    /* color temperature, maximum value */
+    public const int TEMP_MIN = 2000;     /* color temperature, minimum value */
+    public const int TEMP_MAX = 15000;    /* color temperature, maximum value */
     public const int TINT_DEF = 1000;     /* tint */
-    public const int TINT_MIN = 100;      /* tint */
+    public const int TINT_MIN = 200;      /* tint */
     public const int TINT_MAX = 2500;     /* tint */
     public const int HUE_DEF = 0;        /* hue */
     public const int HUE_MIN = -180;     /* hue */
@@ -660,18 +674,15 @@ internal class Ogmacam : IDisposable
     public const int AUTOEXPO_THRESHOLD_DEF = 5;        /* auto exposure threshold */
     public const int AUTOEXPO_THRESHOLD_MIN = 2;        /* auto exposure threshold */
     public const int AUTOEXPO_THRESHOLD_MAX = 15;       /* auto exposure threshold */
-    public const int AUTOEXPO_DAMP_DEF = 0;        /* auto exposure damp: thousandths */
-    public const int AUTOEXPO_DAMP_MIN = 0;        /* auto exposure damp: thousandths */
-    public const int AUTOEXPO_DAMP_MAX = 1000;     /* auto exposure damp: thousandths */
+    public const int AUTOEXPO_DAMP_DEF = 0;        /* auto exposure damping coefficient: thousandths */
+    public const int AUTOEXPO_DAMP_MIN = 0;        /* auto exposure damping coefficient: thousandths */
+    public const int AUTOEXPO_DAMP_MAX = 1000;     /* auto exposure damping coefficient: thousandths */
     public const int BANDWIDTH_DEF = 100;      /* bandwidth */
     public const int BANDWIDTH_MIN = 1;        /* bandwidth */
     public const int BANDWIDTH_MAX = 100;      /* bandwidth */
     public const int DENOISE_DEF = 0;        /* denoise */
     public const int DENOISE_MIN = 0;        /* denoise */
     public const int DENOISE_MAX = 100;      /* denoise */
-    public const int TEC_TARGET_MIN = -500;     /* TEC target: -50.0 degrees Celsius */
-    public const int TEC_TARGET_DEF = 100;      /* TEC target: 10.0 degrees Celsius */
-    public const int TEC_TARGET_MAX = 400;      /* TEC target: 40.0 degrees Celsius */
     public const int HEARTBEAT_MIN = 100;      /* millisecond */
     public const int HEARTBEAT_MAX = 10000;    /* millisecond */
     public const int AE_PERCENT_MIN = 0;        /* auto exposure percent; 0 or 100 => full roi average, means "disabled" */
@@ -847,7 +858,22 @@ internal class Ogmacam : IDisposable
         /* Output pause: 1 => puase, 0 => unpause */
         IOCONTROLTYPE_SET_OUTPUT_PAUSE = 0x3a,
         /* Input state: 0 (low level) or 1 (high level) */
-        IOCONTROLTYPE_GET_INPUT_STATE = 0x3c
+        IOCONTROLTYPE_GET_INPUT_STATE = 0x3b,
+        /* User pulse high level time: us */
+        IOCONTROLTYPE_GET_USER_PULSE_HIGH = 0x3d,
+        IOCONTROLTYPE_SET_USER_PULSE_HIGH = 0x3e,
+        /* User pulse low level time: us */
+        IOCONTROLTYPE_GET_USER_PULSE_LOW = 0x3f,
+        IOCONTROLTYPE_SET_USER_PULSE_LOW = 0x40,
+        /* User pulse number: default 0 */
+        IOCONTROLTYPE_GET_USER_PULSE_NUMBER = 0x41,
+        IOCONTROLTYPE_SET_USER_PULSE_NUMBER = 0x42,
+        /* External trigger number */
+        OGMACAM_IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER = 0x43,
+        /* Trigger signal number after debounce */
+        OGMACAM_IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = 0x45,
+        /* Effective trigger signal number */
+        OGMACAM_IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = 0x47
     };
 
     public const int IOCONTROL_DELAYTIME_MAX = 5 * 1000 * 1000;
@@ -991,6 +1017,7 @@ internal class Ogmacam : IDisposable
     };
     public enum eAFStatus : uint
     {
+        AFStatus_NA = 0x0,           /* Not available */
         AFStatus_PEAKPOINT = 0x1,    /* Focus completed, find the focus position */
         AFStatus_DEFOCUS = 0x2,      /* End of focus, defocus */
         AFStatus_NEAR = 0x3,         /* Focusing ended, object too close */
@@ -1071,7 +1098,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /* get the version of this dll/so, which is: 55.25159.20240404 */
+    /* get the version of this dll/so, which is: 56.25817.20240616 */
     public static string Version()
     {
         return Ogmacam_Version();
@@ -1292,6 +1319,32 @@ internal class Ogmacam : IDisposable
             if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
                 return 0;
             return Ogmacam_get_FanMaxSpeed(handle_);
+        }
+    }
+
+    public short TecTargetMax
+    {
+        get
+        {
+            if (handle_ != null && !handle_.IsInvalid && !handle_.IsClosed) {
+                int range = 0;
+                if (CheckHResult(Ogmacam_get_Option(handle_, eOPTION.OPTION_TECTARGET_RANGE, out range)))
+                    return unchecked((short)((range >> 16) & 0xffff));
+            }
+            return short.MaxValue;
+        }
+    }
+
+    public short TecTargetMin
+    {
+        get
+        {
+            if (handle_ != null && !handle_.IsInvalid && !handle_.IsClosed) {
+                int range = 0;
+                if (CheckHResult(Ogmacam_get_Option(handle_, eOPTION.OPTION_TECTARGET_RANGE, out range)))
+                    return unchecked((short)(range & 0xffff));
+            }
+            return short.MinValue;
         }
     }
 

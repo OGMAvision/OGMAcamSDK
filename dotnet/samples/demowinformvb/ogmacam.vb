@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 55.25159.20240404
+'    Version: 56.25817.20240616
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -135,7 +135,7 @@ Friend Class Ogmacam
         '       3: Gain Preferred
         '    default value: 1
         OPTION_AUTOEXP_POLICY = &H10
-        OPTION_FRAMERATE = &H11                    ' limit the frame rate, range=[0, 63], the default value 0 means no limit
+        OPTION_FRAMERATE = &H11                    ' limit the frame rate, the default value 0 means no limit
         OPTION_DEMOSAIC = &H12                     ' demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0
         OPTION_DEMOSAIC_VIDEO = &H13               ' demosaic method for video
         OPTION_DEMOSAIC_STILL = &H14               ' demosaic method for still image
@@ -321,8 +321,8 @@ Friend Class Ogmacam
         OPTION_OVERCLOCK = &H5D                    ' overclock, default: 0
         OPTION_RESET_SENSOR = &H5E                 ' reset sensor
         OPTION_ISP = &H5F                          ' Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
-        OPTION_AUTOEXP_EXPOTIME_DAMP = &H60        ' Auto exposure damp: time (thousandths)
-        OPTION_AUTOEXP_GAIN_DAMP = &H61            ' Auto exposure damp: gain (thousandths)
+        OPTION_AUTOEXP_EXPOTIME_DAMP = &H60        ' Auto exposure damping coefficient: time (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes
+        OPTION_AUTOEXP_GAIN_DAMP = &H61            ' Auto exposure damping coefficient: gain (thousandths). The larger the damping coefficient, the smoother and slower the gain changes
         OPTION_MOTOR_NUMBER = &H62                 ' range: [1, 20]
         OPTION_MOTOR_POS = &H10000000              ' range: [1, 702]
         OPTION_PSEUDO_COLOR_START = &H63           ' Pseudo: start color, BGR format
@@ -352,6 +352,9 @@ Friend Class Ogmacam
         '        21 => twilight
         '        22 => twilight_shifted
         '        23 => turbo
+        '        24 => red
+        '        25 => green
+        '        26 => blue
         OPTION_PSEUDO_COLOR_ENABLE = &H65
         OPTION_LOW_POWERCONSUMPTION = &H66         ' Low Power Consumption: 0 => disable, 1 => enable
         ' Fix Pattern Noise Correction
@@ -368,6 +371,7 @@ Friend Class Ogmacam
         ' Auto exposure over exposure policy: when overexposed,
         '       0 => directly reduce the exposure time/gain to the minimum value; or
         '       1 => reduce exposure time/gain in proportion to current and target brightness.
+        '       n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
         ' The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
         ' Policy 1 avoids the black screen, but the convergence speed is slower.
         ' Default: 0
@@ -376,6 +380,16 @@ Friend Class Ogmacam
         OPTION_READOUT_MODE = &H69
         ' Turn on/off tail Led light: 0 => off, 1 => on; default: on
         OPTION_TAILLIGHT = &H6A
+        ' Load/Save lens state to EEPROM: 0 => load, 1 => save
+        OPTION_LENSSTATE = &H6B
+        ' Auto White Balance: continuous mode
+        '       0:  disable (default)
+        '       n>0: every n millisecond(s)
+        '       n<0: every -n frame
+        '
+        OPTION_AWB_CONTINUOUS = &H6C
+        ' TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff)
+        OPTION_TECTARGET_RANGE = &H6D
     End Enum
 
     ' HRESULT: Error code
@@ -398,10 +412,10 @@ Friend Class Ogmacam
     Public Const EXPOGAIN_DEF = 100      ' exposure gain, default value
     Public Const EXPOGAIN_MIN = 100      ' exposure gain, minimum value
     Public Const TEMP_DEF = 6503     ' color temperature, default value
-    Public Const TEMP_MIN = 1000     ' color temperature, minimum value
-    Public Const TEMP_MAX = 25000    ' color temperature, maximum value
+    Public Const TEMP_MIN = 2000     ' color temperature, minimum value
+    Public Const TEMP_MAX = 15000    ' color temperature, maximum value
     Public Const TINT_DEF = 1000     ' tint
-    Public Const TINT_MIN = 100      ' tint
+    Public Const TINT_MIN = 200      ' tint
     Public Const TINT_MAX = 2500     ' tint
     Public Const HUE_DEF = 0        ' hue
     Public Const HUE_MIN = -180     ' hue
@@ -443,18 +457,15 @@ Friend Class Ogmacam
     Public Const AUTOEXPO_THRESHOLD_DEF = 5        ' auto exposure threshold
     Public Const AUTOEXPO_THRESHOLD_MIN = 2        ' auto exposure threshold
     Public Const AUTOEXPO_THRESHOLD_MAX = 15       ' auto exposure threshold
-    Public Const AUTOEXPO_DAMP_DEF = 0        ' auto exposure damp: thousandths
-    Public Const AUTOEXPO_DAMP_MIN = 0        ' auto exposure damp: thousandths
-    Public Const AUTOEXPO_DAMP_MAX = 1000     ' auto exposure damp: thousandths
+    Public Const AUTOEXPO_DAMP_DEF = 0        ' auto exposure damping coefficient: thousandths
+    Public Const AUTOEXPO_DAMP_MIN = 0        ' auto exposure damping coefficient: thousandths
+    Public Const AUTOEXPO_DAMP_MAX = 1000     ' auto exposure damping coefficient: thousandths
     Public Const BANDWIDTH_DEF = 100      ' bandwidth
     Public Const BANDWIDTH_MIN = 1        ' bandwidth
     Public Const BANDWIDTH_MAX = 100      ' bandwidth
     Public Const DENOISE_DEF = 0        ' denoise
     Public Const DENOISE_MIN = 0        ' denoise
     Public Const DENOISE_MAX = 100      ' denoise
-    Public Const TEC_TARGET_MIN = -500     ' TEC target: -50.0 degrees Celsius
-    Public Const TEC_TARGET_DEF = 100      ' 10.0 degrees Celsius
-    Public Const TEC_TARGET_MAX = 400      ' TEC target: 40.0 degrees Celsius
     Public Const HEARTBEAT_MIN = 100      ' millisecond
     Public Const HEARTBEAT_MAX = 10000    ' millisecond
     Public Const AE_PERCENT_MIN = 0        ' auto exposure percent; 0 or 100 => full roi average, means "disabled"
@@ -581,12 +592,31 @@ Friend Class Ogmacam
         ' end line must be no less than start line
         IOCONTROLTYPE_GET_EXPO_END_LINE = &H33
         IOCONTROLTYPE_SET_EXPO_END_LINE = &H34
-        IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE = &H35     ' exposure event: 0 => specified line, 1 => common exposure time
+        ' exposure event: 0 => specified line, 1 => common exposure time
+        IOCONTROLTYPE_GET_EXEVT_ACTIVE_MODE = &H35
         IOCONTROLTYPE_SET_EXEVT_ACTIVE_MODE = &H36
-        IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE = &H37    ' Output Counter Value, range: [0 ~ 65535]
+        ' Output Counter Value, range: [0 ~ 65535]
+        IOCONTROLTYPE_GET_OUTPUTCOUNTERVALUE = &H37
         IOCONTROLTYPE_SET_OUTPUTCOUNTERVALUE = &H38
-        IOCONTROLTYPE_SET_OUTPUT_PAUSE = &H3A          ' Output pause: 1 => puase, 0 => unpause
-        IOCONTROLTYPE_GET_INPUT_STATE = &H3C           ' Input state: 0 (low level) or 1 (high level)
+        ' Output pause: 1 => puase, 0 => unpause
+        IOCONTROLTYPE_SET_OUTPUT_PAUSE = &H3A
+        ' Input state: 0 (low level) or 1 (high level)
+        IOCONTROLTYPE_GET_INPUT_STATE = &H3B
+        ' User pulse high level time: us
+        IOCONTROLTYPE_GET_USER_PULSE_HIGH = &H3D
+        IOCONTROLTYPE_SET_USER_PULSE_HIGH = &H3E
+        ' User pulse low level time: us
+        IOCONTROLTYPE_GET_USER_PULSE_LOW = &H3F
+        IOCONTROLTYPE_SET_USER_PULSE_LOW = &H40
+        ' User pulse number: default 0
+        IOCONTROLTYPE_GET_USER_PULSE_NUMBER = &H41
+        IOCONTROLTYPE_SET_USER_PULSE_NUMBER = &H42
+        ' External trigger number
+        IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER = &H43
+        ' Trigger signal number after debounce
+        IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = &H45
+        ' Effective trigger signal number
+        IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = &H47
     End Enum
 
     Public Const IOCONTROL_DELAYTIME_MAX = 5 * 1000 * 1000
@@ -711,14 +741,15 @@ Friend Class Ogmacam
         AFMode_IDLE = &H5
     End Enum
     Public Enum eAFStatus As UInteger
-        AFStatus_PEAKPOINT = &H1    ' Focus completed, find the focus position */
-        AFStatus_DEFOCUS = &H2      ' End Of focus, defocus */
-        AFStatus_NEAR = &H3         ' Focusing ended, Object too close */
-        AFStatus_FAR = &H4          ' Focusing ended, Object too far */
-        AFStatus_ROICHANGED = &H5   ' Focusing ends, roi changes */
-        AFStatus_SCENECHANGED = &H6 ' Focusing ends, scene changes */
-        AFStatus_MODECHANGED = &H7  ' The End Of focusing And the change In focusing mode Is usually determined by the user moderator */
-        AFStatus_UNFINISH = &H8     ' The focus Is Not complete. At the beginning Of focusing, it will be Set As incomplete */
+        AFStatus_NA = &H0           ' Not available
+        AFStatus_PEAKPOINT = &H1    ' Focus completed, find the focus position
+        AFStatus_DEFOCUS = &H2      ' End Of focus, defocus
+        AFStatus_NEAR = &H3         ' Focusing ended, Object too close
+        AFStatus_FAR = &H4          ' Focusing ended, Object too far
+        AFStatus_ROICHANGED = &H5   ' Focusing ends, roi changes
+        AFStatus_SCENECHANGED = &H6 ' Focusing ends, scene changes
+        AFStatus_MODECHANGED = &H7  ' The End Of focusing And the change In focusing mode Is usually determined by the user moderator
+        AFStatus_UNFINISH = &H8     ' The focus Is Not complete. At the beginning Of focusing, it will be Set As incomplete
     End Enum
     <StructLayout(LayoutKind.Sequential)>
     Public Structure AFState
@@ -769,7 +800,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 55.25159.20240404
+    ' get the version of this dll, which is: 56.25817.20240616
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -905,6 +936,32 @@ Friend Class Ogmacam
                 Return 0
             End If
             Return Ogmacam_get_FanMaxSpeed(handle_)
+        End Get
+    End Property
+
+    Public ReadOnly Property TecTargetMax As Short
+        Get
+            If handle_ IsNot Nothing And Not handle_.IsInvalid And Not handle_.IsClosed Then
+                Dim range As Integer = 0
+                If CheckHResult(Ogmacam_get_Option(handle_, eOPTION.OPTION_TECTARGET_RANGE, range)) Then
+                    Dim x As Integer = (range >> 16) And &HFFFF
+                    Return BitConverter.ToInt16(BitConverter.GetBytes(x), 0)
+                End If
+            End If
+            Return Short.MaxValue
+        End Get
+    End Property
+
+    Public ReadOnly Property TecTargetMin As Short
+        Get
+            If handle_ IsNot Nothing And Not handle_.IsInvalid And Not handle_.IsClosed Then
+                Dim range As Integer = 0
+                If CheckHResult(Ogmacam_get_Option(handle_, eOPTION.OPTION_TECTARGET_RANGE, range)) Then
+                    Dim x As Integer = range And &HFFFF
+                    Return BitConverter.ToInt16(BitConverter.GetBytes(x), 0)
+                End If
+            End If
+            Return Short.MinValue
         End Get
     End Property
 
