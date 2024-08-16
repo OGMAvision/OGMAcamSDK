@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 56.25817.20240616 */
+/* Version: 57.26291.20240811 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -387,9 +387,9 @@ DECLARE_INTERFACE_(IOgmacam, IUnknown)
     * cmd: input
     *   -1:         query the number
     *   0~number:   query the nth pixel format
-    * piValue: output, OGMACAM_PIXELFORMAT_xxxx
+    * pixelFormat: output, OGMACAM_PIXELFORMAT_xxxx
     */
-    STDMETHOD(get_PixelFormatSupport)(THIS_ char cmd, int* piValue) PURE;
+    STDMETHOD(get_PixelFormatSupport)(THIS_ char cmd, int* pixelFormat) PURE;
 
     STDMETHOD(put_XY)(THIS_ int x, int y) PURE;
 

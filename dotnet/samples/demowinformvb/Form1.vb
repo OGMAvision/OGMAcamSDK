@@ -32,12 +32,12 @@ Public Class Form1
 
     Private Sub OnEventImage()
         If bmp_ IsNot Nothing Then
-            Dim info As New Ogmacam.FrameInfoV3
+            Dim info As New Ogmacam.FrameInfoV4
             Dim bOK As Boolean = False
             Try
                 Dim bmpdata As BitmapData = bmp_.LockBits(New Rectangle(0, 0, bmp_.Width, bmp_.Height), ImageLockMode.[WriteOnly], bmp_.PixelFormat)
                 Try
-                    bOK = cam_.PullImageV3(bmpdata.Scan0, 0, 24, bmpdata.Stride, info) ' check the return value
+                    bOK = cam_.PullImage(bmpdata.Scan0, 0, 24, bmpdata.Stride, info) ' check the return value
                 Finally
                     bmp_.UnlockBits(bmpdata)
                 End Try
@@ -51,14 +51,14 @@ Public Class Form1
     End Sub
 
     Private Sub OnEventStillImage()
-        Dim info As New Ogmacam.FrameInfoV3
-        If cam_.PullImageV3(IntPtr.Zero, 1, 24, 0, info) Then ' peek the width and height
-            Dim sbmp As New Bitmap(CInt(info.width), CInt(info.height), PixelFormat.Format24bppRgb)
+        Dim info As New Ogmacam.FrameInfoV4
+        If cam_.PullImage(IntPtr.Zero, 1, 24, 0, info) Then ' peek the width and height
+            Dim sbmp As New Bitmap(CInt(info.v3.width), CInt(info.v3.height), PixelFormat.Format24bppRgb)
             Dim bOK As Boolean = False
             Try
                 Dim bmpdata As BitmapData = sbmp.LockBits(New Rectangle(0, 0, sbmp.Width, sbmp.Height), ImageLockMode.[WriteOnly], sbmp.PixelFormat)
                 Try
-                    bOK = cam_.PullImageV3(bmpdata.Scan0, 1, 24, bmpdata.Stride, info) ' check the return value
+                    bOK = cam_.PullImage(bmpdata.Scan0, 1, 24, bmpdata.Stride, info) ' check the return value
                 Finally
                     sbmp.UnlockBits(bmpdata)
                 End Try

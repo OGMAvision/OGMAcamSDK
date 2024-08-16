@@ -12,7 +12,7 @@ public class simplest {
             switch (nEvent) {
                 case ogmacam.EVENT_IMAGE:
                     try {
-                        _cam.PullImageV3(_buf, 0, 24, -1, null);
+                        _cam.PullImage(_buf, 0, 24, -1, null);
                         ++_total;
                         System.out.println("pull image ok: " + _total + ", " + String.format("%02x", _buf[_buf.length / 2]));
                     } catch (ogmacam.HRESULTException e) {

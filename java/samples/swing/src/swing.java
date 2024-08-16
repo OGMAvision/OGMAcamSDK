@@ -25,7 +25,7 @@ public class swing {
     private void OnEventImage() {
         if (_cam != null) {
             try {
-                _cam.PullImageV3(_buf, 0, 24, -1, null);
+                _cam.PullImage(_buf, 0, 24, -1, null);
                 ++_total;
             } catch (ogmacam.HRESULTException ex) {
                 JOptionPane.showMessageDialog(null, ex.toString());

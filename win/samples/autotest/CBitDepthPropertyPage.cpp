@@ -5,19 +5,11 @@
 
 CBitDepthPropertyPage::CBitDepthPropertyPage()
 	: CPropertyPage(IDD_PROPERTY_BITDEPTH)
-	, m_bitDepth(FALSE)
 {
-}
-
-void CBitDepthPropertyPage::DoDataExchange(CDataExchange* pDX)
-{
-	CPropertyPage::DoDataExchange(pDX);
-	DDX_Radio(pDX, IDC_RADIO_8_BIT, m_bitDepth);
 }
 
 BEGIN_MESSAGE_MAP(CBitDepthPropertyPage, CPropertyPage)
-	ON_BN_CLICKED(IDC_RADIO_8_BIT, &CBitDepthPropertyPage::OnBnClickedRadio8Bit)
-	ON_BN_CLICKED(IDC_RADIO_HIGH_BIT, &CBitDepthPropertyPage::OnBnClickedRadioHighBit)
+	ON_CBN_SELCHANGE(IDC_COMBO_BITDEPTH, &CBitDepthPropertyPage::OnCbnSelchangeComboBitdepth)
 END_MESSAGE_MAP()
 
 BOOL CBitDepthPropertyPage::OnInitDialog()
@@ -26,29 +18,38 @@ BOOL CBitDepthPropertyPage::OnInitDialog()
 
 	if (g_hcam)
 	{
-		const int maxBit = Ogmacam_get_MaxBitDepth(g_hcam);
-		if (maxBit <= 8)
-			GetDlgItem(IDC_RADIO_HIGH_BIT)->ShowWindow(FALSE);
-		else
+		int nCur = 0;
+		int iFormat = -1;
+		int cnt = 0;
+		CComboBox* pCombox = (CComboBox*)GetDlgItem(IDC_COMBO_BITDEPTH);
+		Ogmacam_get_PixelFormatSupport(g_hcam, -1, &cnt);
+		for (int i = 0; i < cnt; ++i)
 		{
-			GetDlgItem(IDC_RADIO_HIGH_BIT)->ShowWindow(TRUE);
-			CString text;
-			text.Format(_T("%d bits"), maxBit);
-			SetDlgItemText(IDC_RADIO_HIGH_BIT, text);
+			CString str;
+			Ogmacam_get_PixelFormatSupport(g_hcam, i, &iFormat);
+			const char* name = Ogmacam_get_PixelFormatName(iFormat);
+			str.Format(L"%S", name);
+			pCombox->AddString(str);
 		}
-		Ogmacam_get_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, &m_bitDepth);
-		UpdateData(FALSE);
-	}
 
+		for (int i = 0; i < cnt; ++i)
+		{
+			int val = -1;
+			Ogmacam_get_Option(g_hcam, OGMACAM_OPTION_PIXEL_FORMAT, &iFormat);
+			Ogmacam_get_PixelFormatSupport(g_hcam, i, &val);
+			if (val == iFormat)
+				nCur = i;
+		}
+		pCombox->SetCurSel(nCur);
+	}
 	return TRUE;
 }
 
-void CBitDepthPropertyPage::OnBnClickedRadio8Bit()
+void CBitDepthPropertyPage::OnCbnSelchangeComboBitdepth()
 {
-	Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, m_bitDepth);
-}
-
-void CBitDepthPropertyPage::OnBnClickedRadioHighBit()
-{
-	Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, m_bitDepth);
+	int iFormat = -1;
+	CComboBox* pCombox = (CComboBox*)GetDlgItem(IDC_COMBO_BITDEPTH);
+	int idx = pCombox->GetCurSel();
+	Ogmacam_get_PixelFormatSupport(g_hcam, idx, &iFormat);
+	Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_PIXEL_FORMAT, iFormat);
 }

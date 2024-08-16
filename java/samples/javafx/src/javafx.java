@@ -47,7 +47,7 @@ public class javafx extends Application {
     private void OnEventImage() {
         if (_cam != null) {
             try {
-                _cam.PullImageV3(_buf, 0, 24, -1, null);
+                _cam.PullImage(_buf, 0, 24, -1, null);
                 ++_total;
             } catch (ogmacam.HRESULTException ex) {
                 Alert alert = new Alert(Alert.AlertType.WARNING, ex.toString());

@@ -23,14 +23,14 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
     ctxCam* pctx = (ctxCam*)pCallbackCtx;
     if (OGMACAM_EVENT_IMAGE == nEvent)
     {
-        OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(pctx->hcam, pctx->data, 0, 24, 0, &info);
+        OgmacamFrameInfoV4 info = { 0 };
+        const HRESULT hr = Ogmacam_PullImageV4(pctx->hcam, pctx->data, 0, 24, 0, &info);
         if (FAILED(hr))
-            _tprintf(_T("%s: failed to pull image, hr = %08x\n"), pctx->dev->displayname, hr);
+            _tprintf(_T("%s: failed to pull image, hr = 0x%08x\n"), pctx->dev->displayname, hr);
         else
         {
             /* After we get the image data, we can do anything for the data we want to do */
-             _tprintf(_T("%s: pull image ok, total = %u, res = %u x %u\n"), pctx->dev->displayname, ++(pctx->total), info.width, info.height);
+             _tprintf(_T("%s: pull image ok, total = %u, res = %u x %u\n"), pctx->dev->displayname, ++(pctx->total), info.v3.width, info.v3.height);
         }
     }
     else
@@ -61,7 +61,7 @@ int main(int, char**)
             int nWidth = 0, nHeight = 0;
             HRESULT hr = Ogmacam_get_Size(g_ctx[i].hcam, &nWidth, &nHeight);
             if (FAILED(hr))
-                _tprintf(_T("%s: failed to get size, hr = %08x\n"), g_ctx[i].dev->displayname, hr);
+                _tprintf(_T("%s: failed to get size, hr = 0x%08x\n"), g_ctx[i].dev->displayname, hr);
             else
             {
                 g_ctx[i].data = malloc(TDIBWIDTHBYTES(24 * nWidth) * nHeight);
@@ -71,7 +71,7 @@ int main(int, char**)
                 {
                     hr = Ogmacam_StartPullModeWithCallback(g_ctx[i].hcam, EventCallback, (void*)&g_ctx[i]);
                     if (FAILED(hr))
-                        _tprintf(_T("%s: failed to start camera, hr = %08x\n"), g_ctx[i].dev->displayname, hr);
+                        _tprintf(_T("%s: failed to start camera, hr = 0x%08x\n"), g_ctx[i].dev->displayname, hr);
                 }
             }
         }

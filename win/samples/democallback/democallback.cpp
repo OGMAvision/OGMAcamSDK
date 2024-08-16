@@ -295,19 +295,19 @@ public:
 	{
 		if (bSnap)
 		{
-			OgmacamFrameInfoV3 info = { 0 };
-			Ogmacam_PullImageV3(m_hcam, NULL, 1, 24, 0, &info);
+			OgmacamFrameInfoV4 info = { 0 };
+			Ogmacam_PullImageV4(m_hcam, NULL, 1, 24, 0, &info);
 			BITMAPINFOHEADER header = { 0 };
 			header.biSize = sizeof(header);
 			header.biPlanes = 1;
 			header.biBitCount = 24;
-			header.biWidth = info.width;
-			header.biHeight = info.height;
+			header.biWidth = info.v3.width;
+			header.biHeight = info.v3.height;
 			header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * header.biBitCount) * header.biHeight;
 			void* pSnapData = malloc(header.biSizeImage);
 			if (pSnapData)
 			{
-				Ogmacam_PullImageV3(m_hcam, pSnapData, 1, 24, 0, NULL);
+				Ogmacam_PullImageV4(m_hcam, pSnapData, 1, 24, 0, NULL);
 				SaveImageBmp(m_szFilePath, pSnapData, &header);
 
 				free(pSnapData);
@@ -318,7 +318,7 @@ public:
 		{
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
-				Ogmacam_PullImageV3(m_hcam, m_pData, 0, 24, 0, NULL);
+				Ogmacam_PullImageV4(m_hcam, m_pData, 0, 24, 0, NULL);
 			}
 			PostMessage(MSG_CAMIMAGE);
 		}

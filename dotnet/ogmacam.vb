@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 56.25817.20240616
+'    Version: 57.26291.20240811
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -296,8 +296,8 @@ Friend Class Ogmacam
         OPTION_TEC_VOLTAGE_MAX_RANGE = &H54
         OPTION_HIGH_FULLWELL = &H55                ' high fullwell capacity: 0 => disable, 1 => enable
         ' dynamic defect pixel correction:
-        '         threshold, t1: (high 16 bits): [10, 100], means: [1.0, 10.0]
-        '         value, t2: (low 16 bits): [0, 100], means: [0.00, 1.00]
+        '         dead pixel ratio, t1: (high 16 bits): [0, 100], means: [0.0, 1.0]
+        '         hot pixel ratio, t2: (low 16 bits): [0, 100], means: [0.0, 1.0]
         OPTION_DYNAMIC_DEFECT = &H56
         ' HDR synthesize
         '         K (high 16 bits): [1, 25500]
@@ -310,8 +310,8 @@ Friend Class Ogmacam
         OPTION_HDR_THRESHOLD = &H58
         ' For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
         ' If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
-        ' When the application is stopped by the debugger, the application cannot create the heartbeat signals
-        '         0 => auto: when the camera is opened, disable if debugger is present or enable if no debugger is present
+        ' When the application is stopped by the debugger, the application cannot send the heartbeat signals
+        '         0 => auto: when the camera is opened, enable if no debugger is present or disable if debugger is present
         '         1 => enable
         '         2 => disable
         '         default: auto
@@ -390,23 +390,27 @@ Friend Class Ogmacam
         OPTION_AWB_CONTINUOUS = &H6C
         ' TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff)
         OPTION_TECTARGET_RANGE = &H6D
+        ' Correlated Double Sampling
+        OPTION_CDS = &H6E
+        ' Low Power Consumption: Enable if exposure time is greater than the set value
+        OPTION_LOW_POWER_EXPOTIME = &H6F
     End Enum
 
     ' HRESULT: Error code
     Public Const S_OK = &H0                                     ' Success
-    Public Const S_FALSE = &H1                                  ' Yet another success
-    Public Const E_UNEXPECTED = CType(&H8000FFFF, Integer)      ' Catastrophic failure
-    Public Const E_NOTIMPL = CType(&H80004001, Integer)         ' Not supported or not implemented
+    Public Const S_FALSE = &H1                                  ' Yet another success ' Remark: Different from S_OK, such as internal values and user-set values have coincided, equivalent to noop
+    Public Const E_UNEXPECTED = CType(&H8000FFFF, Integer)      ' Catastrophic failure ' Remark: Generally indicates that the conditions are not met, such as calling put_Option setting some options that do not support modification when the camera is running, and so on
+    Public Const E_NOTIMPL = CType(&H80004001, Integer)         ' Not supported or not implemented ' Remark: This feature is not supported on this model of camera
     Public Const E_NOINTERFACE = CType(&H80004002, Integer)
-    Public Const E_ACCESSDENIED = CType(&H80070005, Integer)    ' Permission denied
+    Public Const E_ACCESSDENIED = CType(&H80070005, Integer)    ' Permission denied ' Remark: The program on Linux does not have permission to open the USB device, please enable udev rules file or run as root
     Public Const E_OUTOFMEMORY = CType(&H8007000E, Integer)     ' Out of memory
     Public Const E_INVALIDARG = CType(&H80070057, Integer)      ' One or more arguments are not valid
-    Public Const E_POINTER = CType(&H80004003, Integer)         ' Pointer that is not valid
+    Public Const E_POINTER = CType(&H80004003, Integer)         ' Pointer that is not valid ' Remark: Pointer is NULL
     Public Const E_FAIL = CType(&H80004005, Integer)            ' Generic failure
     Public Const E_WRONG_THREAD = CType(&H8001010E, Integer)    ' Call function in the wrong thread
-    Public Const E_GEN_FAILURE = CType(&H8007001F, Integer)     ' Device not functioning
-    Public Const E_BUSY = CType(&H800700AA, Integer)            ' The requested resource is in use
-    Public Const E_PENDING = CType(&H8000000A, Integer)         ' The data necessary to complete this operation is not yet available
+    Public Const E_GEN_FAILURE = CType(&H8007001F, Integer)     ' Device not functioning ' Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc
+    Public Const E_BUSY = CType(&H800700AA, Integer)            ' The requested resource is in use ' Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc
+    Public Const E_PENDING = CType(&H8000000A, Integer)         ' The data necessary to complete this operation is not yet available ' Remark: No data is available at this time
     Public Const E_TIMEOUT = CType(&H8001011F, Integer)         ' This operation returned because the timeout period expired
 
     Public Const EXPOGAIN_DEF = 100      ' exposure gain, default value
@@ -427,8 +431,8 @@ Friend Class Ogmacam
     Public Const BRIGHTNESS_MIN = -128     ' brightness
     Public Const BRIGHTNESS_MAX = 128      ' brightness
     Public Const CONTRAST_DEF = 0        ' contrast
-    Public Const CONTRAST_MIN = -150     ' contrast
-    Public Const CONTRAST_MAX = 150      ' contrast
+    Public Const CONTRAST_MIN = -250     ' contrast
+    Public Const CONTRAST_MAX = 250      ' contrast
     Public Const GAMMA_DEF = 100      ' gamma
     Public Const GAMMA_MIN = 20       ' gamma
     Public Const GAMMA_MAX = 180      ' gamma
@@ -473,18 +477,20 @@ Friend Class Ogmacam
     Public Const AE_PERCENT_DEF = 10       ' auto exposure percent: enabled, percentage = 10%
     Public Const NOPACKET_TIMEOUT_MIN = 500      ' no packet timeout minimum: 500ms
     Public Const NOFRAME_TIMEOUT_MIN = 500       ' no frame timeout minimum: 500ms
-    Public Const DYNAMIC_DEFECT_T1_MIN = 10       ' dynamic defect pixel correction, threshold, means: 1.0
-    Public Const DYNAMIC_DEFECT_T1_MAX = 100      ' means: 10.0
-    Public Const DYNAMIC_DEFECT_T1_DEF = 13       ' means: 1.3
-    Public Const DYNAMIC_DEFECT_T2_MIN = 0        ' dynamic defect pixel correction, value, means: 0.00
-    Public Const DYNAMIC_DEFECT_T2_MAX = 100      ' means: 1.00
-    Public Const DYNAMIC_DEFECT_T2_DEF = 100
+    Public Const DYNAMIC_DEFECT_T1_MIN = 0       ' dynamic defect pixel correction, dead pixel ratio: the smaller the dead ratio is, the more stringent the conditions for processing dead pixels are, and fewer pixels will be processed
+    Public Const DYNAMIC_DEFECT_T1_MAX = 100     ' means: 1.0
+    Public Const DYNAMIC_DEFECT_T1_DEF = 90      ' means: 0.9
+    Public Const DYNAMIC_DEFECT_T2_MIN = 0       ' dynamic defect pixel correction, hot pixel ratio: the smaller the hot ratio is, the more stringent the conditions for processing hot pixels are, and fewer pixels will be processed
+    Public Const DYNAMIC_DEFECT_T2_MAX = 100     '
+    Public Const DYNAMIC_DEFECT_T2_DEF = 90
     Public Const HDR_K_MIN = 1        ' HDR synthesize
     Public Const HDR_K_MAX = 25500
     Public Const HDR_B_MIN = 0
     Public Const HDR_B_MAX = 65535
     Public Const HDR_THRESHOLD_MIN = 0
     Public Const HDR_THRESHOLD_MAX = 4094
+    Public Const CDS_MIN = 0 'Correlated Double Sampling
+    Public Const CDS_MAX = 100
 
     Public Enum ePIXELFORMAT As Integer
         PIXELFORMAT_RAW8 = &H0
@@ -515,6 +521,9 @@ Friend Class Ogmacam
         FRAMEINFO_FLAG_EXPOGAIN = &H8                 ' exposure gain
         FRAMEINFO_FLAG_BLACKLEVEL = &H10              ' black level
         FRAMEINFO_FLAG_SHUTTERSEQ = &H20              ' sequence shutter counter
+        FRAMEINFO_FLAG_GPS = &H40                     ' GPS
+        FRAMEINFO_FLAG_AUTOFOCUS = &H80               ' auto focus: uLum & uFV
+        FRAMEINFO_FLAG_COUNT = &H100                  ' timecount, framecount, tricount
         FRAMEINFO_FLAG_STILL = &H8000                 ' still image
     End Enum
 
@@ -692,6 +701,27 @@ Friend Class Ogmacam
         Public blacklevel As UShort     ' black level
     End Structure
     <StructLayout(LayoutKind.Sequential)>
+    Public Structure Gps
+        Public utcstart As ULong        ' exposure start time: nanosecond since epoch (00:00:00 UTC on Thursday, 1 January 1970, see https://en.wikipedia.org/wiki/Unix_time)
+        Public utcend As ULong          ' exposure end time
+        Public longitude As Integer     ' millionth of a degree, 0.000001 degree
+        Public latitudee As Integer
+        Public altitudee As Integer     ' millimeter
+        Public satellite As UShort      ' number of satellite
+        Public reserved As UShort       ' not used
+    End Structure
+    <StructLayout(LayoutKind.Sequential)>
+    Public Structure FrameInfoV4
+        Public v3 As FrameInfoV3
+        Public reserved As UInteger     ' not used
+        Public uLum As UInteger
+        Public uFV As ULong
+        Public timecount As ULong
+        Public framecount As UInteger
+        Public tricount As UInteger
+        Public gps As Gps
+    End Structure
+    <StructLayout(LayoutKind.Sequential), Obsolete("Use FrameInfoV4")>
     Public Structure FrameInfoV2
         Public width As UInteger
         Public height As UInteger
@@ -779,6 +809,7 @@ Friend Class Ogmacam
 
     Public Delegate Sub DelegateEventCallback(nEvent As eEVENT)
     Public Delegate Sub DelegateDataCallbackV4(pData As IntPtr, ByRef info As FrameInfoV3, bSnap As Boolean)
+    <Obsolete>
     Public Delegate Sub DelegateDataCallbackV3(pData As IntPtr, ByRef info As FrameInfoV2, bSnap As Boolean)
     Public Delegate Sub DelegateHistogramCallback(aHistY As Single(), aHistR As Single(), aHistG As Single(), aHistB As Single())
     Public Delegate Sub DelegateHistogramCallbackV2(aHist As Integer())
@@ -800,7 +831,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 56.25817.20240616
+    ' get the version of this dll, which is: 57.26291.20240811
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -1099,6 +1130,7 @@ Friend Class Ogmacam
     End Function
 
     '  bits: 24 (RGB24), 32 (RGB32), 8 (Grey), 16 (Grey), 48(RGB48), 64(RGB64)
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImage(pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1107,6 +1139,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImage(handle_, pImageData, bits, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImage(pImageData As Byte(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1115,6 +1148,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImage(handle_, pImageData, bits, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImage(pImageData As UShort(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1123,7 +1157,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImage(handle_, pImageData, bits, pnWidth, pnHeight))
     End Function
 
-    Public Function PullImageV2(pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function PullImage(pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1131,7 +1166,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageV2(handle_, pImageData, bits, pInfo))
     End Function
 
-    Public Function PullImageV2(pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function PullImage(pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1139,7 +1175,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageV2(handle_, pImageData, bits, pInfo))
     End Function
 
-    Public Function PullImageV2(pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function PullImage(pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1148,6 +1185,7 @@ Friend Class Ogmacam
     End Function
 
     ' bits: 24 (RGB24), 32 (RGB32), 8 (Grey), 16 (Grey), 48(RGB48), 64(RGB64)
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImage(pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1156,6 +1194,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImage(handle_, pImageData, bits, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImage(pImageData As Byte(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1164,6 +1203,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImage(handle_, pImageData, bits, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImage(pImageData As UShort(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1172,6 +1212,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImage(handle_, pImageData, bits, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageV2(pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1180,6 +1221,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageV2(handle_, pImageData, bits, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageV2(pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1188,6 +1230,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageV2(handle_, pImageData, bits, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageV2(pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1237,7 +1280,32 @@ Friend Class Ogmacam
     '         |           | 10/12/14/16bits Mode   | Width * 2                     | Width * 2             |
     '         |-----------|------------------------|-------------------------------|-----------------------|
     '
-    Public Function PullImageV3(pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    Public Function PullImage(pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_PullImageV4(handle_, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function PullImage(pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_PullImageV4(handle_, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function PullImage(pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_PullImageV4(handle_, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    <Obsolete("Use FrameInfoV4")>
+    Public Function PullImage(pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1245,7 +1313,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageV3(handle_, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
-    Public Function PullImageV3(pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function PullImage(pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1253,7 +1322,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageV3(handle_, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
-    Public Function PullImageV3(pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function PullImage(pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1261,7 +1331,32 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageV3(handle_, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
-    Public Function WaitImageV3(nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    Public Function WaitImage(nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_WaitImageV4(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function WaitImage(nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_WaitImageV4(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function WaitImage(nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_WaitImageV4(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
+    End Function
+
+    <Obsolete("Use FrameInfoV4")>
+    Public Function WaitImage(nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1269,7 +1364,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
-    Public Function WaitImageV3(nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function WaitImage(nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1277,7 +1373,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
-    Public Function WaitImageV3(nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
+    <Obsolete("Use FrameInfoV4")>
+    Public Function WaitImage(nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
@@ -1285,6 +1382,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_WaitImageV3(handle_, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImageWithRowPitch(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1293,6 +1391,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageWithRowPitch(handle_, pImageData, bits, rowPitch, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImageWithRowPitch(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1301,6 +1400,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageWithRowPitch(handle_, pImageData, bits, rowPitch, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImageWithRowPitch(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1309,6 +1409,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageWithRowPitch(handle_, pImageData, bits, rowPitch, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImageWithRowPitchV2(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1317,6 +1418,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageWithRowPitchV2(handle_, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImageWithRowPitchV2(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1325,6 +1427,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageWithRowPitchV2(handle_, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullImageWithRowPitchV2(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1333,6 +1436,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullImageWithRowPitchV2(handle_, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageWithRowPitch(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1341,6 +1445,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageWithRowPitch(handle_, pImageData, bits, rowPitch, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageWithRowPitch(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1349,6 +1454,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageWithRowPitch(handle_, pImageData, bits, rowPitch, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageWithRowPitch(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1357,6 +1463,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageWithRowPitch(handle_, pImageData, bits, rowPitch, pnWidth, pnHeight))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageWithRowPitchV2(pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1365,6 +1472,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageWithRowPitchV2(handle_, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageWithRowPitchV2(pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1373,6 +1481,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_PullStillImageWithRowPitchV2(handle_, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function PullStillImageWithRowPitchV2(pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1393,6 +1502,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_StartPushModeV4(handle_, pDataV4_, id_, pEvent_, id_))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function StartPushModeV3(funData As DelegateDataCallbackV3, funEvent As DelegateEventCallback) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1462,6 +1572,31 @@ Friend Class Ogmacam
     '               0xffffffff:     wait infinite
     '               other:          milliseconds to wait
     '
+    Public Function TriggerSync(nWaitMS As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_TriggerSyncV4(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function TriggerSync(nWaitMS As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_TriggerSyncV4(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
+    End Function
+
+    Public Function TriggerSync(nWaitMS As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+
+        Return CheckHResult(Ogmacam_TriggerSyncV4(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
+    End Function
+
+    <Obsolete("Use FrameInfoV4")>
     Public Function TriggerSync(nWaitMS As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1470,6 +1605,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_TriggerSync(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function TriggerSync(nWaitMS As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1478,6 +1614,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_TriggerSync(handle_, nWaitMS, pImageData, bits, rowPitch, pInfo))
     End Function
 
+    <Obsolete("Use FrameInfoV4")>
     Public Function TriggerSync(nWaitMS As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -1716,6 +1853,14 @@ Friend Class Ogmacam
             Return False
         End If
         Return CheckHResult(Ogmacam_get_ExpoTime(handle_, Time))
+    End Function
+
+    Public Function get_RealExpoTime(ByRef Time As UInteger) As Boolean
+        ' in microseconds
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Return CheckHResult(Ogmacam_get_RealExpoTime(handle_, Time))
     End Function
 
     Public Function put_ExpoTime(Time As UInteger) As Boolean
@@ -2347,18 +2492,17 @@ Friend Class Ogmacam
 
     '
     ' cmd: input
-    '   -1:         query the number
-    '   0~number:   query the nth pixel format
-    ' iValue: output, OGMACAM_PIXELFORMAT_xxxx
+    '    -1:       query the number
+    '    0~number: query the nth pixel format
+    ' pixelFormat: output, OGMACAM_PIXELFORMAT_xxxx
     '
-    Public Function get_PixelFormatSupport(cmd As SByte, ByRef iValue As Integer) As Boolean
+    Public Function get_PixelFormatSupport(cmd As SByte, ByRef pixelFormat As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            iValue = 0
+            pixelFormat = 0
             Return False
         End If
-        Return CheckHResult(Ogmacam_get_PixelFormatSupport(handle_, cmd, iValue))
+        Return CheckHResult(Ogmacam_get_PixelFormatSupport(handle_, cmd, pixelFormat))
     End Function
-
 
     Public Function put_SelfTrigger(ByRef pSt As SelfTrigger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
@@ -2811,8 +2955,8 @@ Friend Class Ogmacam
         Ogmacam_TempTint2Gain(temp, tint, gain)
     End Sub
 
-    Public Shared Function PixelFormatName(val As Integer) As String
-        Dim ptr As IntPtr = Ogmacam_get_PixelFormatName(val)
+    Public Shared Function PixelFormatName(pixelFormat As Integer) As String
+        Dim ptr As IntPtr = Ogmacam_get_PixelFormatName(pixelFormat)
         If IntPtr.Zero = ptr Then
             Return Nothing
         End If
@@ -2823,27 +2967,27 @@ Friend Class Ogmacam
         Select Case (hResult)
             Case S_OK
                 Return "Success"
-            Case S_FALSE
+            Case S_FALSE ' Remark: Different from S_OK, such as internal values and user-set values have coincided, equivalent to noop
                 Return "Yet another success"
             Case E_INVALIDARG
                 Return "One or more arguments are not valid"
-            Case E_NOTIMPL
+            Case E_NOTIMPL ' Remark: This feature is not supported on this model of camera
                 Return "Not supported or not implemented"
-            Case E_POINTER
+            Case E_POINTER ' Remark: Pointer is NULL
                 Return "Pointer that is not valid"
-            Case E_UNEXPECTED
+            Case E_UNEXPECTED ' Remark: Generally indicates that the conditions are not met, such as calling put_Option setting some options that do not support modification when the camera is running, and so on
                 Return "Catastrophic failure"
-            Case E_ACCESSDENIED
+            Case E_ACCESSDENIED ' Remark: The program on Linux does not have permission to open the USB device, please enable udev rules file or run as root
                 Return "General access denied error"
             Case E_OUTOFMEMORY
                 Return "Out of memory"
             Case E_WRONG_THREAD
                 Return "Call function in the wrong thread"
-            Case E_GEN_FAILURE
+            Case E_GEN_FAILURE ' Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc
                 Return "Device not functioning"
-            Case E_PENDING
+            Case E_PENDING ' Remark: No data is available at this time
                 Return "The data necessary to complete this operation is not yet available"
-            Case E_BUSY
+            Case E_BUSY ' Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc
                 Return "The requested resource is in use"
             Case E_TIMEOUT
                 Return "This operation returned because the timeout period expired"
@@ -2857,6 +3001,7 @@ Friend Class Ogmacam
     Private handle_ As SafeCamHandle
     Private id_ As IntPtr
     Private funDataV4_ As DelegateDataCallbackV4
+    <Obsolete>
     Private funDataV3_ As DelegateDataCallbackV3
     Private funEvent_ As DelegateEventCallback
     Private funHistogramV1_ As DelegateHistogramCallback
@@ -2926,6 +3071,7 @@ Friend Class Ogmacam
         End If
     End Sub
 
+    <Obsolete>
     Private Sub DataCallbackV3(pData As IntPtr, pInfo As IntPtr, bSnap As Boolean)
         If pData = IntPtr.Zero OrElse pInfo = IntPtr.Zero Then
             ' pData == 0 means that something error, we callback to tell the application
@@ -2951,6 +3097,7 @@ Friend Class Ogmacam
         End If
     End Sub
 
+    <Obsolete>
     Private Shared Sub DataCallbackV3(pData As IntPtr, pInfo As IntPtr, bSnap As Boolean, ctxData As IntPtr)
         Dim pthis As Ogmacam = Nothing
         map_.TryGetValue(ctxData.ToInt32(), pthis)
@@ -3109,6 +3256,15 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_StartPullModeWithCallback(h As SafeCamHandle, funEvent As EVENT_CALLBACK, ctxEvent As IntPtr) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_PullImageV4(h As SafeCamHandle, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_PullImageV4(h As SafeCamHandle, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_PullImageV4(h As SafeCamHandle, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_PullImageV3(h As SafeCamHandle, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -3118,90 +3274,99 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_PullImageV3(h As SafeCamHandle, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_WaitImageV4(h As SafeCamHandle, nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_WaitImageV4(h As SafeCamHandle, nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_WaitImageV4(h As SafeCamHandle, nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_WaitImageV3(h As SafeCamHandle, nWaitMS As UInteger, pImageData As IntPtr, bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_WaitImageV3(h As SafeCamHandle, nWaitMS As UInteger, pImageData As Byte(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_WaitImageV3(h As SafeCamHandle, nWaitMS As UInteger, pImageData As UShort(), bStill As Integer, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImage(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImage(h As SafeCamHandle, pImageData As Byte(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImage(h As SafeCamHandle, pImageData As UShort(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImage(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImage(h As SafeCamHandle, pImageData As Byte(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImage(h As SafeCamHandle, pImageData As UShort(), bits As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageWithRowPitch(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageWithRowPitch(h As SafeCamHandle, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageWithRowPitch(h As SafeCamHandle, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageWithRowPitch(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageWithRowPitch(h As SafeCamHandle, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageWithRowPitch(h As SafeCamHandle, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pnWidth As UInteger, ByRef pnHeight As UInteger) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageV2(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageV2(h As SafeCamHandle, pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageV2(h As SafeCamHandle, pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageV2(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageV2(h As SafeCamHandle, pImageData As Byte(), bits As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageV2(h As SafeCamHandle, pImageData As UShort(), bits As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageWithRowPitchV2(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageWithRowPitchV2(h As SafeCamHandle, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullImageWithRowPitchV2(h As SafeCamHandle, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageWithRowPitchV2(h As SafeCamHandle, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageWithRowPitchV2(h As SafeCamHandle, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_PullStillImageWithRowPitchV2(h As SafeCamHandle, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV2) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_StartPushModeV4(h As SafeCamHandle, funData As DATA_CALLBACK_V4, ctxData As IntPtr, funEvent As EVENT_CALLBACK, ctxEvent As IntPtr) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_StartPushModeV3(h As SafeCamHandle, funData As DATA_CALLBACK_V3, ctxData As IntPtr, funEvent As EVENT_CALLBACK, ctxEvent As IntPtr) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
@@ -3225,12 +3390,21 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_Trigger(h As SafeCamHandle, nNumber As UShort) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_TriggerSyncV4(h As SafeCamHandle, nWaitMS As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_TriggerSyncV4(h As SafeCamHandle, nWaitMS As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_TriggerSyncV4(h As SafeCamHandle, nWaitMS As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV4) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nWaitMS As UInteger, pImageData As IntPtr, bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nWaitMS As UInteger, pImageData As Byte(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
-    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi), Obsolete>
     Private Shared Function Ogmacam_TriggerSync(h As SafeCamHandle, nWaitMS As UInteger, pImageData As UShort(), bits As Integer, rowPitch As Integer, ByRef pInfo As FrameInfoV3) As Integer
     End Function
 
@@ -3305,7 +3479,7 @@ Friend Class Ogmacam
     '  | Temp                    |   1000~25000  |   6503                |
     '  | Tint                    |   100~2500    |   1000                |
     '  | LevelRange              |   0~255       |   Low = 0, High = 255 |
-    '  | Contrast                |   -150~150    |   0                   |
+    '  | Contrast                |   -250~250    |   0                   |
     '  | Hue                     |   -180~180    |   0                   |
     '  | Saturation              |   0~255       |   128                 |
     '  | Brightness              |   -128~128    |   0                   |
@@ -3350,7 +3524,9 @@ Friend Class Ogmacam
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_ExpoTime(h As SafeCamHandle, Time As UInteger) As Integer
     End Function
-
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_get_RealExpoTime(h As SafeCamHandle, ByRef Time As UInteger) As Integer
+    End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_ExpTimeRange(h As SafeCamHandle, ByRef nMin As UInteger, ByRef nMax As UInteger, ByRef nDef As UInteger) As Integer
     End Function
@@ -3633,7 +3809,6 @@ Friend Class Ogmacam
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_PixelFormatName(val As Integer) As IntPtr
     End Function
-
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_SelfTrigger(h As SafeCamHandle, ByRef pSt As SelfTrigger) As Integer

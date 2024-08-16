@@ -15,7 +15,7 @@ class App:
     def CameraCallback(self, nEvent):
         if nEvent == ogmacam.OGMACAM_EVENT_IMAGE:
             try:
-                self.hcam.PullImageV3(self.buf, 0, 24, 0, None)
+                self.hcam.PullImageV4(self.buf, 0, 24, 0, None)
                 self.total += 1
                 print('pull image ok, total = {}'.format(self.total))
             except ogmacam.HRESULTException as ex:

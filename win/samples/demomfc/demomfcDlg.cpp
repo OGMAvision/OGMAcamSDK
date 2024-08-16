@@ -392,11 +392,11 @@ void CdemomfcDlg::OnEventImage()
 
 void CdemomfcDlg::OnEventStillImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
-	HRESULT hr = Ogmacam_PullImageV3(m_hcam, NULL, 1, 24, 0, &info);
+	OgmacamFrameInfoV4 info = { 0 };
+	HRESULT hr = Ogmacam_PullImageV4(m_hcam, NULL, 1, 24, 0, &info);
 	if (SUCCEEDED(hr))
 	{
-		void* pData = malloc(TDIBWIDTHBYTES(info.width * 24) * info.height);
+		void* pData = malloc(TDIBWIDTHBYTES(info.v3.width * 24) * info.v3.height);
 		hr = Ogmacam_PullImageV3(m_hcam, pData, 1, 24, 0, NULL);
 		if (SUCCEEDED(hr))
 		{
@@ -404,8 +404,8 @@ void CdemomfcDlg::OnEventStillImage()
 			header.biSize = sizeof(header);
 			header.biPlanes = 1;
 			header.biBitCount = 24;
-			header.biWidth = info.width;
-			header.biHeight = info.height;
+			header.biWidth = info.v3.width;
+			header.biHeight = info.v3.height;
 			header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * header.biBitCount) * header.biHeight;
 			SaveImageByWIC(L"demomfc.jpg", pData, &header);
 		}

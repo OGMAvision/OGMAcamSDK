@@ -29,30 +29,30 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
 {
     if (OGMACAM_EVENT_IMAGE == nEvent)
     {
-        OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 0, 0, &info);
+        OgmacamFrameInfoV4 info = { 0 };
+        const HRESULT hr = Ogmacam_PullImageV4(g_hcam, g_pImageData, 0, 0, 0, &info);
         if (FAILED(hr))
-            printf("failed to pull image, hr = %08x\n", hr);
+            printf("failed to pull image, hr = 0x%08x\n", hr);
         else
         {
-            printf("pull image ok, total = %u, resolution = %u x %u\n", ++g_total, info.width, info.height);
+            printf("pull image ok, total = %u, resolution = %u x %u\n", ++g_total, info.v3.width, info.v3.height);
             if (g_bSave)
             {
                 g_bSave = false;
-                SaveRaw("demoraw", g_total, info.width, info.height, g_pImageData, info.width * info.height * (g_bBitdepth ? 2 : 1));
+                SaveRaw("demoraw", g_total, info.v3.width, info.v3.height, g_pImageData, info.v3.width * info.v3.height * (g_bBitdepth ? 2 : 1));
             }
         }
     }
     else if (OGMACAM_EVENT_STILLIMAGE == nEvent)
     {
-        OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 1, 0, 0, &info);
+        OgmacamFrameInfoV4 info = { 0 };
+        const HRESULT hr = Ogmacam_PullImageV4(g_hcam, g_pImageData, 1, 0, 0, &info);
         if (FAILED(hr))
-            printf("failed to pull still image, hr = %08x\n", hr);
+            printf("failed to pull still image, hr = 0x%08x\n", hr);
         else
         {
-            printf("pull still image ok, total = %u, resolution = %u x %u\n", ++g_totalstill, info.width, info.height);
-            SaveRaw("demorawstill", g_totalstill, info.width, info.height, g_pImageData, info.width * info.height * (g_bBitdepth ? 2 : 1));
+            printf("pull still image ok, total = %u, resolution = %u x %u\n", ++g_totalstill, info.v3.width, info.v3.height);
+            SaveRaw("demorawstill", g_totalstill, info.v3.width, info.v3.height, g_pImageData, info.v3.width * info.v3.height * (g_bBitdepth ? 2 : 1));
         }
     }
     else
@@ -79,7 +79,7 @@ int main(int, char**)
     }
     
     HRESULT hr = Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_RAW, 1); /* use raw image data */
-    printf("put option raw: hr = %08x\n", hr);
+    printf("put option raw: hr = 0x%08x\n", hr);
 
     if (tdev[0].model->preview > 1)
         Ogmacam_put_eSize(g_hcam, 1);
@@ -93,7 +93,7 @@ int main(int, char**)
     int nMaxWidth = 0, nMaxHeight = 0;
     hr = Ogmacam_get_Resolution(g_hcam, 0, &nMaxWidth, &nMaxHeight);
     if (FAILED(hr))
-        printf("failed to get size, hr = %08x\n", hr);
+        printf("failed to get size, hr = 0x%08x\n", hr);
     else
     {
         g_pImageData = malloc(nMaxWidth * nMaxHeight * (g_bBitdepth ? 2 : 1));
@@ -103,7 +103,7 @@ int main(int, char**)
         {
             hr = Ogmacam_StartPullModeWithCallback(g_hcam, EventCallback, NULL);
             if (FAILED(hr))
-                printf("failed to start camera, hr = %08x\n", hr);
+                printf("failed to start camera, hr = 0x%08x\n", hr);
             else
             {
                 bool bloop = true;

@@ -10,14 +10,14 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
 {
     if (OGMACAM_EVENT_IMAGE == nEvent)
     {
-        OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 24, 0, &info);
+        OgmacamFrameInfoV4 info = { 0 };
+        const HRESULT hr = Ogmacam_PullImageV4(g_hcam, g_pImageData, 0, 24, 0, &info);
         if (FAILED(hr))
-            printf("failed to pull image, hr = %08x\n", hr);
+            printf("failed to pull image, hr = 0x%08x\n", hr);
         else
         {
             /* After we get the image data, we can do anything for the data we want to do */
-            printf("pull image ok, total = %u, res = %u x %u\n", ++g_total, info.width, info.height);
+            printf("pull image ok, total = %u, res = %u x %u\n", ++g_total, info.v3.width, info.v3.height);
         }
     }
     else
@@ -38,7 +38,7 @@ int main(int, char**)
     int nWidth = 0, nHeight = 0;
     HRESULT hr = Ogmacam_get_Size(g_hcam, &nWidth, &nHeight);
     if (FAILED(hr))
-        printf("failed to get size, hr = %08x\n", hr);
+        printf("failed to get size, hr = 0x%08x\n", hr);
     else
     {
         g_pImageData = malloc(TDIBWIDTHBYTES(24 * nWidth) * nHeight);
@@ -48,7 +48,7 @@ int main(int, char**)
         {
             hr = Ogmacam_StartPullModeWithCallback(g_hcam, EventCallback, NULL);
             if (FAILED(hr))
-                printf("failed to start camera, hr = %08x\n", hr);
+                printf("failed to start camera, hr = 0x%08x\n", hr);
             else
             {
                 printf("press ENTER to exit\n");

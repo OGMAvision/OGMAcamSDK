@@ -166,14 +166,14 @@ void MainWidget::TStackCallback(int width, int height, int /*type*/, eImageproLi
 
 void MainWidget::handleImageEvent()
 {
-    OgmacamFrameInfoV3 info = { 0 };
-    if (SUCCEEDED(Ogmacam_PullImageV3(m_hcam, m_pVideoData, 0, 24, 0, &info)))
+    OgmacamFrameInfoV4 info = { 0 };
+    if (SUCCEEDED(Ogmacam_PullImageV4(m_hcam, m_pVideoData, 0, 24, 0, &info)))
     {
-        QImage image(m_pVideoData, info.width, info.height, QImage::Format_RGB888);
+        QImage image(m_pVideoData, info.v3.width, info.v3.height, QImage::Format_RGB888);
         QImage newimage = image.scaled(m_lbl_video->width(), m_lbl_video->height(), Qt::KeepAspectRatio, Qt::FastTransformation);
         m_lbl_video->setPixmap(QPixmap::fromImage(newimage));
 
-        imagepro_livestack_add(m_stack, m_pVideoData, info.width, info.height, 8);
+        imagepro_livestack_add(m_stack, m_pVideoData, info.v3.width, info.v3.height, 8);
     }
 }
 

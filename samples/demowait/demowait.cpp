@@ -18,7 +18,7 @@ int main(int, char**)
     int nWidth = 0, nHeight = 0;
     HRESULT hr = Ogmacam_get_Size(g_hcam, &nWidth, &nHeight);
     if (FAILED(hr))
-        printf("failed to get size, hr = %08x\n", hr);
+        printf("failed to get size, hr = 0x%08x\n", hr);
     else
     {
         g_pImageData = malloc(TDIBWIDTHBYTES(24 * nWidth) * nHeight);
@@ -28,7 +28,7 @@ int main(int, char**)
         {
             hr = Ogmacam_StartPullModeWithCallback(g_hcam, NULL, NULL);
             if (FAILED(hr))
-                printf("failed to start camera, hr = %08x\n", hr);
+                printf("failed to start camera, hr = 0x%08x\n", hr);
             else
             {
                 printf("press Ctrl-C to exit\n");
@@ -39,7 +39,7 @@ int main(int, char**)
                     if (hr == 0x8001011f)
                         printf("pull image timeout\n");
                     else if (FAILED(hr))
-                        printf("failed to pull image, hr = %08x\n", hr);
+                        printf("failed to pull image, hr = 0x%08x\n", hr);
                     else
                     {
                         /* After we get the image data, we can do anything for the data we want to do */

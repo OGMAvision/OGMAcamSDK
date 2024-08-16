@@ -294,7 +294,7 @@ private:
 				}
 			}
 
-			const HRESULT hr = Ogmacam_PullImageV3(m_hcam, pdata, 0, 24, 0, nullptr);
+			const HRESULT hr = Ogmacam_PullImageV4(m_hcam, pdata, 0, 24, 0, nullptr);
 			if (SUCCEEDED(hr))
 			{
 				++m_image;

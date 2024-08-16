@@ -23,14 +23,14 @@ namespace liveedf
         {
             if (bmp1_ != null)
             {
-                Ogmacam.FrameInfoV3 info = new Ogmacam.FrameInfoV3();
+                Ogmacam.FrameInfoV4 info = new Ogmacam.FrameInfoV4();
                 try
                 {
                     BitmapData bmpdata1 = bmp1_.LockBits(new Rectangle(0, 0, bmp1_.Width, bmp1_.Height), ImageLockMode.WriteOnly, bmp1_.PixelFormat);
                     BitmapData bmpdata2 = bmp2_.LockBits(new Rectangle(0, 0, bmp2_.Width, bmp2_.Height), ImageLockMode.WriteOnly, bmp2_.PixelFormat);
                     try
                     {
-                        edf_.PullV3(cam_.Handle, 1, bmpdata1.Scan0, 24, 0, out info); // check the return value
+                        edf_.Pull(cam_.Handle, 1, bmpdata1.Scan0, 24, 0, out info); // check the return value
                         edf_.ReadData(bmpdata2.Scan0, bmpdata2.Stride);
                     }
                     finally

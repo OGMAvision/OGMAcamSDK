@@ -20,38 +20,38 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
 {
     if (OGMACAM_EVENT_IMAGE == nEvent)
     {
-        OgmacamFrameInfoV3 info = { 0 };
-        const HRESULT hr = Ogmacam_PullImageV3(g_hcam, g_pImageData, 0, 24, 0, &info);
+        OgmacamFrameInfoV4 info = { 0 };
+        const HRESULT hr = Ogmacam_PullImageV4(g_hcam, g_pImageData, 0, 24, 0, &info);
         if (FAILED(hr))
-            printf("failed to pull image, hr = %08x\n", hr);
+            printf("failed to pull image, hr = 0x%08x\n", hr);
         else
         {
             /* After we get the image data, we can do anything for the data we want to do */
-            printf("pull image ok, total = %u, res = %u x %u\n", ++g_totalVideo, info.width, info.height);
+            printf("pull image ok, total = %u, res = %u x %u\n", ++g_totalVideo, info.v3.width, info.v3.height);
         }
     }
     else if (OGMACAM_EVENT_STILLIMAGE == nEvent)
     {
-        OgmacamFrameInfoV3 info = { 0 };
-        HRESULT hr = Ogmacam_PullImageV3(g_hcam, nullptr, 1, 0, 0, &info); //peek width & height
+        OgmacamFrameInfoV4 info = { 0 };
+        HRESULT hr = Ogmacam_PullImageV4(g_hcam, nullptr, 1, 0, 0, &info); //peek width & height
         if (FAILED(hr))
-            printf("failed to pull still image, hr = %08x\n", hr);
+            printf("failed to pull still image, hr = 0x%08x\n", hr);
         else
         {
-            void* pStillImage = malloc(info.width * info.height); /* memory for still image */
+            void* pStillImage = malloc(info.v3.width * info.v3.height); /* memory for still image */
             if (pStillImage)
             {
                 /* After we get the image data, we can do anything for the data we want to do */
-                hr = Ogmacam_PullImageV3(g_hcam, pStillImage, 1, 0, 0, &info);
+                hr = Ogmacam_PullImageV4(g_hcam, pStillImage, 1, 0, 0, &info);
                 if (FAILED(hr))
-                    printf("failed to pull still image, hr = %08x\n", hr);
+                    printf("failed to pull still image, hr = 0x%08x\n", hr);
                 else
                 {
                     char filename[1024];
                     g_totalStill += 1;
-                    sprintf(filename, "demostillraw_%ux%u_%u.raw", info.width, info.height, g_totalStill);
-                    SaveRaw(filename, pStillImage, info.width * info.height);
-                    printf("pull still image ok, total = %u, res = %u x %u, save: %s\n", g_totalStill, info.width, info.height, filename);
+                    sprintf(filename, "demostillraw_%ux%u_%u.raw", info.v3.width, info.v3.height, g_totalStill);
+                    SaveRaw(filename, pStillImage, info.v3.width * info.v3.height);
+                    printf("pull still image ok, total = %u, res = %u x %u, save: %s\n", g_totalStill, info.v3.width, info.v3.height, filename);
                 }
 
                 free(pStillImage);
@@ -100,7 +100,7 @@ int main(int, char**)
     int nWidth = 0, nHeight = 0;
     HRESULT hr = Ogmacam_get_Size(g_hcam, &nWidth, &nHeight);
     if (FAILED(hr))
-        printf("failed to get size, hr = %08x\n", hr);
+        printf("failed to get size, hr = 0x%08x\n", hr);
     else
     {
         g_pImageData = malloc(TDIBWIDTHBYTES(24 * nWidth) * nHeight);
@@ -110,7 +110,7 @@ int main(int, char**)
         {
             hr = Ogmacam_StartPullModeWithCallback(g_hcam, EventCallback, NULL);
             if (FAILED(hr))
-                printf("failed to start camera, hr = %08x\n", hr);
+                printf("failed to start camera, hr = 0x%08x\n", hr);
             else
             {
                 printf("press 'x' to exit, number to snap still image\n");

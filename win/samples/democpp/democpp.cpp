@@ -355,13 +355,13 @@ private:
 
 		CComboBox cbox(GetDlgItem(IDC_COMBO1));
 		{
-			int num = 0,  val = 0;
+			int num = 0, pixelFormat = 0;
 			if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, -1, &num)) && (num > 0))
 			{
 				for (int i = 0; i < num; ++i)
 				{
-					if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, (char)i, &val)))
-						cbox.SetItemData(cbox.AddString(CA2W(Ogmacam_get_PixelFormatName(val))), val);
+					if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, (char)i, &pixelFormat)))
+						cbox.SetItemData(cbox.AddString(CA2W(Ogmacam_get_PixelFormatName(pixelFormat))), pixelFormat);
 				}
 			}
 		}
@@ -1121,6 +1121,8 @@ class CIocontrolDlg : public CDialogImpl<CIocontrolDlg>
 		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnCancel)
 		COMMAND_HANDLER(IDOK, BN_CLICKED, OnOK)
 		COMMAND_HANDLER(IDC_COUNTERRESET, BN_CLICKED, OnCounterReset)
+		COMMAND_HANDLER(IDC_IOINDEX, CBN_SELENDOK, OnSelchange1)
+		COMMAND_HANDLER(IDC_GPIODIR, CBN_SELENDOK, OnSelchange2)
 	END_MSG_MAP()
 public:
 	enum { IDD = IDD_IOCONTROL };
@@ -1215,8 +1217,10 @@ private:
 		SetDlgItemInt(IDC_USER_VALUE, 0, TRUE);
 		GetDlgItem(IDC_GPIODIR).EnableWindow(FALSE);
 		GetDlgItem(IDC_IOFORMAT).EnableWindow(FALSE);
-		GetDlgItem(IDC_OUTPUTMODE).EnableWindow(FALSE);
+		GetDlgItem(IDC_TRIGGER_DELAY).EnableWindow(TRUE);
+		GetDlgItem(IDC_DEBOUNCE_TIME).EnableWindow(TRUE);
 		GetDlgItem(IDC_OUTPUTINVERTER).EnableWindow(FALSE);
+		GetDlgItem(IDC_OUTPUTMODE).EnableWindow(FALSE);
 		return TRUE;
 	}
 
@@ -1325,6 +1329,38 @@ private:
 		{
 			CComboBox box(GetDlgItem(IDC_PWMSOURCE));
 			Ogmacam_IoControl(m_hcam, index, OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE, box.GetCurSel(), NULL);
+		}
+		return 0;
+	}
+
+	LRESULT OnSelchange1(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		CComboBox cbox(GetDlgItem(IDC_IOINDEX));
+		int nSel = cbox.GetCurSel();
+		if (nSel == 2 || nSel == 3)
+			GetDlgItem(IDC_GPIODIR).EnableWindow(TRUE);
+		else
+			GetDlgItem(IDC_GPIODIR).EnableWindow(FALSE);
+		return 0;
+	}
+
+	LRESULT OnSelchange2(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+	{
+		CComboBox cbox(GetDlgItem(IDC_GPIODIR));
+		int nSel = cbox.GetCurSel();
+		if (nSel == 0)
+		{
+			GetDlgItem(IDC_TRIGGER_DELAY).EnableWindow(TRUE);
+			GetDlgItem(IDC_DEBOUNCE_TIME).EnableWindow(TRUE);
+			GetDlgItem(IDC_OUTPUTINVERTER).EnableWindow(FALSE);
+			GetDlgItem(IDC_OUTPUTMODE).EnableWindow(FALSE);
+		}
+		else
+		{
+			GetDlgItem(IDC_OUTPUTINVERTER).EnableWindow(TRUE);
+			GetDlgItem(IDC_OUTPUTMODE).EnableWindow(TRUE);
+			GetDlgItem(IDC_TRIGGER_DELAY).EnableWindow(FALSE);
+			GetDlgItem(IDC_DEBOUNCE_TIME).EnableWindow(FALSE);
 		}
 		return 0;
 	}
@@ -2372,11 +2408,11 @@ private:
 
 	void OnEventImage()
 	{
-		OgmacamFrameInfoV3 info = { 0 };
-		HRESULT hr = Ogmacam_PullImageV3(m_hcam, m_pData, 0, m_header.biBitCount, 0, &info);
+		OgmacamFrameInfoV4 info = { 0 };
+		HRESULT hr = Ogmacam_PullImageV4(m_hcam, m_pData, 0, m_header.biBitCount, 0, &info);
 		if (FAILED(hr))
 			return;
-		if ((info.width != m_header.biWidth) || (info.height != m_header.biHeight))
+		if ((info.v3.width != m_header.biWidth) || (info.v3.height != m_header.biHeight))
 			return;
 
 		++m_nFrameCount;
@@ -2397,17 +2433,17 @@ private:
 		header.biSize = sizeof(header);
 		header.biPlanes = 1;
 		header.biBitCount = 24;
-		OgmacamFrameInfoV3 info = { 0 };
-		HRESULT hr = Ogmacam_PullImageV3(m_hcam, NULL, 1, 24, 0, &info); //first, peek the width and height
+		OgmacamFrameInfoV4 info = { 0 };
+		HRESULT hr = Ogmacam_PullImageV4(m_hcam, NULL, 1, 24, 0, &info); //first, peek the width and height
 		if (SUCCEEDED(hr))
 		{
-			header.biWidth = info.width;
-			header.biHeight = info.height;
+			header.biWidth = info.v3.width;
+			header.biHeight = info.v3.height;
 			header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * header.biBitCount) * header.biHeight;
 			void* pSnapData = malloc(header.biSizeImage);
 			if (pSnapData)
 			{
-				hr = Ogmacam_PullImageV3(m_hcam, pSnapData, 1, 24, 0, NULL);
+				hr = Ogmacam_PullImageV4(m_hcam, pSnapData, 1, 24, 0, NULL);
 				if (SUCCEEDED(hr))
 				{
 					if (2 == m_nSnapType)
@@ -2667,20 +2703,20 @@ private:
 		statusbar.SetText(3, str);
 	}
 
-	void UpdateFrameText(const OgmacamFrameInfoV3& info)
+	void UpdateFrameText(const OgmacamFrameInfoV4& info)
 	{
 		wchar_t str[256];
 		if (m_dwLastTick != m_dwStartTick)
 		{
-			if (info.flag & (OGMACAM_FRAMEINFO_FLAG_SEQ | OGMACAM_FRAMEINFO_FLAG_TIMESTAMP))
-				swprintf(str, L"%u, %.2f, %u, %llu", m_nFrameCount, m_nFrameCount / ((m_dwLastTick - m_dwStartTick) / 1000.0), info.seq, info.timestamp);
+			if (info.v3.flag & (OGMACAM_FRAMEINFO_FLAG_SEQ | OGMACAM_FRAMEINFO_FLAG_TIMESTAMP))
+				swprintf(str, L"%u, %.2f, %u, %llu", m_nFrameCount, m_nFrameCount / ((m_dwLastTick - m_dwStartTick) / 1000.0), info.v3.seq, info.v3.timestamp);
 			else
 				swprintf(str, L"%u, %.2f", m_nFrameCount, m_nFrameCount / ((m_dwLastTick - m_dwStartTick) / 1000.0));
 		}
 		else
 		{
-			if (info.flag & (OGMACAM_FRAMEINFO_FLAG_SEQ | OGMACAM_FRAMEINFO_FLAG_TIMESTAMP))
-				swprintf(str, L"%u, %u, %llu", m_nFrameCount, info.seq, info.timestamp);
+			if (info.v3.flag & (OGMACAM_FRAMEINFO_FLAG_SEQ | OGMACAM_FRAMEINFO_FLAG_TIMESTAMP))
+				swprintf(str, L"%u, %u, %llu", m_nFrameCount, info.v3.seq, info.v3.timestamp);
 			else
 				swprintf(str, L"%u", m_nFrameCount);
 		}

@@ -281,14 +281,14 @@ private:
 			m_regkey.QueryDWORDValue(L"pixelformat", dwValue);
 
 			CComboBox box(GetDlgItem(IDC_COMBO6));
-			int num = 0, val = 0;
+			int num = 0, pixelFormat = 0;
 			Ogmacam_get_PixelFormatSupport(m_hcam, -1, &num);
 			for (int i = 0; i < num; ++i)
 			{
-				if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, (char)i, &val)))
+				if (SUCCEEDED(Ogmacam_get_PixelFormatSupport(m_hcam, (char)i, &pixelFormat)))
 				{
-					box.SetItemData(box.AddString(CA2W(Ogmacam_get_PixelFormatName(val))), val);
-					if (dwValue == val)
+					box.SetItemData(box.AddString(CA2W(Ogmacam_get_PixelFormatName(pixelFormat))), pixelFormat);
+					if (dwValue == pixelFormat)
 						box.SetCurSel(box.GetCount() - 1);
 				}
 			}
@@ -299,8 +299,8 @@ private:
 			m_regkey.QueryDWORDValue(L"scale", m_scale);
 			((CComboBox)GetDlgItem(IDC_COMBO4)).SetCurSel(m_scale);
 
-			val = (int)(box.GetItemData(box.GetCurSel()));
-			GetDlgItem(IDC_COMBO4).EnableWindow(GetPixelFormatBitDepth(val) > 8);
+			pixelFormat = (int)(box.GetItemData(box.GetCurSel()));
+			GetDlgItem(IDC_COMBO4).EnableWindow(GetPixelFormatBitDepth(pixelFormat) > 8);
 		}
 		if (E_NOTIMPL == Ogmacam_get_Temperature(m_hcam, nullptr)) // support get the temperature of the sensor
 			GetDlgItem(IDC_EDIT5).EnableWindow(FALSE);
@@ -1849,7 +1849,7 @@ private:
 	}
 
 	template<typename T>
-	void GetData(int* arr, const T* pData, const OgmacamFrameInfoV3& info)
+	void GetData(int* arr, const T* pData, const OgmacamFrameInfoV4& info)
 	{
 		const int r = m_area / 2;
 		for (int i = 0; i < (int)m_vecPt.size(); ++i)
@@ -1857,7 +1857,7 @@ private:
 			long long sum = 0;
 			for (int y = m_vecPt[i].y - r; y < m_vecPt[i].y + r; ++y)
 			{
-				const T* p = pData + info.width * (info.height - 1 - y);
+				const T* p = pData + info.v3.width * (info.v3.height - 1 - y);
 				for (int x = m_vecPt[i].x - r; x < m_vecPt[i].x + r; ++x)
 					sum += p[x];
 			}
@@ -1869,8 +1869,8 @@ private:
 	{
 		const DWORD dwTick = GetTickCount();
 		bool bAdd = false;
-		OgmacamFrameInfoV3 info = { 0 };
-		const HRESULT hr = Ogmacam_PullImageV3(m_hcam, m_pRawData, 0, 0, 0, &info);
+		OgmacamFrameInfoV4 info = { 0 };
+		const HRESULT hr = Ogmacam_PullImageV4(m_hcam, m_pRawData, 0, 0, 0, &info);
 		if (SUCCEEDED(hr))
 		{
 			if (m_bTriggerMode)

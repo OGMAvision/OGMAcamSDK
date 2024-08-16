@@ -69,14 +69,14 @@ namespace demowpf
         {
             if (bmp_ != null)
             {
-                Ogmacam.FrameInfoV3 info = new Ogmacam.FrameInfoV3();
+                Ogmacam.FrameInfoV4 info = new Ogmacam.FrameInfoV4();
                 bool bOK = false;
                 try
                 {
                     bmp_.Lock();
                     try
                     {
-                        bOK = cam_.PullImageV3(bmp_.BackBuffer, 0, 32, bmp_.BackBufferStride, out info); // check the return value
+                        bOK = cam_.PullImage(bmp_.BackBuffer, 0, 32, bmp_.BackBufferStride, out info); // check the return value
                         bmp_.AddDirtyRect(new Int32Rect(0, 0, bmp_.PixelWidth, bmp_.PixelHeight));
                     }
                     finally
@@ -108,17 +108,17 @@ namespace demowpf
 
         private void OnEventStillImage()
         {
-            Ogmacam.FrameInfoV3 info = new Ogmacam.FrameInfoV3();
-            if (cam_.PullImageV3(IntPtr.Zero, 1, 32, 0, out info))   /* peek the width and height */
+            Ogmacam.FrameInfoV4 info = new Ogmacam.FrameInfoV4();
+            if (cam_.PullImage(IntPtr.Zero, 1, 32, 0, out info))   /* peek the width and height */
             {
-                WriteableBitmap bmp = new WriteableBitmap((int)info.width, (int)info.height, 0, 0, PixelFormats.Bgr32, null);
+                WriteableBitmap bmp = new WriteableBitmap((int)info.v3.width, (int)info.v3.height, 0, 0, PixelFormats.Bgr32, null);
                 bool bOK = false;
                 try
                 {
                     bmp.Lock();
                     try
                     {
-                        bOK = cam_.PullImageV3(bmp.BackBuffer, 1, 32, bmp.BackBufferStride, out info); // check the return value
+                        bOK = cam_.PullImage(bmp.BackBuffer, 1, 32, bmp.BackBufferStride, out info); // check the return value
                     }
                     finally
                     {

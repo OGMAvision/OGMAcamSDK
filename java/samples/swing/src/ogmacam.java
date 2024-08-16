@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 56.25817.20240616
+    Version: 57.26291.20240811
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -287,8 +287,8 @@ public class ogmacam implements AutoCloseable {
                                                                         */
     public final static int OPTION_HIGH_FULLWELL          = 0x55;       /* high fullwell capacity: 0 => disable, 1 => enable */
     public final static int OPTION_DYNAMIC_DEFECT         = 0x56;       /* dynamic defect pixel correction:
-                                                                              threshold, t1: (high 16 bits): [10, 100], means: [1.0, 10.0]
-                                                                              value, t2: (low 16 bits): [0, 100], means: [0.00, 1.00]
+                                                                              dead pixel ratio, t1: (high 16 bits): [0, 100], means: [0.0, 1.0]
+                                                                              hot pixel ratio, t2: (low 16 bits): [0, 100], means: [0.0, 1.0]
                                                                         */
     public final static int OPTION_HDR_KB                 = 0x57;       /* HDR synthesize
                                                                               K (high 16 bits): [1, 25500]
@@ -301,8 +301,8 @@ public class ogmacam implements AutoCloseable {
                                                                         */
     public final static int OPTION_GIGETIMEOUT            = 0x5a;       /* For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
                                                                            If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
-                                                                           When the application is stopped by the debugger, the application cannot create the heartbeat signals
-                                                                               0 => auto: when the camera is opened, disable if debugger is present or enable if no debugger is present
+                                                                           When the application is stopped by the debugger, the application cannot send the heartbeat signals
+                                                                               0 => auto: when the camera is opened, enable if no debugger is present or disable if debugger is present
                                                                                1 => enable
                                                                                2 => disable
                                                                                default: auto
@@ -376,6 +376,8 @@ public class ogmacam implements AutoCloseable {
                                                                             n<0: every -n frame
                                                                         */
     public final static int OPTION_TECTARGET_RANGE        = 0x6d;       /* TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff) */
+    public final static int OPTION_CDS                    = 0x6e;       /* Correlated Double Sampling */
+    public final static int OPTION_LOW_POWER_EXPOTIME     = 0x6f;       /* Low Power Consumption: Enable if exposure time is greater than the set value */
 
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -403,6 +405,9 @@ public class ogmacam implements AutoCloseable {
     public final static int FRAMEINFO_FLAG_EXPOGAIN       = 0x00000008; /* exposure gain */
     public final static int FRAMEINFO_FLAG_BLACKLEVEL     = 0x00000010; /* black level */
     public final static int FRAMEINFO_FLAG_SHUTTERSEQ     = 0x00000020; /* sequence shutter counter */
+    public final static int FRAMEINFO_FLAG_GPS            = 0x00000040; /* GPS */
+    public final static int FRAMEINFO_FLAG_AUTOFOCUS      = 0x00000080; /* auto focus: uLum & uFV */
+    public final static int FRAMEINFO_FLAG_COUNT          = 0x00000100; /* timecount, framecount, tricount */
     public final static int FRAMEINFO_FLAG_STILL          = 0x00008000; /* still image */
     
     public final static int IOCONTROLTYPE_GET_SUPPORTEDMODE            = 0x01; /* 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output */
@@ -552,8 +557,8 @@ public class ogmacam implements AutoCloseable {
     public final static int BRIGHTNESS_MIN           = -128;     /* brightness */
     public final static int BRIGHTNESS_MAX           = 128;      /* brightness */
     public final static int CONTRAST_DEF             = 0;        /* contrast */
-    public final static int CONTRAST_MIN             = -150;     /* contrast */
-    public final static int CONTRAST_MAX             = 150;      /* contrast */
+    public final static int CONTRAST_MIN             = -250;     /* contrast */
+    public final static int CONTRAST_MAX             = 250;      /* contrast */
     public final static int GAMMA_DEF                = 100;      /* gamma */
     public final static int GAMMA_MIN                = 20;       /* gamma */
     public final static int GAMMA_MAX                = 180;      /* gamma */
@@ -598,18 +603,20 @@ public class ogmacam implements AutoCloseable {
     public final static int AE_PERCENT_DEF           = 10;       /* auto exposure percent: enabled, percentage = 10% */
     public final static int NOPACKET_TIMEOUT_MIN     = 500;      /* no packet timeout minimum: 500ms */
     public final static int NOFRAME_TIMEOUT_MIN      = 500;      /* no frame timeout minimum: 500ms */
-    public final static int DYNAMIC_DEFECT_T1_MIN    = 10;       /* dynamic defect pixel correction, threshold, means: 1.0 */
-    public final static int DYNAMIC_DEFECT_T1_MAX    = 100;      /* means: 10.0 */
-    public final static int DYNAMIC_DEFECT_T1_DEF    = 13;       /* means: 1.3 */
-    public final static int DYNAMIC_DEFECT_T2_MIN    = 0;        /* dynamic defect pixel correction, value, means: 0.00 */
-    public final static int DYNAMIC_DEFECT_T2_MAX    = 100;      /* means: 1.00 */
-    public final static int DYNAMIC_DEFECT_T2_DEF    = 100;
+    public final static int DYNAMIC_DEFECT_T1_MIN    = 0;        /* dynamic defect pixel correction, dead pixel ratio: the smaller the dead ratio is, the more stringent the conditions for processing dead pixels are, and fewer pixels will be processed */
+    public final static int DYNAMIC_DEFECT_T1_MAX    = 100;      /* means: 1.0 */
+    public final static int DYNAMIC_DEFECT_T1_DEF    = 90;       /* means: 0.9 */
+    public final static int DYNAMIC_DEFECT_T2_MIN    = 0;        /* dynamic defect pixel correction, hot pixel ratio: the smaller the hot ratio is, the more stringent the conditions for processing hot pixels are, and fewer pixels will be processed */
+    public final static int DYNAMIC_DEFECT_T2_MAX    = 100;
+    public final static int DYNAMIC_DEFECT_T2_DEF    = 90;
     public final static int HDR_K_MIN                = 1;        /* HDR synthesize */
     public final static int HDR_K_MAX                = 25500;
     public final static int HDR_B_MIN                = 0;
     public final static int HDR_B_MAX                = 65535;
     public final static int HDR_THRESHOLD_MIN        = 0;
     public final static int HDR_THRESHOLD_MAX        = 4094;
+    public final static int CDS_MIN                  = 0;        /* Correlated Double Sampling */
+    public final static int CDS_MAX                  = 100;
     
     public final static int FLASH_SIZE               = 0x00;    /* query total size */
     public final static int FLASH_EBLOCK             = 0x01;    /* query erase block size */
@@ -626,19 +633,19 @@ public class ogmacam implements AutoCloseable {
     public static class HRESULTException extends Exception {
         /* HRESULT: error code */
         public final static int S_OK            = 0x00000000; /* Success */
-        public final static int S_FALSE         = 0x00000001; /* Success with noop */
-        public final static int E_UNEXPECTED    = 0x8000ffff; /* Catastrophic failure */
-        public final static int E_NOTIMPL       = 0x80004001; /* Not supported or not implemented */
+        public final static int S_FALSE         = 0x00000001; /* Success with noop */ /* Remark: Different from S_OK, such as internal values and user-set values have coincided, equivalent to noop */
+        public final static int E_UNEXPECTED    = 0x8000ffff; /* Catastrophic failure */ /* Remark: Generally indicates that the conditions are not met, such as calling put_Option setting some options that do not support modification when the camera is running, and so on */
+        public final static int E_NOTIMPL       = 0x80004001; /* Not supported or not implemented */ /* Remark: This feature is not supported on this model of camera */
         public final static int E_NOINTERFACE   = 0x80004002;
-        public final static int E_ACCESSDENIED  = 0x80070005; /* Permission denied */
+        public final static int E_ACCESSDENIED  = 0x80070005; /* Permission denied */ /* Remark: The program on Linux does not have permission to open the USB device, please enable udev rules file or run as root */
         public final static int E_OUTOFMEMORY   = 0x8007000e; /* Out of memory */
         public final static int E_INVALIDARG    = 0x80070057; /* One or more arguments are not valid */
-        public final static int E_POINTER       = 0x80004003; /* Pointer that is not valid */
+        public final static int E_POINTER       = 0x80004003; /* Pointer that is not valid */ /* Remark: Pointer is NULL */
         public final static int E_FAIL          = 0x80004005; /* Generic failure */
         public final static int E_WRONG_THREAD  = 0x8001010e; /* Call function in the wrong thread */
-        public final static int E_GEN_FAILURE   = 0x8007001f; /* Device not functioning */
-        public final static int E_BUSY          = 0x800700aa; /* The requested resource is in use */
-        public final static int E_PENDING       = 0x8000000a; /* The data necessary to complete this operation is not yet available */
+        public final static int E_GEN_FAILURE   = 0x8007001f; /* Device not functioning */ /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc */
+        public final static int E_BUSY          = 0x800700aa; /* The requested resource is in use */ /* Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc */
+        public final static int E_PENDING       = 0x8000000a; /* The data necessary to complete this operation is not yet available */ /* Remark: No data is available at this time */
         public final static int E_TIMEOUT       = 0x8001011f; /* This operation returned because the timeout period expired */
         
         private final int _hresult;
@@ -660,23 +667,23 @@ public class ogmacam implements AutoCloseable {
             switch (hresult) {
                 case E_INVALIDARG:
                     return "One or more arguments are not valid";
-                case E_NOTIMPL:
+                case E_NOTIMPL: /* Remark: This feature is not supported on this model of camera */
                     return "Not supported or not implemented";
-                case E_POINTER:
+                case E_POINTER: /* Remark: Pointer is NULL */
                     return "Pointer that is not valid";
-                case E_UNEXPECTED:
+                case E_UNEXPECTED:/* Remark: Generally indicates that the conditions are not met, such as calling put_Option setting some options that do not support modification when the camera is running, and so on */
                     return "Catastrophic failure";
-                case E_ACCESSDENIED:
+                case E_ACCESSDENIED: /* Remark: The program on Linux does not have permission to open the USB device, please enable udev rules file or run as root */
                     return "Permission denied";
                 case E_OUTOFMEMORY:
                     return "Out of memory";
                 case E_WRONG_THREAD:
                     return "Call function in the wrong thread";
-                case E_GEN_FAILURE:
+                case E_GEN_FAILURE: /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc */
                     return "Device not functioning";
-                case E_BUSY:
+                case E_BUSY: /* Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc */
                     return "The requested resource is in use";
-                case E_PENDING:
+                case E_PENDING:/* Remark: No data is available at this time */
                     return "The data necessary to complete this operation is not yet available";
                 case E_TIMEOUT:
                     return "This operation returned because the timeout period expired";
@@ -686,8 +693,8 @@ public class ogmacam implements AutoCloseable {
         }
     }
 
-    public static String PixelFormatName(int val) {
-        return _lib.Ogmacam_get_PixelFormatName(val);
+    public static String PixelFormatName(int pixelFormat) {
+        return _lib.Ogmacam_get_PixelFormatName(pixelFormat);
     }
 
     private static int errCheck(int hresult) throws HRESULTException {
@@ -732,7 +739,31 @@ public class ogmacam implements AutoCloseable {
         public short expogain;      /* expogain */
         public short blacklevel;    /* black level */
     }
-    
+
+    @FieldOrder({ "utcstart", "utcend", "longitude", "latitude", "altitude", "satellite", "reserved" })
+    public static class Gps extends Structure {
+        public long  utcstart;    /* exposure start time: nanosecond since epoch (00:00:00 UTC on Thursday, 1 January 1970, see https://en.wikipedia.org/wiki/Unix_time) */
+        public long  utcend;      /* exposure end time */
+        public int   longitude;   /* millionth of a degree, 0.000001 degree */
+        public int   latitude;
+        public int   altitude;    /* millimeter */
+        public short satellite;   /* number of satellite */
+        public short reserved;    /* not used */
+    }
+
+    @FieldOrder({ "v3", "reserved", "uLum", "uFV", "timecount", "framecount", "tricount", "gps" })
+    public static class FrameInfoV4 extends Structure {
+        public FrameInfoV3 v3;
+        public int reserved; /* not used */
+        public int uLum;
+        public long uFV;
+        public long timecount;
+        public int framecount;
+        public int tricount;
+        public Gps gps;
+    };
+
+    @Deprecated
     @FieldOrder({ "width", "height", "flag", "seq", "timestamp" })
     public static class FrameInfoV2 extends Structure {
         public int  width;
@@ -827,19 +858,22 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_EnumWithName(Pointer ptr);
         Pointer Ogmacam_OpenByIndex(int index);
         void Ogmacam_Close(Pointer h);
-        int Ogmacam_PullImageV3(Pointer h, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
-        int Ogmacam_WaitImageV3(Pointer h, int nWaitMS, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
-        int Ogmacam_PullImageV2(Pointer h, Pointer pImageData, int bits, FrameInfoV2 pInfo);
-        int Ogmacam_PullStillImageV2(Pointer h, Pointer pImageData, int bits, FrameInfoV2 pInfo);
-        int Ogmacam_PullImageWithRowPitchV2(Pointer h, Pointer pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
-        int Ogmacam_PullStillImageWithRowPitchV2(Pointer h, Pointer pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
+        int Ogmacam_PullImageV4(Pointer h, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo);
+        int Ogmacam_WaitImageV4(Pointer h, int nWaitMS, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo);
+        @Deprecated int Ogmacam_PullImageV3(Pointer h, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
+        @Deprecated int Ogmacam_WaitImageV3(Pointer h, int nWaitMS, Pointer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
+        @Deprecated int Ogmacam_PullImageV2(Pointer h, Pointer pImageData, int bits, FrameInfoV2 pInfo);
+        @Deprecated int Ogmacam_PullStillImageV2(Pointer h, Pointer pImageData, int bits, FrameInfoV2 pInfo);
+        @Deprecated int Ogmacam_PullImageWithRowPitchV2(Pointer h, Pointer pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
+        @Deprecated int Ogmacam_PullStillImageWithRowPitchV2(Pointer h, Pointer pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
         int Ogmacam_Stop(Pointer h);
         int Ogmacam_Pause(Pointer h, int bPause);
         int Ogmacam_Snap(Pointer h, int nResolutionIndex);
         int Ogmacam_SnapN(Pointer h, int nResolutionIndex, int nNumber);
         int Ogmacam_SnapR(Pointer h, int nResolutionIndex, int nNumber);
         int Ogmacam_Trigger(Pointer h, short nNumber);
-        int Ogmacam_TriggerSync(Pointer h, int nWaitMS, Pointer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
+        int Ogmacam_TriggerSyncV4(Pointer h, int nWaitMS, Pointer pImageData, int bits, int rowPitch, FrameInfoV4 pInfo);
+        @Deprecated int Ogmacam_TriggerSync(Pointer h, int nWaitMS, Pointer pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
         int Ogmacam_put_Size(Pointer h, int nWidth, int nHeight);
         int Ogmacam_get_Size(Pointer h, IntByReference nWidth, IntByReference nHeight);
         int Ogmacam_put_eSize(Pointer h, int nResolutionIndex);
@@ -871,6 +905,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_get_MinAutoExpoTimeAGain(Pointer h, IntByReference minTime, ShortByReference minGain);
         int Ogmacam_get_ExpoTime(Pointer h, IntByReference Time)/* in microseconds */;
         int Ogmacam_put_ExpoTime(Pointer h, int Time)/* inmicroseconds */;
+        int Ogmacam_get_RealExpoTime(Pointer h, IntByReference Time); /* in microseconds */
         int Ogmacam_get_ExpTimeRange(Pointer h, IntByReference nMin, IntByReference nMax, IntByReference nDef);
         int Ogmacam_get_ExpoAGain(Pointer h, ShortByReference Gain);/* percent, such as 300 */
         int Ogmacam_put_ExpoAGain(Pointer h, short Gain);/* percent */
@@ -943,7 +978,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_read_UART(Pointer h, Pointer pBuffer, int nBufferLen);
         int Ogmacam_put_Option(Pointer h, int iOption, int iValue);
         int Ogmacam_get_Option(Pointer h, int iOption, IntByReference iValue);
-        int Ogmacam_get_PixelFormatSupport(Pointer h, byte cmd, IntByReference iValue);
+        int Ogmacam_get_PixelFormatSupport(Pointer h, byte cmd, IntByReference pixelFormat);
         String Ogmacam_get_PixelFormatName(int val);
         int Ogmacam_put_SelfTrigger(Pointer h, SelfTrigger pSt);
         int Ogmacam_get_SelfTrigger(Pointer h, SelfTrigger pSt);
@@ -964,14 +999,17 @@ public class ogmacam implements AutoCloseable {
         int TOgmacam_put_AFAperture(Pointer h, int iAperture);
         int TOgmacam_put_AFFMPos(Pointer h, int iFMPos);
         int Ogmacam_get_FocusMotor(Pointer h, FocusMotor pFocusMotor);
-        
-        int Ogmacam_TriggerSyncArray(Pointer h, int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
-        int Ogmacam_PullImageV3Array(Pointer h, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
-        int Ogmacam_WaitImageV3Array(Pointer h, int nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
-        int Ogmacam_PullImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
-        int Ogmacam_PullStillImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
-        int Ogmacam_PullImageWithRowPitchV2Array(Pointer h, byte[] pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
-        int Ogmacam_PullStillImageWithRowPitchV2Array(Pointer h, byte[] pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
+
+        int Ogmacam_TriggerSyncV4Array(Pointer h, int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV4 pInfo);
+        int Ogmacam_PullImageV4Array(Pointer h, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo);
+        int Ogmacam_WaitImageV4Array(Pointer h, int nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo);
+        @Deprecated int Ogmacam_TriggerSyncArray(Pointer h, int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo);
+        @Deprecated int Ogmacam_PullImageV3Array(Pointer h, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
+        @Deprecated int Ogmacam_WaitImageV3Array(Pointer h, int nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo);
+        @Deprecated int Ogmacam_PullImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
+        @Deprecated int Ogmacam_PullStillImageV2Array(Pointer h, byte[] pImageData, int bits, FrameInfoV2 pInfo);
+        @Deprecated int Ogmacam_PullImageWithRowPitchV2Array(Pointer h, byte[] pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
+        @Deprecated int Ogmacam_PullStillImageWithRowPitchV2Array(Pointer h, byte[] pImageData, int bits, int rowPitch, FrameInfoV2 pInfo);
         int Ogmacam_write_EEPROMArray(Pointer h, int addr, byte[] pBuffer, int nBufferLen);
         int Ogmacam_read_EEPROMArray(Pointer h, int addr, byte[] pBuffer, int nBufferLen);
         int Ogmacam_rwc_FlashArray(Pointer h, int action, int addr, int len, byte[] pData);
@@ -1072,6 +1110,9 @@ public class ogmacam implements AutoCloseable {
             put(Library.OPTION_FUNCTION_MAPPER, new FunctionMapper() {
                 HashMap<String, String> funcmap_ = new HashMap() {
                     {
+                        put("Ogmacam_TriggerSyncV4Array", "Ogmacam_TriggerSyncV4");
+                        put("Ogmacam_PullImageV4Array", "Ogmacam_PullImageV4");
+                        put("Ogmacam_WaitImageV4Array", "Ogmacam_WaitImageV4");
                         put("Ogmacam_TriggerSyncArray", "Ogmacam_TriggerSync");
                         put("Ogmacam_PullImageV3Array", "Ogmacam_PullImageV3");
                         put("Ogmacam_WaitImageV3Array", "Ogmacam_WaitImageV3");
@@ -1141,7 +1182,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 56.25817.20240616 */
+    /* get the version of this dll/so/dylib, which is: 57.26291.20240811 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -1450,6 +1491,7 @@ public class ogmacam implements AutoCloseable {
             errCheck(HRESULTException.E_NOTIMPL);
     }
 
+    @Deprecated
     public void PullImageV2(ByteBuffer pImageData, int bits, FrameInfoV2 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
             errCheck(_lib.Ogmacam_PullImageV2(_handle, Native.getDirectBufferPointer(pImageData), bits, pInfo));
@@ -1458,11 +1500,13 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    @Deprecated
     public void PullImageV2(byte[] pImageData, int bits, FrameInfoV2 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_PullImageV2Array(_handle, pImageData, bits, pInfo));
     }
-    
+
+    @Deprecated
     public void PullStillImageV2(ByteBuffer pImageData, int bits, FrameInfoV2 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
             errCheck(_lib.Ogmacam_PullStillImageV2(_handle, Native.getDirectBufferPointer(pImageData), bits, pInfo));
@@ -1471,14 +1515,15 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    @Deprecated
     public void PullStillImageV2(byte[] pImageData, int bits, FrameInfoV2 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_PullStillImageV2Array(_handle, pImageData, bits, pInfo));
     }
     
     /*
        nWaitMS: The timeout interval, in milliseconds. If a non-zero value is specified, the function either successfully fetches the image or waits for a timeout.
-                If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImageV3.
+                If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImage.
        bStill: to pull still image, set to 1, otherwise 0
        bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
              In RAW mode, this parameter is ignored.
@@ -1518,6 +1563,20 @@ public class ogmacam implements AutoCloseable {
                |           | 10/12/14/16bits Mode   | Width * 2                     | Width * 2             |
                |-----------|------------------------|-------------------------------|-----------------------|
     */
+    public void PullImage(ByteBuffer pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo) throws HRESULTException {
+        if (pImageData.isDirect())
+            errCheck(_lib.Ogmacam_PullImageV4(_handle, Native.getDirectBufferPointer(pImageData), bStill, bits, rowPitch, pInfo));
+        else if (pImageData.hasArray())
+            PullImage(pImageData.array(), bStill, bits, rowPitch, pInfo);
+        else
+            errCheck(HRESULTException.E_INVALIDARG);
+    }
+
+    public void PullImage(byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo) throws HRESULTException {
+        errCheck(_lib.Ogmacam_PullImageV4Array(_handle, pImageData, bStill, bits, rowPitch, pInfo));
+    }
+
+    @Deprecated
     public void PullImageV3(ByteBuffer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
             errCheck(_lib.Ogmacam_PullImageV3(_handle, Native.getDirectBufferPointer(pImageData), bStill, bits, rowPitch, pInfo));
@@ -1526,11 +1585,26 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    @Deprecated
     public void PullImageV3(byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_PullImageV3Array(_handle, pImageData, bStill, bits, rowPitch, pInfo));
     }
-    
+
+    public void WaitImage(int nWaitMS, ByteBuffer pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo) throws HRESULTException {
+        if (pImageData.isDirect())
+            errCheck(_lib.Ogmacam_WaitImageV4(_handle, nWaitMS, Native.getDirectBufferPointer(pImageData), bStill, bits, rowPitch, pInfo));
+        else if (pImageData.hasArray())
+            WaitImage(nWaitMS, pImageData.array(), bStill, bits, rowPitch, pInfo);
+        else
+            errCheck(HRESULTException.E_INVALIDARG);
+    }
+
+    public void WaitImage(int nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV4 pInfo) throws HRESULTException {
+        errCheck(_lib.Ogmacam_WaitImageV4Array(_handle, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo));
+    }
+
+    @Deprecated
     public void WaitImageV3(int nWaitMS, ByteBuffer pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
             errCheck(_lib.Ogmacam_WaitImageV3(_handle, nWaitMS, Native.getDirectBufferPointer(pImageData), bStill, bits, rowPitch, pInfo));
@@ -1539,11 +1613,13 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    @Deprecated
     public void WaitImageV3(int nWaitMS, byte[] pImageData, int bStill, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_WaitImageV3Array(_handle, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo));
     }
-    
+
+    @Deprecated
     public void PullImageWithRowPitchV2(ByteBuffer pImageData, int bits, int rowPitch, FrameInfoV2 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
             errCheck(_lib.Ogmacam_PullImageWithRowPitchV2(_handle, Native.getDirectBufferPointer(pImageData), bits, rowPitch, pInfo));
@@ -1552,11 +1628,13 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    @Deprecated
     public void PullImageWithRowPitchV2(byte[] pImageData, int bits, int rowPitch, FrameInfoV2 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_PullImageWithRowPitchV2Array(_handle, pImageData, bits, rowPitch, pInfo));
     }
-    
+
+    @Deprecated
     public void PullStillImageWithRowPitchV2(ByteBuffer pImageData, int bits, int rowPitch, FrameInfoV2 pInfo) throws HRESULTException {
         if (pImageData.isDirect())
             errCheck(_lib.Ogmacam_PullStillImageWithRowPitchV2(_handle, Native.getDirectBufferPointer(pImageData), bits, rowPitch, pInfo));
@@ -1565,7 +1643,8 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    @Deprecated
     public void PullStillImageWithRowPitchV2(byte[] pImageData, int bits, int rowPitch, FrameInfoV2 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_PullStillImageWithRowPitchV2Array(_handle, pImageData, bits, rowPitch, pInfo));
     }
@@ -1621,7 +1700,22 @@ public class ogmacam implements AutoCloseable {
         else
             errCheck(HRESULTException.E_INVALIDARG);
     }
-    
+
+    public void TriggerSync(int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV4 pInfo) throws HRESULTException {
+        errCheck(_lib.Ogmacam_TriggerSyncV4Array(_handle, nWaitMS, pImageData, bits, rowPitch, pInfo));
+    }
+
+    @Deprecated
+    public void TriggerSync(int nWaitMS, ByteBuffer pImageData, int bits, int rowPitch, FrameInfoV4 pInfo) throws HRESULTException {
+        if (pImageData.isDirect())
+            errCheck(_lib.Ogmacam_TriggerSyncV4(_handle, nWaitMS, Native.getDirectBufferPointer(pImageData), bits, rowPitch, pInfo));
+        else if (pImageData.hasArray())
+            TriggerSync(nWaitMS, pImageData.array(), bits, rowPitch, pInfo);
+        else
+            errCheck(HRESULTException.E_INVALIDARG);
+    }
+
+    @Deprecated
     public void TriggerSync(int nWaitMS, byte[] pImageData, int bits, int rowPitch, FrameInfoV3 pInfo) throws HRESULTException {
         errCheck(_lib.Ogmacam_TriggerSyncArray(_handle, nWaitMS, pImageData, bits, rowPitch, pInfo));
     }
@@ -1748,7 +1842,7 @@ public class ogmacam implements AutoCloseable {
         | Temp                    |   1000~25000  |   6503                |
         | Tint                    |   100~2500    |   1000                |
         | LevelRange              |   0~255       |   Low = 0, High = 255 |
-        | Contrast                |   -150~150    |   0                   |
+        | Contrast                |   -250~250    |   0                   |
         | Hue                     |   -180~180    |   0                   |
         | Saturation              |   0~255       |   128                 |
         | Brightness              |   -128~128    |   0                   |
@@ -1823,6 +1917,13 @@ public class ogmacam implements AutoCloseable {
     public int get_ExpoTime() throws HRESULTException {
         IntByReference p = new IntByReference();
         errCheck(_lib.Ogmacam_get_ExpoTime(_handle, p));
+        return p.getValue();
+    }
+    
+    /* in microseconds */
+    public int get_RealExpoTime() throws HRESULTException {
+        IntByReference p = new IntByReference();
+        errCheck(_lib.Ogmacam_get_RealExpoTime(_handle, p));
         return p.getValue();
     }
     
@@ -2240,9 +2341,9 @@ public class ogmacam implements AutoCloseable {
 
     /*
      * cmd:
-     *   -1:         query the number
-     *   0~number:   query the nth pixel format
-     * output: OGMACAM_PIXELFORMAT_xxxx
+     * -1:       query the number
+     * 0~number: query the nth pixel format
+     * output:   OGMACAM_PIXELFORMAT_xxxx
     */
     public int get_PixelFormatSupport(byte cmd) throws HRESULTException {
         IntByReference p = new IntByReference();

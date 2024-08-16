@@ -466,8 +466,8 @@ CRect CdemoafDlg::GetDrawRect()
 
 void CdemoafDlg::OnEventImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
-	HRESULT hr = Ogmacam_PullImageV3(m_hcam, m_pImageData, 0, 24, 0, &info);
+	OgmacamFrameInfoV4 info = { 0 };
+	HRESULT hr = Ogmacam_PullImageV4(m_hcam, m_pImageData, 0, 24, 0, &info);
 	Ogmacam_get_FrameRate(m_hcam, &m_nFrame, &m_nTime, &m_nTotalFrame);
 	if (SUCCEEDED(hr))
 	{
@@ -485,20 +485,20 @@ void CdemoafDlg::OnEventImage()
 
 void CdemoafDlg::OnEventStillImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
-	HRESULT hr = Ogmacam_PullImageV3(m_hcam, NULL, 1, 24, 0, &info);
+	OgmacamFrameInfoV4 info = { 0 };
+	HRESULT hr = Ogmacam_PullImageV4(m_hcam, NULL, 1, 24, 0, &info);
 	if (SUCCEEDED(hr))
 	{
-		void* pData = malloc(TDIBWIDTHBYTES(info.width * 24) * info.height);
-		hr = Ogmacam_PullImageV3(m_hcam, pData, 1, 24, 0, NULL);
+		void* pData = malloc(TDIBWIDTHBYTES(info.v3.width * 24) * info.v3.height);
+		hr = Ogmacam_PullImageV4(m_hcam, pData, 1, 24, 0, NULL);
 		if (SUCCEEDED(hr))
 		{
 			BITMAPINFOHEADER header = { 0 };
 			header.biSize = sizeof(header);
 			header.biPlanes = 1;
 			header.biBitCount = 24;
-			header.biWidth = info.width;
-			header.biHeight = info.height;
+			header.biWidth = info.v3.width;
+			header.biHeight = info.v3.height;
 			header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * header.biBitCount) * header.biHeight;
 			SaveImageByWIC(L"demoaf.jpg", pData, &header);
 		}

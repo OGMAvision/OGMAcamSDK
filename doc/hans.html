@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:56.25817.$WCDATE=%Y%m%d$</li></ul>
+<ul><li>版本:57.26291.20240811</li></ul>
 <ul><li>平台<ul>
       <li>Win32:<ul>
           <li>x64: Win7及以上版本</li>
@@ -53,14 +53,17 @@
 		如果使用C#开发UWP, 可以使用ogmacam.cs包装类.<br/>
 		请注意:<blockquote>1. uwp只能使用WinUSB驱动, 不能使用私有私有驱动. 如果已安装, 请在设备管理器中卸载私有驱动, 之后Windows会自动使用Winusb.<br/>2. uwp的DeviceCapability, 参阅<a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/updating-the-app-manifest-with-usb-device-capabilities" target="_blank">How to add USB device capabilities to the app manifest</a>.</blockquote>
 	</blockquote></li>
-    <li>drivers(<b>2017.1.1之后生产的相机支持WinUSB, 强烈建议不在Windows8及以上版本上安装驱动</b>)
-      <blockquote>
+    <li>drivers
+		<blockquote>USB(<b>2017.1.1之后生产的相机支持WinUSB, 强烈建议不在Windows8及以上版本上安装驱动</b>)<blockquote>
         <p align="left">x86 文件夹包含x86的内核态驱动文件, 包括ogmacam.cat, ogmacam.inf和ogmacam.sys<br/>
           x64 文件夹包含x64的内核态驱动文件, 包括ogmacam.cat, ogmacam.inf和ogmacam.sys</p>
 		  建议使用DPInst.exe来自动安装驱动, 如使用NSIS制作安装文件, 可以使用类似如下语句:
 			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>ExecWait '"$INSTDIR\drivers\x64\DPInst.exe" /SA /SW /PATH "$INSTDIR\drivers\x64"'</pre></td></tr></table>
-      </blockquote></li>
-</ul></li></ul><ul><li>linux: Linux平台文件<ul>
+		</blockquote></blockquote>
+		<blockquote>GigE: GigE Performance Driver, 千兆相机可选安装, 万兆相机必须安装并启用. 请使用命令行(<b>管理员模式</b>), cd到.inf文件所在目录, 执行类似如下语句安装(install.cmd):<blockquote>
+			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>netcfg.exe -v -l gigepdrv.inf -c s -i gigepdrv</pre></td></tr></table>
+		</blockquote></blockquote>
+	</li></ul></li></ul><ul><li>linux: Linux平台文件<ul>
  	<li>udev: 99-ogmacam.rules, udev rule文件. 请参考: <a href="http://reactivated.net/writing_udev_rules.html" target="_blank">http://reactivated.net/writing_udev_rules.html</a>
 			<blockquote>不重启重新加载规则:
                 <table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>udevadm control --reload-rules &amp;&amp; udevadm trigger</pre></td></tr></table>
@@ -94,9 +97,9 @@
 </ul></li></ul>
 <hr/><h1><font color="#0000FF">3. 概念和术语</font></h1><hr/>
 <h2><font color="#0000FF">a. 获取图像数据的模式: “Pull” Mode vs “Push” Mode (“拉”模式 vs “推”模式)</font></h2>
-<p>Ogmacam提供了两种模式来获取图像数据: Pull Mode 和 Push Mode. 以下所讲的几种方式中, 从功能上说它们都是<strong>平等</strong>的, 开发者可以任选一种使用. 推荐使用拉模式, 因为它更简单,且在多线程情况下更加不容易出错, 尤其是使用windows消息机制的情况下.</p>
+<p>Ogmacam提供了两种模式来获取图像数据: Pull Mode 和 Push Mode. 以下所讲的几种方式中, 从功能上说它们都是<strong>平等</strong>的, 开发者可以任选一种使用. 推荐使用拉模式, 因为它更简单, 且在多线程情况下更加不容易出错, 尤其是使用windows消息机制的情况下.</p>
 <ul>
-  <li>Pull Mode, ogmacam 扮演被动角色, 应用程序从ogmacam“拉”图像数据. ogmacam内部线程从相机获得图像数据,并保存到内部缓存中, 然后通知应用程序来取图像数据. 应用程序可以调用Ogmacam_PullImageV3或Ogmacam_PullImage(WithRowPitch)(V2), Ogmacam_PullStillImage(WithRowPitch)(V2)来获取图像数据. 存在两种方式来通知应用程序:
+  <li>Pull Mode, ogmacam 扮演被动角色, 应用程序从ogmacam“拉”图像数据. ogmacam内部线程从相机获得图像数据,并保存到内部缓存中, 然后通知应用程序来取图像数据. 应用程序可以调用Ogmacam_PullImageV4(V3)或Ogmacam_PullImage(WithRowPitch)(V2), Ogmacam_PullStillImage(WithRowPitch)(V2)来获取图像数据. 存在两种方式来通知应用程序:
     <blockquote>a) 使用Windows消息机制: 通过调用函数 Ogmacam_StartPullModeWithWndMsg启动Pull mode模式. 当事件发生时, ogmacam会主动发送消息(PostMessage)到指定窗口. 参数WPARAM 是事件类型, 请参考OGMACAM_EVENT_xxxx的定义. 参数LPARAM保留未使用. 本模式规避了多线程问题, 是最简单的方式.(显然, 这种方式只支持Windows系统, 不支持Linux和macOS.)</blockquote>
     <blockquote>b) 使用回调函数使用 Ogmacam_StartPullModeWithCallback启动Pull mode模式. 当事件发生时, 会调用POGMACAM_EVENT_CALLBACK回调函数.</blockquote>
   </li>
@@ -113,10 +116,10 @@
         <td>曝光时间发生改变</td>
       </tr><tr>
         <td>OGMACAM_EVENT_TEMPTINT</td>
-        <td>白平衡参数发生改变,Temp/Tint模式, 请参阅<a href="#wb">这里</a>.</td>
+        <td>白平衡参数发生改变, Temp/Tint模式, 请参阅<a href="#wb">这里</a>.</td>
       </tr><tr>
         <td>OGMACAM_EVENT_WBGAIN</td>
-        <td>白平衡参数发生改变,RGB Gain模式, 请参阅<a href="#wb">这里</a>.</td>
+        <td>白平衡参数发生改变, RGB Gain模式, 请参阅<a href="#wb">这里</a>.</td>
       </tr><tr>
         <td>OGMACAM_EVENT_IMAGE</td>
         <td>视频图像数据到达(视频). 使用Ogmacam_PullImageXXXX“拉”图像数据</td>
@@ -182,7 +185,7 @@
    <td>OGMACAM_EVENT_HEARTBEAT</td>
    <td>硬件事件：心跳, 可以用于监视相机是否存活. 参见<a href="#heartbeat">OGMACAM_OPTION_HEARTBEAT</a></td>
 </tr></table></div></blockquote>
-<ul><li>Push Mode情况下, ogmacam作为主动方, 一旦内部底层线程从camera中抓取到图像数据, 就通过POGMACAM_DATA_CALLBACK_V4/V3把图像数据“推”给应用程序 (请注意这个回调函数是在ogmacam内部线程上下文中执行的). 调用Ogmacam_StartPushModeV4/V3函数进入推模式.推模式比较复杂, 有一些特别注意事项（如多线程问题, 也不能在POGMACAM_DATA_CALLBACK_V4/V3回调函数里面调用Ogmacam_Close和Ogmacam_Stop等等）.</li>
+<ul><li>Push Mode情况下, ogmacam作为主动方, 一旦内部底层线程从camera中抓取到图像数据, 就通过POGMACAM_DATA_CALLBACK_V4/V3把图像数据“推”给应用程序 (请注意这个回调函数是在ogmacam内部线程上下文中执行的). 调用Ogmacam_StartPushModeV4/V3函数进入推模式.推模式比较复杂, 有一些特别注意事项（如多线程问题, 也不能在POGMACAM_DATA_CALLBACK_V4/V3回调函数里面调用Ogmacam_Close和Ogmacam_Stop等等).</li>
 </ul><h2><font color="#0000FF">b. <a id="stillcapture">静态抓拍(静态图片, Still Image, Snap)</a></font></h2>
 <p>大部分的相机型号都支持所谓静态抓拍的能力, 指相机在连续的视频预览过程中, 临时切换到另外一个分辨率, 抓取一帧静态图片之后, 马上把分辨率切换回原始分辨率的过程.</p>
 <p>举例来说, UCMOS05100KPA支持3种分辨率, 假设当前视频预览分辨率为1280 * 960, 调用函数Ogmacam_Snap(h, 0)静态抓拍分辨率2592 * 1944的静态图片, 这时相机临时切换到2592 * 1944的分辨率, 抓取一帧数据之后, 又把分辨率切换成原来的1280 * 960.</p>
@@ -192,7 +195,7 @@
 <h2><font color="#0000FF"><a id="raw">c. 数据格式: RGB vs RAW</a></font></h2>
 <p>Ogmacam支持两种数据格式: RGB格式(默认)和RAW格式. RAW模式可以通过调用函数Ogmacam_put_Option设置参数OGMACAM_OPTION_RAW为1开启.</p>
 <ul><li>RGB格式: 本模式下, 获取底层传感器的数据之后, 进行内部的颜色处理, 输出结果中每像素包含3个分量分别代表R/G/B值.</li></ul>
-<ul><li>RAW格式: 本模式下, 直接获取底层传感器的“裸”数据, 不进行内部颜色处理. 具体的像素格式(Pixel Format)可以调用函数Ogmacam_get_RawFormat获取. RAW格式模式下, 有关颜色处理的功能(如白平衡)和函数（如Ogmacam_put_Hue,Ogmacam_AwbOnce等等）都无意义.</li></ul>
+<ul><li>RAW格式: 本模式下, 直接获取底层传感器的“裸”数据, 不进行内部颜色处理. 具体的像素格式(Pixel Format)可以调用函数Ogmacam_get_RawFormat获取. RAW格式模式下, 有关颜色处理的功能(如白平衡)和函数（如Ogmacam_put_Hue, Ogmacam_AwbOnce等等)都无意义.</li></ul>
 <p>用户可以通过<a href="#rawo">OGMACAM_OPTION_RAW</a>调用函数Ogmacam_put_Option来切换这两种模式. 请注意相机必须处于<strong>非运行状态</strong>才能修改此设置.</p>
 <p>用户可以通过<a href="#rgb">OGMACAM_OPTION_RGB</a>调用函数Ogmacam_put_Option来设置RGB的bits数. 请注意相机必须处于<strong>非运行状态</strong>才能修改此设置.</p>
 <h2><font color="#0000FF"><a id="wb">d. 白平衡和自动白平衡: Temp/Tint模式 vs RGB Gain模式</a></font></h2>
@@ -206,13 +209,13 @@
 	</blockquote>
 <p>两种模式在相机打开的时候指定, 除非关闭相机重新打开, 一旦指定就不能更改. 参阅<a href="#wbmode">这里</a>.</p>
 </blockquote>
-<p>2. 自动白平衡功能, 业界有两种模式, 一种是连续自动白平衡,一种是触发式自动白平衡(once). 连续自动白平衡功能会一直进行白平衡参数的计算, 触发模式只是在触发的时候才会计算白平衡参数. Ogmacam使用触发式白平衡计算方法, 因为这种方法在显微镜等领域更加合适和精确. 连续自动白平衡在某些场景情况下会出现错误.</p>
+<p>2. 自动白平衡功能, 业界有两种模式, 一种是连续自动白平衡, 一种是触发式自动白平衡(once). 连续自动白平衡功能会一直进行白平衡参数的计算, 触发模式只是在触发的时候才会计算白平衡参数. Ogmacam使用触发式白平衡计算方法, 因为这种方法在显微镜等领域更加合适和精确. 连续自动白平衡在某些场景情况下会出现错误.</p>
 <p>3. 黑白相机不支持白平衡. 以上提到的函数一直返回E_NOTIMPL.</p>
 <h2><font color="#0000FF">e. <a id="trigger">触发模式</a></font></h2>
 <p>1. 什么是触发</p><blockquote>
 		Ogmacam相机拥有2中工作模式: 视频模式和触发模式. 当处于触发模式时, 只有触发条件满足的情况下才能获取图像. 根据触发源有2种类型的触发类型: 外部触发, 软件触发.
 	</blockquote>
-<p>2. 触发和Snap（静态图像抓拍）的区别</p>
+<p>2. 触发和Snap（静态图像抓拍)的区别</p>
 	<blockquote>
 		触发模式被设计用来精确控制相机当且仅当触发条件满足时才能获取图像. 用户可以通过控制预设的触发条件获取图像. 当进入触发模式时, 直到触发条件被满足才能得到图像. 图像的分辨率没有改变. Snap(静态图像抓拍)是用来在视频模式下抓取相同或者不同分辨率的图像.
 	</blockquote>
@@ -618,8 +621,8 @@ typedef struct {
     </blockquote>
     <p><strong>说明：</strong>初始化对GigE相机的支持, 只需要在进程启动时调用一次即可.</p>
 </li></ul><ul><li><h2><font color="#0000FF"><a id="apiopen">Ogmacam_Open</a></font></h2>
-    <p><strong>返回值：</strong>相机句柄. 失败时返回NULL（如设备被突然拔出等等）</p>
-    <p><strong>参数：</strong>Ogmacam相机实例, 由Ogmacam_EnumV2枚举得到.<strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
+    <p><strong>返回值：</strong>相机句柄. 失败时返回NULL(如设备被突然拔出等等)</p>
+    <p><strong>参数：</strong>Ogmacam相机实例, 由Ogmacam_EnumV2枚举得到. <strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
     <p><strong>说明：</strong>打开相机实例.</p>
     <p>(1) 在camId后面支持附着一些额外参数(<strong>用分号;分割, 区分大小写</strong>), 如:</p>
     <blockquote><table width="100%" border="0" bgcolor="#B0D0B0">
@@ -693,31 +696,34 @@ for (UsbDevice usbDevice : deviceList.values()) {
     <p><strong>参数：</strong></p>
     <blockquote><p>HOgmacam h：相机句柄</p>
       <p>HWND hWnd: 事件发生时, 消息将Post到这个窗口</p>
-      <p>UINT nMsg: Windows自定义消息类型. 消息的WPARAM参数是事件类型OGMACAM_EVENT_xxxx, LPARAM参数不用（恒等于0）</p>
+      <p>UINT nMsg: Windows自定义消息类型. 消息的WPARAM参数是事件类型OGMACAM_EVENT_xxxx, LPARAM参数不用(恒等于0)</p>
       <p>POGMACAM_EVENT_CALLBACK funEvent, void* ctxEvent：用户程序指定的回调函数和回调上下文参数.</p>
       <blockquote><table width="100%" border="0"><tr>
             <td bgcolor="#B0D0B0"><div align="center">typedef void (*POGMACAM_EVENT_CALLBACK)(unsigned nEvent, void* ctxEvent);</div></td>
           </tr></table></blockquote>
 	  <p>请参阅<a href="#callback">这里</a>.</p>
     </blockquote><p><strong>说明：</strong>很明显, Ogmacam_StartPullModeWithWndMsg只支持Windows系统</p>
-</li></ul><ul><li><h2><font color="#0000FF"><a id="infov2">Ogmacam_PullImageV3<br/>Ogmacam_WaitImageV3<br/>Ogmacam_PullImageV2<br/>Ogmacam_PullStillImageV2<br/>Ogmacam_PullImageWithRowPitchV2<br/>Ogmacam_PullStillImageWithRowPitchV2</a><br/>
+</li></ul><ul><li><h2><font color="#0000FF"><a id="infov2">Ogmacam_PullImageV4<br/>Ogmacam_WaitImageV4<br/>Ogmacam_PullImageV3<br/>Ogmacam_WaitImageV3<br/>Ogmacam_PullImageV2<br/>Ogmacam_PullStillImageV2<br/>Ogmacam_PullImageWithRowPitchV2<br/>Ogmacam_PullStillImageWithRowPitchV2</a><br/>
 Ogmacam_PullImage<br/>Ogmacam_PullStillImage<br/><a id="rowpitch1">Ogmacam_PullImageWithRowPitch</a><br/><a id="rowpitch2">Ogmacam_PullStillImageWithRowPitch</a></font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败, <strong>不存在图像可供获取时返回E_PENDING</strong></p>
       <p><strong>参数：</strong></p>
   <blockquote><p>HOgmacam h：相机句柄</p>
-	<p>nWaitMS: 超时值(毫秒). 如果指定非零值, 则该函数或者成功获取图像或者等待超时. 如果nWaitMS为零, 则没有图像可供获取时, 函数不会等待; 它总是立即返回; 相当于Ogmacam_PullImageV3.</p>
+	<p>nWaitMS: 超时值(毫秒). 如果指定非零值, 则该函数或者成功获取图像或者等待超时. 如果nWaitMS为零, 则没有图像可供获取时, 函数不会等待; 它总是立即返回; 相当于Ogmacam_PullImageV4(V3).</p>
     <p>void* pImageData：数据缓冲区. 用户应用程序必须确保改缓冲区足够大以容纳图像数据. 缓冲区大小必须 &gt;= rowPitch * nHeight</p>
     <p>int bStill: 静态图像填1, 其它填0</p>
     <p>int bits：图像颜色位数, 支持24, 32, 48, 8, 16和64, 分别代表RGB24, RGB32, RGB48, 8位灰度, 16位灰度, RGB64图像. bits = 0表示使用基于<a href="#rgb">OGMACAM_OPTION_RGB</a>的默认值. 本参数在RAW模式下没有意义, 被忽略</p>
     <p>int rowPitch: 行间距(Stride, 跨距), 行与行之间的间距, =0表示默认使用行间距, =-1表示最小行间距(零填充)</p>
     <p>unsigned* pnWidth, unsigned* pnHeight：输出参数, 图像的宽度高度</p>
-	<p>OgmacamFrameInfoV3/V2* pInfo：输出参数, 本帧图像Info:</p><table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>
+	<p>OgmacamFrameInfoV4/V3/V2* pInfo：输出参数, 本帧图像Info:</p><table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>
 #define OGMACAM_FRAMEINFO_FLAG_SEQ          0x0001 /* 帧序号, frame sequence number */
 #define OGMACAM_FRAMEINFO_FLAG_TIMESTAMP    0x0002 /* 时间戳, timestamp */
 #define OGMACAM_FRAMEINFO_FLAG_EXPOTIME     0x0004 /* 曝光时间, exposure time */
 #define OGMACAM_FRAMEINFO_FLAG_EXPOGAIN     0x0008 /* 曝光增益, exposure gain */
 #define OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL   0x0010 /* 暗电平, black level */
 #define OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ   0x0020 /* 触发序号, sequence shutter counter */
+#define OGMACAM_FRAMEINFO_FLAG_GPS          0x0040 /* GPS */
+#define OGMACAM_FRAMEINFO_FLAG_AUTOFOCUS    0x0080 /* 自动对焦相关: uLum & uFV */
+#define OGMACAM_FRAMEINFO_FLAG_COUNT        0x0100 /* 计数: timecount, framecount, tricount */
 #define OGMACAM_FRAMEINFO_FLAG_STILL        0x8000 /* 静态图片, still image */
 
 typedef struct {
@@ -731,6 +737,26 @@ typedef struct {
     unsigned short      expogain;   /* 曝光增益 */
     unsigned short      blacklevel; /* 暗电平, black level */
 } OgmacamFrameInfoV3;
+
+typedef struct {
+    unsigned long long utcstart;    /* 曝光开始时间: 纳秒数(00:00:00 UTC on Thursday, 1 January 1970, see https://en.wikipedia.org/wiki/Unix_time) */
+    unsigned long long utcend;      /* 曝光结束时间 */
+    int                longitude;   /* 百万分之一度, 0.000001 degree */
+    int                latitude;
+    int                altitude;    /* 毫米 */
+    unsigned short     satellite;   /* 卫星数量 */
+    unsigned short     reserved;    /* not used */
+} OgmacamGps;
+
+typedef struct {
+    OgmacamFrameInfoV3 v3;
+    unsigned reserved; /* 保留, 未使用 */
+    unsigned uLum;
+    unsigned long long uFV;
+    unsigned long long timecount;
+    unsigned framecount, tricount;
+    OgmacamGps gps;
+} OgmacamFrameInfoV4;
 </pre></td></tr></table>
 <p>注: 除了图像宽度高度总是有效以外, 其它都取决于相机型号底层硬件是否支持. 通过判断相应的flag bit位是否设置来判断对应值是否有效.</p>
 </blockquote><p><strong>说明：</strong>当pImageData为NULL而pInfo, pnWidth, pnHeight参数不为NULL的时候, 可以获取(Peek)是否存在图像以及图像的宽度高度等元信息.</p>
@@ -808,9 +834,9 @@ typedef struct {
           <tr><td>typedef void (*POGMACAM_DATA_CALLBACK_V3)(const void* pData, const OgmacamFrameInfoV2* pInfo, int bSnap, void* ctxData);</td></tr>
         </table><p>请参阅<a href="#callback">这里</a>.</p>
     </blockquote><blockquote>
-    <p align="left">如果回调时, pData参数==NULL, 表示发生内部错误（如相机被突然拔出等等）. <br/>
+    <p align="left">如果回调时, pData参数==NULL, 表示发生内部错误(如相机被突然拔出等等). <br/>
       数据pData的行间距(row pitch, stride, 跨距)是默认值.<br/>    	
-      int bSnap参数, TRUE表示是由Ogmacam_Snap或Ogmacam_SnapN函数发起的图片抓拍, FALSE表示普通的预览图片（视频）. <br/></p>
+      int bSnap参数, TRUE表示是由Ogmacam_Snap或Ogmacam_SnapN函数发起的图片抓拍, FALSE表示普通的预览图片(视频). <br/></p>
   </blockquote>
   <p><strong>说明：</strong>开启相机实例.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_Stop</font></h2>
@@ -839,7 +865,7 @@ typedef struct {
     </blockquote>
   <p><strong>说明：</strong>抓拍“静态”图片, 请参阅<a href="#stillcapture">这里</a>. 抓拍成功之后, 如果是Push Mode, 则通过OGMACAM_EVENT_STILLIMAGE通知. 如果是Push Mode则通过POGMACAM_DATA_CALLBACK_V4/V3回调函数返回, 其中回调函数的参数BOOL bSnap设为TRUE.</p>
   <blockquote>
-    <p align="left">有些相机支持在预览视频的不间断的情况下, 抓拍单张的不同于正在视频预览的分辨率的所谓静态图片. 例如UCMOS03100KPA, 正在预览的分辨率是1024*768, 调用Ogmacam_Snap(h, 0)抓拍单张第0号分辨率（2048*1536）的图片.预览使用小分辨率（追求更快的帧率）, 抓拍使用大分辨率（追求更好的图片质量）. 这种行为, 称之为“静态抓拍”. <br/>
+    <p align="left">有些相机支持在预览视频的不间断的情况下, 抓拍单张的不同于正在视频预览的分辨率的所谓静态图片. 例如UCMOS03100KPA, 正在预览的分辨率是1024*768, 调用Ogmacam_Snap(h, 0)抓拍单张第0号分辨率(2048*1536)的图片.预览使用小分辨率(追求更快的帧率), 抓拍使用大分辨率(追求更好的图片质量). 这种行为, 称之为“静态抓拍”. <br/>
       对于不支持静态抓拍的相机型号, 则参数nResolutionIndex的值必须等于当前正在预览的分辨率, 否则, 函数返回E_UNEXPECTED.<br/>
       某个型号是否支持静态抓拍能力, 参见OgmacamModelV2的still域(大于0).</p>
     <p align="left">Ogmacam_SnapR用于抓拍"RAW"图像, 对于支持硬件ISP的相机, 跳过ISP的影响.</p>
@@ -850,10 +876,10 @@ typedef struct {
     <p><strong>参数：</strong></p>
     <blockquote>
       <p>HOgmacam h：相机句柄</p>
-      <p>unsigned short nNumber: 0xffff(一直触发),0(取消触发), 其他值(触发图片的张数)</p>
+      <p>unsigned short nNumber: 0xffff(一直触发), 0(取消触发), 其他值(触发图片的张数)</p>
     </blockquote>
   <p><strong>说明：</strong>触发模式下, 调用本函数进行软件触发. 触发成功之后, 如果是Pull Mode, 则通过OGMACAM_EVENT_IMAGE通知. 如果是Push Mode则通过POGMACAM_DATA_CALLBACK_V4/V3回调函数返回, 其中回调函数的参数BOOL bSnap设为FALSE.</p>
-</li></ul><ul><li><h2><font color="#0000FF">Ogmacam_TriggerSync</font></h2>
+</li></ul><ul><li><h2><font color="#0000FF">Ogmacam_TriggerSyncV4<br/>Ogmacam_TriggerSync</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
     <p><strong>参数：</strong></p>
     <blockquote>
@@ -862,7 +888,7 @@ typedef struct {
 <p>void* pImageData：数据缓冲区. 用户应用程序必须确保改缓冲区足够大以容纳图像数据. 缓冲区大小必须 &gt;= rowPitch * nHeight</p>
     <p>int bits：图像颜色位数, 支持24, 32, 48, 8, 16和64, 分别代表RGB24, RGB32, RGB48, 8位灰度, 16位灰度, RGB64图像. bits = 0表示使用基于<a href="#rgb">OGMACAM_OPTION_RGB</a>的默认值. 本参数在RAW模式下没有意义, 被忽略</p>
     <p>int rowPitch: 行间距(Stride, 跨距), 行与行之间的间距, =0表示默认使用行间距, =-1表示最小行间距(零填充)</p>
-	<p>OgmacamFrameInfoV3* pInfo：输出参数, 本帧图像Info</p>
+	<p>OgmacamFrameInfoV4/V3* pInfo：输出参数, 本帧图像Info</p>
     </blockquote>
   <p><strong>说明：</strong>触发模式下, 调用本函数进行<strong>单次</strong>软件触发, 并等待图像到达.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_put_Size<br/>Ogmacam_get_Size<br/>Ogmacam_put_eSize<br/>Ogmacam_get_eSize</font></h2>
@@ -924,7 +950,7 @@ typedef struct {
     <p>unsigned nResolutionIndex：分辨率序号</p>
     <p>int* pWidth, int* pHeight：宽度、高度</p>
   </blockquote>
-  <p><strong>说明：</strong>Ogmacam_get_ResolutionNumber得到支持的分辨率个数（如UCMOS03100KPA返回3, 表示支持3种分辨率）. Ogmacam_get_Resolution得到每种分辨率的高度/宽度.</p>
+  <p><strong>说明：</strong>Ogmacam_get_ResolutionNumber得到支持的分辨率个数(如UCMOS03100KPA返回3, 表示支持3种分辨率). Ogmacam_get_Resolution得到每种分辨率的高度/宽度.</p>
   <blockquote>
     <p align="left">这些参数在Ogmacam_EnumV2返回相机实例的OgmacamModelV2都已经包含.</p>
 	<p align="left">Ogmacam_get_ResolutionRatio获取分辨率的Binning数, 用分数表示, 如1/1, 1/2, 1/3等等.</p>
@@ -947,14 +973,14 @@ typedef struct {
     <p>char cmd:<blockquote>
 		-1: 查询支持的Pixel Format数量<br/>
 		0~number: 查询第n条支持的Pixel Format的值</blockquote></p>
-    <p>int* piValue: 输出, OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
+    <p>int* pixelFormat: 输出, OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
   </blockquote>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_get_PixelFormatName</font></h2>
       <p><strong>返回值:</strong> Pixel Format名称, 如"RAW10", "HDR12HL"等等</p>
       <p><strong>参数:</strong></p>
   <blockquote>
-    <p>int val: OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
+    <p>int pixelFormat: OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
   </blockquote>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_put_Option<br/>Ogmacam_get_Option</font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败.</p>
@@ -1025,7 +1051,7 @@ typedef struct {
       	<td>型号特定</td><td>是</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_TECTARGET_RANGE</td>
-      	<td>获取TEC制冷的目标温度的范围, 单位0.1℃. 例如, 125表示12.5℃, -35表示-3.5℃.<br/>最小值(low 16 bits) = (short)(val & 0xffff)<br/>最大值(high 16 bits) = (short)((val >> 16) & 0xffff).</td>
+      	<td>获取TEC制冷的目标温度的范围, 单位0.1℃. 例如, 125表示12.5℃, -35表示-3.5℃.<br/>最小值(low 16 bits) = (short)(val &amp; 0xffff)<br/>最大值(high 16 bits) = (short)((val >> 16) &amp; 0xffff).</td>
       	<td>型号特定</td><td>是</td>
       </tr><tr>
       	<td><a id="aepolicy">OGMACAM_OPTION_AUTOEXP_POLICY</a></td>
@@ -1037,7 +1063,7 @@ typedef struct {
       	<td>5</td><td>是</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_FRAMERATE</td>
-      	<td>帧率限制（每秒帧数）. <br/>触发模式下帧率控制自动禁用.</td>
+      	<td>帧率限制(每秒帧数). <br/>触发模式下帧率控制自动禁用.</td>
       	<td>0<br/>(表示不限制)</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
@@ -1290,11 +1316,15 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		<td>总开关: <b>否</b><br/>子开关: 是</td>
       </tr><tr>
         <td>OGMACAM_OPTION_LOW_POWERCONSUMPTION</td>
-        <td>低功耗模式:<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
+        <td>低功耗模式:<br/>0 : 禁用<br/>1 : 启用<br/>&gt; 1 : 曝光时间大于设定值时启用</td>
+		<td>型号特定</td><td>是</td>
+      </tr><tr>
+        <td>OGMACAM_OPTION_LOW_POWER_EXPOTIME</td>
+        <td>低功耗模式: 曝光时间大于设定值时启用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
         <td><a id="lownoise">OGMACAM_OPTION_LOW_NOISE</a></td>
-        <td>低噪声模式(更高的信噪比,更低的帧率):<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
+        <td>低噪声模式(更高的信噪比, 更低的帧率):<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
         <td>OGMACAM_OPTION_HIGH_FULLWELL</td>
@@ -1320,8 +1350,8 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		<td>型号特定</td><td>是</td>
       </tr><tr>
         <td>OGMACAM_OPTION_DYNAMIC_DEFECT</td>
-        <td>动态坏点校正:<br/>阈值, t1(高16位): [10, 100], 表示[1.0, 10.0]<br/>值, t2: (低16位): [0, 100], 表示[0.00, 1.00]</td>
-		<td>不启用(t1=10, t2=0)</td><td>是</td>
+        <td>动态坏点校正:<br/>死点系数, t1(高16位): [0, 100], 表示[0.0, 1.0]<br/>噪点系数, t2: (低16位): [0, 100], 表示[0.0, 1.0]<br/>见:<br/>OGMACAM_DYNAMIC_DEFECT_T1_(MIN/MAX/DEF), OGMACAM_DYNAMIC_DEFECT_T2_(MIN/MAX/DEF)</td>
+		<td>不启用<br/>(t1=10, t2=0)</td><td>是</td>
       </tr><tr>
         <td>OGMACAM_OPTION_ANTI_SHUTTER_EFFECT</td>
         <td>anti shutter effect: 1 =&gt; 启用, 0 =&gt; 禁用</td>
@@ -1393,8 +1423,8 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		<td>OGMACAM_OPTION_AWB_CONTINUOUS</td>
 		<td>自动白平衡: 连续模式<br/><blockquote>
 			0:  禁用<br/>
-			n>0: 每隔n毫秒<br/>
-			n<0: 每隔-n帧</blockquote>
+			n&gt;0: 每隔n毫秒<br/>
+			n&lt;0: 每隔-n帧</blockquote>
 		</td><td>0(禁用)</td><td>Yes</td>
       </tr><tr>
         <td>OGMACAM_OPTION_THREAD_PRIORITY</td>
@@ -1634,14 +1664,14 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   <blockquote><p>HOgmacam h：相机句柄</p>
     <p>int bSkip：Bin模式或者Skip模式</p>
   </blockquote>
-  <p><strong>说明：</strong>设置Bin模式或者Skip模式.较高分辨率的相机支持2种采样模式, 一种是Bin模式（邻域平均）, 一种是Skip模式（抽样提取）.相比较而言, 前者图像效果较好, 但是帧速率降低；后者帧速率较高, 但是图像效果较差.</p>
+  <p><strong>说明：</strong>设置Bin模式或者Skip模式. 较高分辨率的相机支持2种采样模式, 一种是Bin模式(邻域平均), 一种是Skip模式(抽样提取). 相比较而言, 前者图像效果较好, 但是帧速率降低；后者帧速率较高, 但是图像效果较差.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_put_TempTint<br/>Ogmacam_get_TempTint</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. Temp/Tint模式下起作用, RGB Gain模式下不起作用直接返回E_NOTIMPL. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
   <blockquote><p>HOgmacam h：相机句柄</p>
     <p>int nTemp, int nTint：色温和Tint</p>
   </blockquote>
-  <p><strong>说明：</strong>Temp/Tint模式下设置/获取白平衡的色温和Tint参数.请参阅<a href="#wb">这里</a>.</p>
+  <p><strong>说明：</strong>Temp/Tint模式下设置/获取白平衡的色温和Tint参数. 请参阅<a href="#wb">这里</a>.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_AwbOnce</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败. Temp/Tint模式下起作用, RGB Gain模式下不起作用直接返回E_NOTIMPL. 对于黑白相机, 始终返回E_NOTIMPL.</p>
     <p><strong>参数：</strong></p>
@@ -1680,7 +1710,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_put_AWBAuxRect<br/>Ogmacam_get_AWBAuxRect<br/>Ogmacam_put_AEAuxRect<br/>Ogmacam_get_AEAuxRect<br/>Ogmacam_put_ABBAuxRect<br/>Ogmacam_get_ABBAuxRect</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
-    <p><strong>说明：</strong>设置/获取自动白平衡和自动曝光和黑平衡的参考矩形. 默认矩形位于图像正中央, 宽度等于20%图像宽度,高度等于20%图像高度.</p>
+    <p><strong>说明：</strong>设置/获取自动白平衡和自动曝光和黑平衡的参考矩形. 默认矩形位于图像正中央, 宽度等于20%图像宽度, 高度等于20%图像高度.</p>
 	<p><strong>注意：坐标永远是相对原始分辨率而言的</strong>, 请参阅<a href="#cord">这里</a>.</p>
 	<p>对于黑白相机, 白平衡和黑平衡始终返回E_NOTIMPL.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_get_MonoMode</font></h2>
@@ -1698,7 +1728,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p>unsigned nResolutionIndex：分辨率序号</p>
     <p>int* pWidth, int* pHeight：宽度、高度</p>
   </blockquote>
-  <p><strong>说明：</strong>Ogmacam_get_StillResolutionNumber得到支持的静态抓拍分辨率个数（如UCMOS03100KPA返回3, 表示支持3种分辨率）, 如果不支持静态抓拍能力, 返回0.Ogmacam_get_StillResolution得到每种分辨率的高度/宽度.</p>
+  <p><strong>说明：</strong>Ogmacam_get_StillResolutionNumber得到支持的静态抓拍分辨率个数(如UCMOS03100KPA返回3, 表示支持3种分辨率), 如果不支持静态抓拍能力, 返回0.Ogmacam_get_StillResolution得到每种分辨率的高度/宽度.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_get_SerialNumber<br/>Ogmacam_get_FwVersion<br/>Ogmacam_get_HwVersion<br/>Ogmacam_get_ProductionDate<br/>Ogmacam_get_Revision</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
@@ -1735,7 +1765,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p>unsigned char* pBuffer: 读取EEPROM的缓冲区</p>
     <p>unsigned nBufferLen: 缓冲区长度</p>
   </blockquote>
-  <p><strong>说明：</strong>有些相机上安装有EEPROM可供读写. 读写失败时返回HRESULT错误码（负数）, 成功时返回读取或者写入的字节数.</p>
+  <p><strong>说明：</strong>有些相机上安装有EEPROM可供读写. 读写失败时返回HRESULT错误码(负数), 成功时返回读取或者写入的字节数.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_read_UART<br/>Ogmacam_write_UART</font></h2>
   <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示失败或读写的字节数</p>
   <p><strong>参数：</strong></p>
@@ -1975,7 +2005,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 		<td>硬件</td><td>Ogmacam_get_LevelRangeV2</td>
         <td colspan="2">Ogmacam_put_LevelRangeV2</td>
 	  </tr><tr>
-        <td colspan="3">Contrast(对比度)</td><td>-150~150</td><td>0</td>
+        <td colspan="3">Contrast(对比度)</td><td>-250~250</td><td>0</td>
         <td>Ogmacam_get_Contrast</td><td>Ogmacam_put_Contrast</td><td></td>
       </tr><tr>
         <td colspan="3">Hue(色度)</td><td>-180~180</td><td>0</td>
@@ -2058,14 +2088,17 @@ public bool Snap(uint nResolutionIndex)
         <td width="60%">描述</td>
       </tr><tr>
 		<td colspan="2">demosimplest</td>
-		<td rowspan="10">Win32<br/>Linux<br/>macOS<br/>Android</td>
-		<td rowspan="20">C++</td>
-		<td rowspan="10">&nbsp;</td>
-		<td rowspan="10">console</td>
+		<td rowspan="11">Win32<br/>Linux<br/>macOS<br/>Android</td>
+		<td rowspan="21">C++</td>
+		<td rowspan="11">&nbsp;</td>
+		<td rowspan="11">console</td>
 		<td>最简单的示例, 大约70行代码. <a href="./images/demosimplest.png">截图</a>.</td>
 	  </tr><tr>
+		<td colspan="2">gigesimplest</td>
+		<td>最简单使用GigE相机示例, 大约75行代码</td>
+	  </tr><tr>
 		<td colspan="2">demowait</td>
-		<td>不使用回调函数, 使用Ogmacam_WaitImageV3获取图像, 大约60行代码.</td>
+		<td>不使用回调函数, 使用Ogmacam_WaitImageV4获取图像, 大约60行代码.</td>
       </tr><tr>
 		<td colspan="2">demomulti</td>
 		<td>打开所有枚举到的相机(可能多台)并获取图像, 大约90行代码.</td>
@@ -2210,6 +2243,7 @@ public bool Snap(uint nResolutionIndex)
 		<td>C#示例, <a href="./images/livestackcs.png">snapshot</a>.</td>
 </tr></table></div>
 <hr/><h1><font color="#0000ff">9. 更新历史</font></h1><hr/>
+<p>v57: 增加Ogmacam_PullImageV4, OgmacamFrameInfoV4, GPS</p>
 <p>v56: 性能提升: RAW模式下减少帧数据copy</p>
 <p>v55: 增加支持HDR Pixel Format</p>
 <p>v54: 增加支持GigE. 请参阅<a href="#apigige">这里</a></p>

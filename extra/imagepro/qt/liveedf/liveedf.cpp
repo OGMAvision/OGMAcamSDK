@@ -148,16 +148,16 @@ void MainWidget::EdfECallback(void* ctx, eImageproEdfEvent evt)
 
 void MainWidget::handleImageEvent()
 {
-    OgmacamFrameInfoV3 info = { 0 };
-    imagepro_edf_pullV3(m_edf, m_hcam, 1, m_pVideoData, 24, 0, &info);
+    OgmacamFrameInfoV4 info = { 0 };
+    imagepro_edf_pullV4(m_edf, m_hcam, 1, m_pVideoData, 24, 0, &info);
     {
-        QImage image(m_pVideoData, info.width, info.height, QImage::Format_RGB888);
+        QImage image(m_pVideoData, info.v3.width, info.v3.height, QImage::Format_RGB888);
         QImage newimage = image.scaled(m_lbl_video->width(), m_lbl_video->height(), Qt::KeepAspectRatio, Qt::FastTransformation);
         m_lbl_video->setPixmap(QPixmap::fromImage(newimage));
     }
     {
         imagepro_edf_readdata(m_edf, m_pEdfData, TDIBWIDTHBYTES(m_imgWidth * 24));
-        QImage image(m_pEdfData, info.width, info.height, QImage::Format_RGB888);
+        QImage image(m_pEdfData, info.v3.width, info.v3.height, QImage::Format_RGB888);
         QImage newimage = image.scaled(m_lbl_edf->width(), m_lbl_edf->height(), Qt::KeepAspectRatio, Qt::FastTransformation);
         m_lbl_edf->setPixmap(QPixmap::fromImage(newimage));
     }

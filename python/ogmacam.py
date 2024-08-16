@@ -1,4 +1,4 @@
-"""Version: 56.25817.20240616
+"""Version: 57.26291.20240811
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -278,8 +278,8 @@ OGMACAM_OPTION_TEC_VOLTAGE_MAX_RANGE  = 0x54       # get the tec maximum voltage
                                                    #      low 16 bits: min
 OGMACAM_OPTION_HIGH_FULLWELL          = 0x55       # high fullwell capacity: 0 => disable, 1 => enable
 OGMACAM_OPTION_DYNAMIC_DEFECT         = 0x56       # dynamic defect pixel correction:
-                                                   #      threshold, t1: high 16 bits: [10, 100], means: [1.0, 10.0]
-                                                   #      value, t2: low 16 bits: [0, 100], means: [0.00, 1.00]
+                                                   #      dead pixel ratio, t1: high 16 bits: [0, 100], means: [0.0, 1.0]
+                                                   #      hot pixel ratio, t2: low 16 bits: [0, 100], means: [0.0, 1.0]
 OGMACAM_OPTION_HDR_KB                 = 0x57       # HDR synthesize
                                                    #      K (high 16 bits): [1, 25500]
                                                    #      B (low 16 bits): [0, 65535]
@@ -289,8 +289,8 @@ OGMACAM_OPTION_HDR_THRESHOLD          = 0x58       # HDR synthesize
                                                    #      0xffffffff => set to default
 OGMACAM_OPTION_GIGETIMEOUT            = 0x5a       # For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive.
                                                    # If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection.
-                                                   # When the application is stopped by the debugger, the application cannot create the heartbeat signals
-                                                   #     0 => auto: when the camera is opened, disable if debugger is present or enable if no debugger is present
+                                                   # When the application is stopped by the debugger, the application cannot send the heartbeat signals
+                                                   #     0 => auto: when the camera is opened, enable if no debugger is present or disable if debugger is present
                                                    #     1 => enable
                                                    #     2 => disable
                                                    #     default: auto
@@ -361,6 +361,8 @@ OGMACAM_OPTION_AWB_CONTINUOUS         = 0x6c       # Auto White Balance: continu
                                                    #        n>0: every n millisecond(s)
                                                    #        n<0: every -n frame
 OGMACAM_OPTION_TECTARGET_RANGE        = 0x6d       # TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff)
+OGMACAM_OPTION_CDS                    = 0x6e       # Correlated Double Sampling
+OGMACAM_OPTION_LOW_POWER_EXPOTIME     = 0x6f       # Low Power Consumption: Enable if exposure time is greater than the set value
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -388,6 +390,9 @@ OGMACAM_FRAMEINFO_FLAG_EXPOTIME       = 0x00000004   # exposure time
 OGMACAM_FRAMEINFO_FLAG_EXPOGAIN       = 0x00000008   # exposure gain
 OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL     = 0x00000010   # black level
 OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ     = 0x00000020   # sequence shutter counter
+OGMACAM_FRAMEINFO_FLAG_GPS            = 0x00000040   # GPS
+OGMACAM_FRAMEINFO_FLAG_AUTOFOCUS      = 0x00000080   # auto focus: uLum & uFV
+OGMACAM_FRAMEINFO_FLAG_COUNT          = 0x00000100   # timecount, framecount, tricount
 OGMACAM_FRAMEINFO_FLAG_STILL          = 0x00008000   # still image
 
 OGMACAM_IOCONTROLTYPE_GET_SUPPORTEDMODE            = 0x01  # 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output
@@ -537,18 +542,18 @@ OGMACAM_FLASH_ERASE     = 0x06    # erase
 
 # HRESULT: error code
 S_OK            = 0x00000000 # Success
-S_FALSE         = 0x00000001 # Yet another success
-E_UNEXPECTED    = 0x8000ffff # Catastrophic failure
-E_NOTIMPL       = 0x80004001 # Not supported or not implemented
-E_ACCESSDENIED  = 0x80070005 # Permission denied
+S_FALSE         = 0x00000001 # Yet another success # Remark: Different from S_OK, such as internal values and user-set values have coincided, equivalent to noop
+E_UNEXPECTED    = 0x8000ffff # Catastrophic failure # Remark: Generally indicates that the conditions are not met, such as calling put_Option setting some options that do not support modification when the camera is running, and so on
+E_NOTIMPL       = 0x80004001 # Not supported or not implemented # Remark: This feature is not supported on this model of camera
+E_ACCESSDENIED  = 0x80070005 # Permission denied # Remark: The program on Linux does not have permission to open the USB device, please enable udev rules file or run as root
 E_OUTOFMEMORY   = 0x8007000e # Out of memory
 E_INVALIDARG    = 0x80070057 # One or more arguments are not valid
-E_POINTER       = 0x80004003 # Pointer that is not valid
+E_POINTER       = 0x80004003 # Pointer that is not valid # Remark: Pointer is NULL
 E_FAIL          = 0x80004005 # Generic failure
 E_WRONG_THREAD  = 0x8001010e # Call function in the wrong thread
-E_GEN_FAILURE   = 0x8007001f # Device not functioning
-E_BUSY          = 0x800700aa # The requested resource is in use
-E_PENDING       = 0x8000000a # The data necessary to complete this operation is not yet available
+E_GEN_FAILURE   = 0x8007001f # Device not functioning # Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc
+E_BUSY          = 0x800700aa # The requested resource is in use # Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc
+E_PENDING       = 0x8000000a # The data necessary to complete this operation is not yet available # Remark: No data is available at this time
 E_TIMEOUT       = 0x8001011f # This operation returned because the timeout period expired
 
 OGMACAM_EXPOGAIN_DEF             = 100      # exposure gain, default value
@@ -569,8 +574,8 @@ OGMACAM_BRIGHTNESS_DEF           = 0        # brightness
 OGMACAM_BRIGHTNESS_MIN           = -128     # brightness
 OGMACAM_BRIGHTNESS_MAX           = 128      # brightness
 OGMACAM_CONTRAST_DEF             = 0        # contrast
-OGMACAM_CONTRAST_MIN             = -150     # contrast
-OGMACAM_CONTRAST_MAX             = 150      # contrast
+OGMACAM_CONTRAST_MIN             = -250     # contrast
+OGMACAM_CONTRAST_MAX             = 250      # contrast
 OGMACAM_GAMMA_DEF                = 100      # gamma
 OGMACAM_GAMMA_MIN                = 20       # gamma
 OGMACAM_GAMMA_MAX                = 180      # gamma
@@ -615,18 +620,20 @@ OGMACAM_AE_PERCENT_MAX           = 100
 OGMACAM_AE_PERCENT_DEF           = 10       # auto exposure percent: enabled, percentage = 10%
 OGMACAM_NOPACKET_TIMEOUT_MIN     = 500      # no packet timeout minimum: 500ms
 OGMACAM_NOFRAME_TIMEOUT_MIN      = 500      # no frame timeout minimum: 500ms
-OGMACAM_DYNAMIC_DEFECT_T1_MIN    = 10       # dynamic defect pixel correction, threshold, means: 1.0
-OGMACAM_DYNAMIC_DEFECT_T1_MAX    = 100      # means: 10.0
-OGMACAM_DYNAMIC_DEFECT_T1_DEF    = 13       # means: 1.3
-OGMACAM_DYNAMIC_DEFECT_T2_MIN    = 0        # dynamic defect pixel correction, value, means: 0.00
-OGMACAM_DYNAMIC_DEFECT_T2_MAX    = 100      # means: 1.00
-OGMACAM_DYNAMIC_DEFECT_T2_DEF    = 100
+OGMACAM_DYNAMIC_DEFECT_T1_MIN    = 0        # dynamic defect pixel correction, dead pixel ratio: the smaller the dead ratio is, the more stringent the conditions for processing dead pixels are, and fewer pixels will be processed
+OGMACAM_DYNAMIC_DEFECT_T1_MAX    = 100      # means: 1.0
+OGMACAM_DYNAMIC_DEFECT_T1_DEF    = 90       # means: 0.9
+OGMACAM_DYNAMIC_DEFECT_T2_MIN    = 0        # dynamic defect pixel correction, hot pixel ratio: the smaller the hot ratio is, the more stringent the conditions for processing hot pixels are, and fewer pixels will be processed
+OGMACAM_DYNAMIC_DEFECT_T2_MAX    = 100
+OGMACAM_DYNAMIC_DEFECT_T2_DEF    = 90
 OGMACAM_HDR_K_MIN                = 1        # HDR synthesize
 OGMACAM_HDR_K_MAX                = 25500
 OGMACAM_HDR_B_MIN                = 0
 OGMACAM_HDR_B_MAX                = 65535
 OGMACAM_HDR_THRESHOLD_MIN        = 0
 OGMACAM_HDR_THRESHOLD_MAX        = 4094
+OGMACAM_CDS_MIN                  = 0
+OGMACAM_CDS_MAX                  = 4094
 
 def TDIBWIDTHBYTES(bits):
     return ((bits + 31) // 32 * 4)
@@ -640,7 +647,7 @@ def TDIBWIDTHBYTES(bits):
 | Temp                    |   1000~25000  |   6503                |
 | Tint                    |   100~2500    |   1000                |
 | LevelRange              |   0~255       |   Low = 0, High = 255 |
-| Contrast                |   -150~150    |   0                   |
+| Contrast                |   -250~250    |   0                   |
 | Hue                     |   -180~180    |   0                   |
 | Saturation              |   0~255       |   128                 |
 | Brightness              |   -128~128    |   0                   |
@@ -675,6 +682,27 @@ class OgmacamFrameInfoV3:
         self.expotime = 0                # expotime
         self.expogain = 0                # expogain
         self.blacklevel = 0              # black level
+
+class OgmacamGps:
+    def __init__(self):
+       self.utcstart = 0    # exposure start time: nanosecond since epoch (00:00:00 UTC on Thursday, 1 January 1970, see https://en.wikipedia.org/wiki/Unix_time)
+       self.utcend = 0      # exposure end time
+       self.longitude = 0   # millionth of a degree, 0.000001 degree
+       self.latitude = 0
+       self.altitude = 0    # millimeter
+       self.satellite = 0   # number of satellite
+       self.reserved = 0    # not used
+
+class OgmacamFrameInfoV4:
+    def __init__(self):
+        self.v3 = OgmacamFrameInfoV3()
+        self.reserved = 0
+        self.uLum = 0
+        self.uFV = 0
+        self.timecount = 0
+        self.framecount = 0
+        self.tricount = 0
+        self.gps = OgmacamGps()
 
 class OgmacamFrameInfoV2:
     def __init__(self):
@@ -736,49 +764,22 @@ else:
         def __init__(self, hr):
             self.hr = hr
 
-class _Resolution(ctypes.Structure):
-    _fields_ = [('width', ctypes.c_uint),
-                ('height', ctypes.c_uint)]
-
-if sys.platform == 'win32':
-    class _ModelV2(ctypes.Structure):                      # camera model v2 win32
-        _fields_ = [('name', ctypes.c_wchar_p),            # model name, in Windows, we use unicode
-                    ('flag', ctypes.c_ulonglong),          # OGMACAM_FLAG_xxx, 64 bits
-                    ('maxspeed', ctypes.c_uint),           # number of speed level, same as Ogmacam_get_MaxSpeed(), the speed range = [0, maxspeed], closed interval
-                    ('preview', ctypes.c_uint),            # number of preview resolution, same as Ogmacam_get_ResolutionNumber()
-                    ('still', ctypes.c_uint),              # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
-                    ('maxfanspeed', ctypes.c_uint),        # maximum fan speed, fan speed range = [0, max], closed interval
-                    ('ioctrol', ctypes.c_uint),            # number of input/output control
-                    ('xpixsz', ctypes.c_float),            # physical pixel size in micrometer
-                    ('ypixsz', ctypes.c_float),            # physical pixel size in micrometer
-                    ('res', _Resolution * 16)]
-    class _DeviceV2(ctypes.Structure):                     # win32
-        _fields_ = [('displayname', ctypes.c_wchar * 64),  # display name
-                    ('id', ctypes.c_wchar * 64),           # unique and opaque id of a connected camera, for Ogmacam_Open
-                    ('model', ctypes.POINTER(_ModelV2))]
-else:
-    class _ModelV2(ctypes.Structure):                      # camera model v2 linux/mac
-        _fields_ = [('name', ctypes.c_char_p),             # model name
-                    ('flag', ctypes.c_ulonglong),          # OGMACAM_FLAG_xxx, 64 bits
-                    ('maxspeed', ctypes.c_uint),           # number of speed level, same as Ogmacam_get_MaxSpeed(), the speed range = [0, maxspeed], closed interval
-                    ('preview', ctypes.c_uint),            # number of preview resolution, same as Ogmacam_get_ResolutionNumber()
-                    ('still', ctypes.c_uint),              # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
-                    ('maxfanspeed', ctypes.c_uint),        # maximum fan speed
-                    ('ioctrol', ctypes.c_uint),            # number of input/output control
-                    ('xpixsz', ctypes.c_float),            # physical pixel size in micrometer
-                    ('ypixsz', ctypes.c_float),            # physical pixel size in micrometer
-                    ('res', _Resolution * 16)]
-    class _DeviceV2(ctypes.Structure):                     # linux/mac
-        _fields_ = [('displayname', ctypes.c_char * 64),   # display name
-                    ('id', ctypes.c_char * 64),            # unique and opaque id of a connected camera, for Ogmacam_Open
-                    ('model', ctypes.POINTER(_ModelV2))]
-
 class Ogmacam:
+    class __Resolution(ctypes.Structure):
+        _fields_ = [('width', ctypes.c_uint),
+                    ('height', ctypes.c_uint)]
+
     class __RECT(ctypes.Structure):
         _fields_ = [('left', ctypes.c_int),
                     ('top', ctypes.c_int),
                     ('right', ctypes.c_int),
                     ('bottom', ctypes.c_int)]
+
+    class __ModelV2(ctypes.Structure):
+        pass
+        
+    class __DeviceV2(ctypes.Structure):
+        pass
 
     class __FocusMotor(ctypes.Structure):
         _fields_ = [('imax', ctypes.c_int),                # maximum auto focus sensor board positon
@@ -799,6 +800,18 @@ class Ogmacam:
                     ('expotime', ctypes.c_uint),           # expotime
                     ('expogain', ctypes.c_ushort),         # expogain
                     ('blacklevel', ctypes.c_ushort)]       # black level
+
+    class __Gps(ctypes.Structure):
+        _fields_ = [('utcstart', ctypes.c_longlong),       # UTC: exposure start time
+                    ('utcend', ctypes.c_longlong),         # exposure end time
+                    ('longitude', ctypes.c_int),           # millionth of a degree, 0.000001 degree
+                    ('latitude', ctypes.c_int),
+                    ('altitude', ctypes.c_int),            # millimeter
+                    ('satellite', ctypes.c_ushort),        # number of satellite
+                    ('reserved', ctypes.c_ushort)]         # not used
+
+    class __FrameInfoV4(ctypes.Structure):
+        pass
 
     class __FrameInfoV2(ctypes.Structure):
         _fields_ = [('width', ctypes.c_uint),
@@ -864,7 +877,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 56.25817.20240616"""
+        """get the version of this dll, which is: 57.26291.20240811"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -933,7 +946,7 @@ class Ogmacam:
     @classmethod
     def EnumV2(cls):
         cls.__initlib()
-        a = (_DeviceV2 * OGMACAM_MAX)()
+        a = (cls.__DeviceV2 * OGMACAM_MAX)()
         n = cls.__lib.Ogmacam_EnumV2(a)
         arr = []
         for i in range(0, n):
@@ -943,7 +956,7 @@ class Ogmacam:
     @classmethod
     def EnumWithName(cls):
         cls.__initlib()
-        a = (_DeviceV2 * OGMACAM_MAX)()
+        a = (cls.__DeviceV2 * OGMACAM_MAX)()
         n = cls.__lib.Ogmacam_EnumWithName(a)
         arr = []
         for i in range(0, n):
@@ -1038,6 +1051,27 @@ class Ogmacam:
         pInfo.expotime = x.expotime
         pInfo.expogain = x.expogain
         pInfo.blacklevel = x.blacklevel
+        
+    @staticmethod
+    def __convertGps(gps, x):
+        gps.utcstart = x.utcstart
+        gps.utcend = x.utcend
+        gps.longitude = x.longitude
+        gps.latitude = x.latitude
+        gps.altitude = x.altitude
+        gps.satellite = x.satellite
+        gps.reserved = x.reserved
+
+    @staticmethod
+    def __convertFrameInfoV4(pInfo, x):
+        __class__.__convertFrameInfoV3(pInfo.v3, x.v3)
+        pInfo.reserved = x.reserved
+        pInfo.uLum = x.uLum
+        pInfo.uFV = x.uFV
+        pInfo.timecount = x.timecount
+        pInfo.framecount = x.framecount
+        pInfo.tricount = x.tricount
+        __class__.__convertGps(pInfo.gps, x.gps)
 
     @staticmethod
     def __convertFrameInfoV2(pInfo, x):
@@ -1049,7 +1083,7 @@ class Ogmacam:
 
     """
         nWaitMS: The timeout interval, in milliseconds. If a non-zero value is specified, the function either successfully fetches the image or waits for a timeout.
-                 If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImageV3.
+                 If nWaitMS is zero, the function does not wait when there are no images to fetch; It always returns immediately; this is equal to PullImageV4.
         bStill: to pull still image, set to 1, otherwise 0
         bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
               In RAW mode, this parameter is ignored.
@@ -1089,6 +1123,22 @@ class Ogmacam:
                 |           | 10/12/14/16bits Mode   | Width * 2                     | Width * 2             |
                 |-----------|------------------------|-------------------------------|-----------------------|
     """
+    def PullImageV4(self, pImageData, bStill, bits, rowPitch, pInfo):
+        if pInfo is None:
+            self.__lib.Ogmacam_PullImageV4(self.__h, pImageData, bStill, bits, rowPitch, None)
+        else:
+            x = self.__FrameInfoV4()
+            self.__lib.Ogmacam_PullImageV4(self.__h, pImageData, bStill, bits, rowPitch, ctypes.byref(x))
+            self.__convertFrameInfoV4(pInfo, x)
+
+    def WaitImageV4(self, nWaitMS, pImageData, bStill, bits, rowPitch, pInfo):
+        if pInfo is None:
+            self.__lib.Ogmacam_WaitImageV4(self.__h, nWaitMS, pImageData, bStill, bits, rowPitch, None)
+        else:
+            x = self.__FrameInfoV4()
+            self.__lib.Ogmacam_WaitImageV4(self.__h, nWaitMS, pImageData, bStill, bits, rowPitch, ctypes.byref(x))
+            self.__convertFrameInfoV4(pInfo, x)
+
     def PullImageV3(self, pImageData, bStill, bits, rowPitch, pInfo):
         if pInfo is None:
             self.__lib.Ogmacam_PullImageV3(self.__h, pImageData, bStill, bits, rowPitch, None)
@@ -1224,6 +1274,20 @@ class Ogmacam:
                     others:     number of images to be triggered
         """
         self.__lib.Ogmacam_Trigger(self.__h, ctypes.c_ushort(nNumber))
+
+    def TriggerSyncV4(self, nWaitMS, pImageData, bits, rowPitch, pInfo):
+        """
+        trigger synchronously
+        nWaitMS:    0:              by default, exposure * 102% + 4000 milliseconds
+                    0xffffffff:     wait infinite
+                    other:          milliseconds to wait
+        """
+        if pInfo is None:
+            self.__lib.Ogmacam_TriggerSyncV4(self.__h, nWaitMS, pImageData, bits, rowPitch, None)
+        else:
+            x = self.__FrameInfoV4()
+            self.__lib.Ogmacam_TriggerSyncV4(self.__h, nWaitMS, pImageData, bits, rowPitch, ctypes.byref(x))
+            self.__convertFrameInfoV4(pInfo, x)
 
     def TriggerSync(self, nWaitMS, pImageData, bits, rowPitch, pInfo):
         """
@@ -1397,6 +1461,12 @@ class Ogmacam:
         """in microseconds"""
         x = ctypes.c_uint(0)
         self.__lib.Ogmacam_get_ExpoTime(self.__h, ctypes.byref(x))
+        return x.value
+
+    def get_RealExpoTime(self):
+        """in microseconds"""
+        x = ctypes.c_uint(0)
+        self.__lib.Ogmacam_get_RealExpoTime(self.__h, ctypes.byref(x))
         return x.value
 
     def put_ExpoTime(self, Time):
@@ -1710,8 +1780,8 @@ class Ogmacam:
     def get_PixelFormatSupport(self, cmd):
         """"
         cmd:
-            0xff:       query the number
-            0~number:   query the nth pixel format
+           0xff:     query the number
+           0~number: query the nth pixel format
         output: OGMACAM_PIXELFORMAT_xxxx
         """
         x = ctypes.c_int(0)
@@ -1966,9 +2036,9 @@ class Ogmacam:
         return str.value.decode()
 
     @classmethod
-    def PixelFormatName(cls, val):
+    def PixelFormatName(cls, pixelFormat):
         cls.__initlib()
-        return cls.__lib.Ogmacam_get_PixelFormatName(val)
+        return cls.__lib.Ogmacam_get_PixelFormatName(pixelFormat)
 
     @classmethod
     def Replug(cls, camId):
@@ -2050,11 +2120,54 @@ class Ogmacam:
                 else:
                     cls.__lib = ctypes.cdll.LoadLibrary('libogmacam.dylib')
 
+            cls.__FrameInfoV4._fields_ = [
+                        ('v3', cls.__FrameInfoV3),
+                        ('reserved', ctypes.c_uint),
+                        ('uLum', ctypes.c_uint),
+                        ('uFV', ctypes.c_longlong),
+                        ('timecount', ctypes.c_longlong),
+                        ('framecount', ctypes.c_uint),
+                        ('tricount', ctypes.c_uint),
+                        ('gps', cls.__Gps)]
+
+            if sys.platform == 'win32':
+                cls.__ModelV2._fields_ = [                     # camera model v2 win32
+                        ('name', ctypes.c_wchar_p),            # model name, in Windows, we use unicode
+                        ('flag', ctypes.c_ulonglong),          # OGMACAM_FLAG_xxx, 64 bits
+                        ('maxspeed', ctypes.c_uint),           # number of speed level, same as Ogmacam_get_MaxSpeed(), the speed range = [0, maxspeed], closed interval
+                        ('preview', ctypes.c_uint),            # number of preview resolution, same as Ogmacam_get_ResolutionNumber()
+                        ('still', ctypes.c_uint),              # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
+                        ('maxfanspeed', ctypes.c_uint),        # maximum fan speed, fan speed range = [0, max], closed interval
+                        ('ioctrol', ctypes.c_uint),            # number of input/output control
+                        ('xpixsz', ctypes.c_float),            # physical pixel size in micrometer
+                        ('ypixsz', ctypes.c_float),            # physical pixel size in micrometer
+                        ('res', cls.__Resolution * 16)]
+                cls.__DeviceV2._fields_ = [                    # win32
+                        ('displayname', ctypes.c_wchar * 64),  # display name
+                        ('id', ctypes.c_wchar * 64),           # unique and opaque id of a connected camera, for Ogmacam_Open
+                        ('model', ctypes.POINTER(cls.__ModelV2))]
+            else:
+                cls.__ModelV2._fields_ = [                     # camera model v2 linux/mac
+                        ('name', ctypes.c_char_p),             # model name
+                        ('flag', ctypes.c_ulonglong),          # OGMACAM_FLAG_xxx, 64 bits
+                        ('maxspeed', ctypes.c_uint),           # number of speed level, same as Ogmacam_get_MaxSpeed(), the speed range = [0, maxspeed], closed interval
+                        ('preview', ctypes.c_uint),            # number of preview resolution, same as Ogmacam_get_ResolutionNumber()
+                        ('still', ctypes.c_uint),              # number of still resolution, same as Ogmacam_get_StillResolutionNumber()
+                        ('maxfanspeed', ctypes.c_uint),        # maximum fan speed
+                        ('ioctrol', ctypes.c_uint),            # number of input/output control
+                        ('xpixsz', ctypes.c_float),            # physical pixel size in micrometer
+                        ('ypixsz', ctypes.c_float),            # physical pixel size in micrometer
+                        ('res', cls.__Resolution * 16)]
+                cls.__DeviceV2._fields_ = [                    # linux/mac
+                        ('displayname', ctypes.c_char * 64),   # display name
+                        ('id', ctypes.c_char * 64),            # unique and opaque id of a connected camera, for Ogmacam_Open
+                        ('model', ctypes.POINTER(cls.__ModelV2))]
+
             cls.__lib.Ogmacam_Version.argtypes = None
             cls.__lib.Ogmacam_EnumV2.restype = ctypes.c_uint
-            cls.__lib.Ogmacam_EnumV2.argtypes = [_DeviceV2 * OGMACAM_MAX]
+            cls.__lib.Ogmacam_EnumV2.argtypes = [cls.__DeviceV2 * OGMACAM_MAX]
             cls.__lib.Ogmacam_EnumWithName.restype = ctypes.c_uint
-            cls.__lib.Ogmacam_EnumWithName.argtypes = [_DeviceV2 * OGMACAM_MAX]
+            cls.__lib.Ogmacam_EnumWithName.argtypes = [cls.__DeviceV2 * OGMACAM_MAX]
             cls.__lib.Ogmacam_put_Name.restype = ctypes.c_int
             cls.__lib.Ogmacam_get_Name.restype = ctypes.c_int
             cls.__lib.Ogmacam_Open.restype = ctypes.c_void_p
@@ -2091,6 +2204,12 @@ class Ogmacam:
             cls.__lib.Ogmacam_StartPullModeWithCallback.restype = ctypes.c_int
             cls.__lib.Ogmacam_StartPullModeWithCallback.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_StartPullModeWithCallback.argtypes = [ctypes.c_void_p, cls.__EVENT_CALLBACK, ctypes.py_object]
+            cls.__lib.Ogmacam_PullImageV4.restype = ctypes.c_int
+            cls.__lib.Ogmacam_PullImageV4.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_PullImageV4.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV4)]
+            cls.__lib.Ogmacam_WaitImageV4.restype = ctypes.c_int
+            cls.__lib.Ogmacam_WaitImageV4.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_WaitImageV4.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV4)]
             cls.__lib.Ogmacam_PullImageV3.restype = ctypes.c_int
             cls.__lib.Ogmacam_PullImageV3.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_PullImageV3.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]
@@ -2127,6 +2246,9 @@ class Ogmacam:
             cls.__lib.Ogmacam_Trigger.restype = ctypes.c_int
             cls.__lib.Ogmacam_Trigger.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_Trigger.argtypes = [ctypes.c_void_p, ctypes.c_ushort]
+            cls.__lib.Ogmacam_TriggerSyncV4.restype = ctypes.c_int
+            cls.__lib.Ogmacam_TriggerSyncV4.errcheck = cls.__errcheck
+            cls.__lib.Ogmacam_TriggerSyncV4.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV4)]            
             cls.__lib.Ogmacam_TriggerSync.restype = ctypes.c_int
             cls.__lib.Ogmacam_TriggerSync.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_TriggerSync.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(cls.__FrameInfoV3)]

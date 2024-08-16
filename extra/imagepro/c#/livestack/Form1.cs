@@ -26,14 +26,14 @@ namespace livestack
         {
             if (bmp1_ != null)
             {
-                Ogmacam.FrameInfoV3 info = new Ogmacam.FrameInfoV3();
+                Ogmacam.FrameInfoV4 info = new Ogmacam.FrameInfoV4();
                 try
                 {
                     BitmapData bmpdata = bmp1_.LockBits(new Rectangle(0, 0, bmp1_.Width, bmp1_.Height), ImageLockMode.WriteOnly, bmp1_.PixelFormat);
                     bool bOK = false;
                     try
                     {
-                        bOK = cam_.PullImageV3(bmpdata.Scan0, 0, 24, bmpdata.Stride, out info); // check the return value
+                        bOK = cam_.PullImage(bmpdata.Scan0, 0, 24, bmpdata.Stride, out info); // check the return value
                         if (bOK)
                             stack_.Add(bmpdata.Scan0, bmp1_.Width, bmp1_.Height, 8);
                     }

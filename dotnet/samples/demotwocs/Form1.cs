@@ -29,14 +29,14 @@ namespace demotwocs
         {
             if (bmp_[idx] != null)
             {
-                Ogmacam.FrameInfoV3 info = new Ogmacam.FrameInfoV3();
+                Ogmacam.FrameInfoV4 info = new Ogmacam.FrameInfoV4();
                 bool bOK = false;
                 try
                 {
                     BitmapData bmpdata = bmp_[idx].LockBits(new Rectangle(0, 0, bmp_[idx].Width, bmp_[idx].Height), ImageLockMode.WriteOnly, bmp_[idx].PixelFormat);
                     try
                     {
-                        bOK = cam_[idx].PullImageV3(bmpdata.Scan0, 0, 24, bmpdata.Stride, out info); // check the return value
+                        bOK = cam_[idx].PullImage(bmpdata.Scan0, 0, 24, bmpdata.Stride, out info); // check the return value
                     }
                     finally
                     {

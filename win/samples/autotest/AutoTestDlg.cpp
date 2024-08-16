@@ -8,8 +8,12 @@
 #include "CWhiteBalancePropertyPage.h"
 #include "CTestPropertySheet.h"
 #include <Dbt.h>
+#include <vector>
 
 CAutoTestDlg* g_pMainDlg = nullptr;
+bool g_work = false;
+std::vector<HANDLE> g_thrd;
+
 
 static BOOL SaveImageByWIC(const wchar_t* strFilename, const void* pData, const BITMAPINFOHEADER* pHeader)
 {
@@ -360,27 +364,27 @@ void CAutoTestDlg::OnEventError()
 
 void CAutoTestDlg::OnEventImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
-	HRESULT hr = Ogmacam_PullImageV3(g_hcam, m_pImageData, 0, 24, 0, &info);
+	OgmacamFrameInfoV4 info = { 0 };
+	HRESULT hr = Ogmacam_PullImageV4(g_hcam, m_pImageData, 0, 24, 0, &info);
 	if (SUCCEEDED(hr))
 	{
 		if (g_bROITest && g_bROITest_SnapStart)
 		{
 			unsigned offsetX = 0, offsetY = 0, width = 0, height = 0;
 			Ogmacam_get_Roi(g_hcam, &offsetX, &offsetY, &width, &height);
-			if (width == info.width && height == info.height)
+			if (width == info.v3.width && height == info.v3.height)
 			{
 				BITMAPINFOHEADER header = { 0 };
 				header.biSize = sizeof(header);
 				header.biPlanes = 1;
 				header.biBitCount = 24;
-				header.biWidth = info.width;
-				header.biHeight = info.height;
+				header.biWidth = info.v3.width;
+				header.biHeight = info.v3.height;
 				header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * header.biBitCount) * header.biHeight;
 				CString str;
 				SYSTEMTIME tm;
 				GetLocalTime(&tm);
-				str.Format(g_snapDir + _T("\\%d_%dx%d_%04hu%02hu%02hu_%02hu%02hu%02hu_%03hu.jpg"), g_ROITestCount++, info.width, info.height, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, tm.wMilliseconds);
+				str.Format(g_snapDir + _T("\\%d_%dx%d_%04hu%02hu%02hu_%02hu%02hu%02hu_%03hu.jpg"), g_ROITestCount++, info.v3.width, info.v3.height, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, tm.wMilliseconds);
 				SaveImageByWIC(str, m_pImageData, &header);
 				g_bROITest_SnapStart = false;
 				g_bROITest_SnapFinish = true;
@@ -469,20 +473,20 @@ void CAutoTestDlg::OnEventTempTint()
 
 void CAutoTestDlg::OnEventStillImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
-	HRESULT hr = Ogmacam_PullImageV3(g_hcam, nullptr, 1, 24, 0, &info);
+	OgmacamFrameInfoV4 info = { 0 };
+	HRESULT hr = Ogmacam_PullImageV4(g_hcam, nullptr, 1, 24, 0, &info);
 	if (SUCCEEDED(hr))
 	{
-		void* pData = malloc(TDIBWIDTHBYTES(info.width * 24) * info.height);
-		hr = Ogmacam_PullImageV3(g_hcam, pData, 1, 24, 0, nullptr);
+		void* pData = malloc(TDIBWIDTHBYTES(info.v3.width * 24) * info.v3.height);
+		hr = Ogmacam_PullImageV4(g_hcam, pData, 1, 24, 0, nullptr);
 		if (SUCCEEDED(hr))
 		{
 			BITMAPINFOHEADER header = { 0 };
 			header.biSize = sizeof(header);
 			header.biPlanes = 1;
 			header.biBitCount = 24;
-			header.biWidth = info.width;
-			header.biHeight = info.height;
+			header.biWidth = info.v3.width;
+			header.biHeight = info.v3.height;
 			header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * header.biBitCount) * header.biHeight;
 
 			if (g_bSnapTest)
@@ -490,7 +494,7 @@ void CAutoTestDlg::OnEventStillImage()
 				int resWidth = 0, resHeight = 0;
 				Ogmacam_get_Size(g_hcam, &resWidth, &resHeight);
 				CString str;
-				str.Format(g_snapDir + _T("\\%d_%dx%d_%dx%d.jpg"), g_snapCount, resWidth, resHeight, info.width, info.height);
+				str.Format(g_snapDir + _T("\\%d_%dx%d_%dx%d.jpg"), g_snapCount, resWidth, resHeight, info.v3.width, info.v3.height);
 				SaveImageByWIC(str, pData, &header);
 				g_bSnapFinish = true;
 			}
@@ -562,6 +566,7 @@ public:
 	virtual void DoDataExchange(CDataExchange* pDX);
 	//}}AFX_VIRTUAL
 	virtual BOOL OnInitDialog();
+	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	virtual void OnOK();
 protected:
 	DECLARE_MESSAGE_MAP()
@@ -582,6 +587,7 @@ void COptionsDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(COptionsDlg, CDialog)
 	//{{AFX_MSG_MAP(COptionsDlg)
 	//}}AFX_MSG_MAP
+	ON_WM_HSCROLL()
 END_MESSAGE_MAP()
 
 BOOL COptionsDlg::OnInitDialog()
@@ -594,8 +600,37 @@ BOOL COptionsDlg::OnInitDialog()
 	SetDlgItemInt(IDC_EDIT1, g_NopacketTimeout);
 	SetDlgItemInt(IDC_EDIT3, g_NoframeTimeout);
 	SetDlgItemInt(IDC_EDIT2, g_HeartbeatTimeout);
+	CString str;
+	str.Format(L"CPU usage: %d\n", g_thrd.size());
+	SetDlgItemText(IDC_STATIC_USAGE, str);
+	
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->SetRange(0, sysInfo.dwNumberOfProcessors);
+	SetDlgItemInt(IDC_STATIC_MAX_CPU, sysInfo.dwNumberOfProcessors);
+	((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->SetPos(g_thrd.size());
+	SetDlgItemInt(IDC_STATIC_CPU, g_thrd.size());
 
 	return TRUE;
+}
+
+void COptionsDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
+{
+	if (pScrollBar == GetDlgItem(IDC_SLIDER1))
+	{
+		int nCpu = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();
+		SetDlgItemInt(IDC_STATIC_CPU, nCpu);
+	}
+}
+
+unsigned __stdcall Thread(void* pArg)
+{
+	while (g_work)
+	{
+		volatile long long dummy = 1234567890123456789LL;
+		dummy = dummy * dummy;
+	}
+	return 0;
 }
 
 void COptionsDlg::OnOK()
@@ -619,6 +654,28 @@ void COptionsDlg::OnOK()
 	g_bReplug = IsDlgButtonChecked(IDC_CHECK1) ? true : false;
 	g_bEnableCheckBlack = IsDlgButtonChecked(IDC_CHECK2) ? true : false;
 	g_bRealtime = IsDlgButtonChecked(IDC_CHECK3) ? true : false;
+
+	int nCpu = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();	
+	if (nCpu != g_thrd.size())
+	{
+		g_work = false;
+		for (int i = 0; i < g_thrd.size(); ++i)
+		{
+			if (g_thrd[i])
+			{
+				WaitForSingleObject(g_thrd[i], INFINITE);
+				CloseHandle(g_thrd[i]);
+			}
+		}
+		g_thrd.clear();
+
+		g_work = true;
+		for (int i = 0; i < nCpu; ++i)
+		{
+			HANDLE thread = (HANDLE)_beginthreadex(nullptr, 0, Thread, this, 0, nullptr);
+			g_thrd.push_back(thread);
+		}
+	}
 
 	CDialog::OnOK();
 }

@@ -298,7 +298,7 @@ class MainWidget(QWidget):
 
     def handleImageEvent(self):
         try:
-            self.hcam.PullImageV3(self.pData, 0, 24, 0, None)
+            self.hcam.PullImageV4(self.pData, 0, 24, 0, None)
         except ogmacam.HRESULTException:
             pass
         else:

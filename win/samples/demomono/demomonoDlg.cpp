@@ -203,16 +203,16 @@ void CdemomonoDlg::OnEventExpo()
 
 void CdemomonoDlg::OnEventImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
+	OgmacamFrameInfoV4 info = { 0 };
 	/* bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64). In RAW mode, this parameter is ignored */
-	HRESULT hr = Ogmacam_PullImageV3(m_hcam, m_pImageData, 0, m_bBitDepth ? 16 : 8, 0, &info);
+	HRESULT hr = Ogmacam_PullImageV4(m_hcam, m_pImageData, 0, m_bBitDepth ? 16 : 8, 0, &info);
 	if (SUCCEEDED(hr))
 	{
 		BITMAPINFOHEADER header = { sizeof(BITMAPINFOHEADER) };
 		header.biPlanes = 1;
 		header.biBitCount = 24;
-		header.biWidth = info.width;
-		header.biHeight = info.height;
+		header.biWidth = info.v3.width;
+		header.biHeight = info.v3.height;
 		header.biSizeImage = TDIBWIDTHBYTES(header.biWidth * 24) * header.biHeight;
 		int pitchDst = TDIBWIDTHBYTES(header.biWidth * 24);
 		if (m_bBitDepth)
@@ -264,12 +264,12 @@ void CdemomonoDlg::OnEventImage()
 
 void CdemomonoDlg::OnEventStillImage()
 {
-	OgmacamFrameInfoV3 info = { 0 };
-	HRESULT hr = Ogmacam_PullImageV3(m_hcam, NULL, 1, m_bBitDepth ? 16 : 8, 0, &info);
+	OgmacamFrameInfoV4 info = { 0 };
+	HRESULT hr = Ogmacam_PullImageV4(m_hcam, NULL, 1, m_bBitDepth ? 16 : 8, 0, &info);
 	if (SUCCEEDED(hr))
 	{
-		void* pData = malloc(TDIBWIDTHBYTES(info.width * 16) * info.height);
-		hr = Ogmacam_PullImageV3(m_hcam, pData, 1, m_bBitDepth ? 16 : 8, 0, NULL);
+		void* pData = malloc(TDIBWIDTHBYTES(info.v3.width * 16) * info.v3.height);
+		hr = Ogmacam_PullImageV4(m_hcam, pData, 1, m_bBitDepth ? 16 : 8, 0, NULL);
 		if (SUCCEEDED(hr))
 		{
 			/* After we get the image data, we can do anything for the data we want to do */

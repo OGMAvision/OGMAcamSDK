@@ -2,7 +2,6 @@
 
 class CBitDepthPropertyPage : public CPropertyPage
 {
-	int m_bitDepth;
 public:
 	CBitDepthPropertyPage();
 
@@ -11,9 +10,8 @@ public:
 #endif
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);
 	virtual BOOL OnInitDialog();
-	afx_msg void OnBnClickedRadio8Bit();
-	afx_msg void OnBnClickedRadioHighBit();
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnCbnSelchangeComboBitdepth();
 };

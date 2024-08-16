@@ -25,7 +25,7 @@ int main(int, char**)
     int nWidth = 0, nHeight = 0;
     HRESULT hr = Ogmacam_get_Size(g_hcam, &nWidth, &nHeight);
     if (FAILED(hr))
-        printf("failed to get size, hr = %08x\n", hr);
+        printf("failed to get size, hr = 0x%08x\n", hr);
     else
     {
         g_pImageData = malloc(TDIBWIDTHBYTES(24 * nWidth) * nHeight);
@@ -33,10 +33,12 @@ int main(int, char**)
             printf("failed to malloc\n");
         else
         {
+            Ogmacam_put_AutoExpoEnable(g_hcam, 0);
             Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_TRIGGER, 1);
+            Ogmacam_IoControl(g_hcam, 0, OGMACAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 5, NULL);
             hr = Ogmacam_StartPullModeWithCallback(g_hcam, EventCallback, NULL);
             if (FAILED(hr))
-                printf("failed to start camera, hr = %08x\n", hr);
+                printf("failed to start camera, hr = 0x%08x\n", hr);
             else
             {
                 printf("'x' to exit, other to triggersync\n");
@@ -57,7 +59,7 @@ int main(int, char**)
                         const HRESULT hr = Ogmacam_TriggerSync(g_hcam, 0, g_pImageData, 24, 0, &info);
                         if (FAILED(hr))
                         {
-                            printf("failed to triggersync, hr = %08x\n", hr);
+                            printf("failed to triggersync, hr = 0x%08x\n", hr);
                             break;
                         }
                         else
