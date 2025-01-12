@@ -1,5 +1,6 @@
 #ifndef __imagepro_uvcsam_H__
 #define __imagepro_uvcsam_H__
+
 #if defined(_WIN32)
 #pragma pack(push, 8)
 

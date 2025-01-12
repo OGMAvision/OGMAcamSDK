@@ -9,7 +9,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 57.26291.20240811
+    Version: 57.27250.20241216
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -17,6 +17,13 @@ import com.sun.jna.Structure.FieldOrder;
        (1) en.html, English
        (2) hans.html, Simplified Chinese
 */
+
+/*
+    Please distinguish between camera ID (camId) and camera SN:
+        (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
+        (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
+*/
+
 public class ogmacam implements AutoCloseable {
     public final static long FLAG_CMOS                    = 0x00000001L;   /* cmos sensor */
     public final static long FLAG_CCD_PROGRESSIVE         = 0x00000002L;   /* progressive ccd sensor */
@@ -128,7 +135,10 @@ public class ogmacam implements AutoCloseable {
                                                                            default value: 1
                                                                         */
     public final static int OPTION_FRAMERATE              = 0x11;       /* limit the frame rate, the default value 0 means no limit */
-    public final static int OPTION_DEMOSAIC               = 0x12;       /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0 */
+    public final static int OPTION_DEMOSAIC               = 0x12;       /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing
+                                                                             In terms of CPU usage, EA is the lowest, followed by BILINEAR, and the others are higher.
+                                                                             default value: 0
+                                                                        */
     public final static int OPTION_DEMOSAIC_VIDEO         = 0x13;       /* demosaic method for video */
     public final static int OPTION_DEMOSAIC_STILL         = 0x14;       /* demosaic method for still image */
     public final static int OPTION_BLACKLEVEL             = 0x15;       /* black level */
@@ -144,8 +154,8 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_CG                     = 0x19;       /* Conversion Gain:
                                                                                0 = LCG
                                                                                1 = HCG
-                                                                               2 = HDR (for camera with flag OGMACAM_FLAG_CGHDR)
-                                                                               2 = MCG (for camera with flag OGMACAM_FLAG_GHOPTO)
+                                                                               2 = HDR (for camera with flag FLAG_CGHDR)
+                                                                               2 = MCG (for camera with flag FLAG_GHOPTO)
                                                                         */
     public final static int OPTION_PIXEL_FORMAT           = 0x1a;       /* pixel format */
     public final static int OPTION_FFC                    = 0x1b;       /* flat field correction
@@ -205,20 +215,20 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_BYTEORDER              = 0x2a;       /* Byte order, BGR or RGB: 0 => RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android) */
     public final static int OPTION_NOPACKET_TIMEOUT       = 0x2b;       /* no packet timeout: 0 => disable, positive value (>= NOPACKET_TIMEOUT_MIN) => timeout milliseconds. default: disable */
     public final static int OPTION_MAX_PRECISE_FRAMERATE  = 0x2c;       /* get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported */
-    public final static int OPTION_PRECISE_FRAMERATE      = 0x2d;       /* precise frame rate current value in 0.1 fps, range:[1~maximum] */
+    public final static int OPTION_PRECISE_FRAMERATE      = 0x2d;       /* precise frame rate current value in 0.1 fps. use OPTION_MAX_PRECISE_FRAMERATE, OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned */
     public final static int OPTION_BANDWIDTH              = 0x2e;       /* bandwidth, [1-100]% */
     public final static int OPTION_RELOAD                 = 0x2f;       /* reload the last frame in trigger mode */
     public final static int OPTION_CALLBACK_THREAD        = 0x30;       /* dedicated thread for callback: 0 => disable, 1 => enable, default: 0 */
     public final static int OPTION_FRONTEND_DEQUE_LENGTH  = 0x31;       /* frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
                                                                            All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
                                                                         */
-    public final static int OPTION_FRAME_DEQUE_LENGTH     = 0x31;       /* alias of OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH */
+    public final static int OPTION_FRAME_DEQUE_LENGTH     = 0x31;       /* alias of OPTION_FRONTEND_DEQUE_LENGTH */
     public final static int OPTION_MIN_PRECISE_FRAMERATE  = 0x32;       /* get the precise frame rate minimum value in 0.1 fps, such as 15 means 1.5 fps */
     public final static int OPTION_SEQUENCER_ONOFF        = 0x33;       /* sequencer trigger: on/off */
     public final static int OPTION_SEQUENCER_NUMBER       = 0x34;       /* sequencer trigger: number, range = [1, 255] */
     public final static int OPTION_SEQUENCER_EXPOTIME     = 0x01000000; /* sequencer trigger: exposure time, iOption = OPTION_SEQUENCER_EXPOTIME | index, iValue = exposure time
                                                                              For example, to set the exposure time of the third group to 50ms, call:
-                                                                                Ogmacam_put_Option(OGMACAM_OPTION_SEQUENCER_EXPOTIME | 3, 50000)
+                                                                                put_Option(OPTION_SEQUENCER_EXPOTIME | 3, 50000)
                                                                         */
     public final static int OPTION_SEQUENCER_EXPOGAIN     = 0x02000000; /* sequencer trigger: exposure gain, iOption = OPTION_SEQUENCER_EXPOGAIN | index, iValue = gain */
     public final static int OPTION_DENOISE                = 0x35;       /* denoise, strength range: [0, 100], 0 means disable */
@@ -250,8 +260,8 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_FRONTEND_DEQUE_CURRENT = 0x45;       /* get the current number in frontend deque */
     public final static int OPTION_BACKEND_DEQUE_CURRENT  = 0x46;       /* get the current number in backend deque */
     public final static int OPTION_EVENT_HARDWARE         = 0x04000000; /* enable or disable hardware event: 0 => disable, 1 => enable; default: disable
-                                                                               (1) iOption = OGMACAM_OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
-                                                                               (2) iOption = OGMACAM_OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
+                                                                               (1) iOption = OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
+                                                                               (2) iOption = OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
                                                                            Only if both the master switch and the sub-switch of a particular type remain on are actually enabled for that type of event notification.
                                                                         */
     public final static int OPTION_PACKET_NUMBER          = 0x47;       /* get the received packet number */
@@ -269,7 +279,7 @@ public class ogmacam implements AutoCloseable {
                                                                               1~99: peak percent average
                                                                               0 or 100: full roi average, means "disabled"
                                                                         */
-    public final static int OPTION_ANTI_SHUTTER_EFFECT    = 0x4b;       /* anti shutter effect: 1 => disable, 0 => disable; default: 0 */
+    public final static int OPTION_ANTI_SHUTTER_EFFECT    = 0x4b;       /* anti shutter effect: 1 => enable, 0 => disable; default: 0 */
     public final static int OPTION_CHAMBER_HT             = 0x4c;       /* get chamber humidity & temperature:
                                                                               high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
                                                                               low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
@@ -367,7 +377,9 @@ public class ogmacam implements AutoCloseable {
                                                                             Policy 1 avoids the black screen, but the convergence speed is slower.
                                                                             Default: 0
                                                                         */
-    public final static int OPTION_READOUT_MODE           = 0x69;       /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
+    public final static int OPTION_READOUT_MODE           = 0x69;       /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
+                                                                            The working modes of the detector readout circuit can be divided into two types: ITR and IWR. Using the IWR readout mode can greatly increase the frame rate. In the ITR mode, the integration of the (n+1)th frame starts after all the data of the nth frame are read out, while in the IWR mode, the data of the nth frame is read out at the same time when the (n+1)th frame is integrated
+                                                                        */
     public final static int OPTION_TAILLIGHT              = 0x6a;       /* Turn on/off tail Led light: 0 => off, 1 => on; default: on */
     public final static int OPTION_LENSSTATE              = 0x6b;       /* Load/Save lens state to EEPROM: 0 => load, 1 => save */
     public final static int OPTION_AWB_CONTINUOUS         = 0x6c;       /* Auto White Balance: continuous mode
@@ -378,6 +390,20 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_TECTARGET_RANGE        = 0x6d;       /* TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff) */
     public final static int OPTION_CDS                    = 0x6e;       /* Correlated Double Sampling */
     public final static int OPTION_LOW_POWER_EXPOTIME     = 0x6f;       /* Low Power Consumption: Enable if exposure time is greater than the set value */
+    public final static int OPTION_ZERO_OFFSET            = 0x70;       /* Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0 */
+    public final static int OPTION_GVCP_TIMEOUT           = 0x71;       /* GVCP Timeout: millisecond, range = [3, 75], default: 15
+                                                                             Unless in very special circumstances, generally no modification is required, just use the default value
+                                                                        */
+    public final static int OPTION_GVCP_RETRY             = 0x72;       /* GVCP Retry: range = [2, 8], default: 4
+                                                                             Unless in very special circumstances, generally no modification is required, just use the default value
+                                                                        */
+    public final static int OPTION_GVSP_WAIT_PERCENT      = 0x73;       /* GVSP wait percent: range = [0, 100], default = (trigger mode: 100, realtime: 0, other: 1) */
+    public final static int OPTION_RESET_SEQ_TIMESTAMP    = 0x74;       /* Reset to 0: 1 => seq; 2 => timestamp; 3 => both */
+    public final static int OPTION_TRIGGER_CANCEL_MODE    = 0x75;       /* Trigger cancel mode: 0 => no frame, 1 => output frame; default: 0 */
+    public final static int OPTION_MECHANICALSHUTTER      = 0x76;       /* Mechanical shutter: 0 => open, 1 => close; default: 0 */
+    public final static int OPTION_LINE_TIME              = 0x77;       /* Line-time of sensor in nanosecond */
+    public final static int OPTION_ZERO_PADDING           = 0x78;       /* Zero padding: 0 => high, 1 => low; default: 0 */
+    public final static int OPTION_UPTIME                 = 0x79;       /* device uptime in millisecond */
 
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -399,16 +425,17 @@ public class ogmacam implements AutoCloseable {
     public final static int PIXELFORMAT_HDR12HL           = 0x11;   /* HDR, Bitdepth: 12, Conversion Gain: High + Low */
     public final static int PIXELFORMAT_HDR14HL           = 0x12;   /* HDR, Bitdepth: 14, Conversion Gain: High + Low */
     
-    public final static int FRAMEINFO_FLAG_SEQ            = 0x00000001; /* frame sequence number */
-    public final static int FRAMEINFO_FLAG_TIMESTAMP      = 0x00000002; /* timestamp */
-    public final static int FRAMEINFO_FLAG_EXPOTIME       = 0x00000004; /* exposure time */
-    public final static int FRAMEINFO_FLAG_EXPOGAIN       = 0x00000008; /* exposure gain */
-    public final static int FRAMEINFO_FLAG_BLACKLEVEL     = 0x00000010; /* black level */
-    public final static int FRAMEINFO_FLAG_SHUTTERSEQ     = 0x00000020; /* sequence shutter counter */
-    public final static int FRAMEINFO_FLAG_GPS            = 0x00000040; /* GPS */
-    public final static int FRAMEINFO_FLAG_AUTOFOCUS      = 0x00000080; /* auto focus: uLum & uFV */
-    public final static int FRAMEINFO_FLAG_COUNT          = 0x00000100; /* timecount, framecount, tricount */
-    public final static int FRAMEINFO_FLAG_STILL          = 0x00008000; /* still image */
+    public final static int FRAMEINFO_FLAG_SEQ                = 0x00000001; /* frame sequence number */
+    public final static int FRAMEINFO_FLAG_TIMESTAMP          = 0x00000002; /* timestamp */
+    public final static int FRAMEINFO_FLAG_EXPOTIME           = 0x00000004; /* exposure time */
+    public final static int FRAMEINFO_FLAG_EXPOGAIN           = 0x00000008; /* exposure gain */
+    public final static int FRAMEINFO_FLAG_BLACKLEVEL         = 0x00000010; /* black level */
+    public final static int FRAMEINFO_FLAG_SHUTTERSEQ         = 0x00000020; /* sequence shutter counter */
+    public final static int FRAMEINFO_FLAG_GPS                = 0x00000040; /* GPS */
+    public final static int FRAMEINFO_FLAG_AUTOFOCUS          = 0x00000080; /* auto focus: uLum & uFV */
+    public final static int FRAMEINFO_FLAG_COUNT              = 0x00000100; /* timecount, framecount, tricount */
+    public final static int FRAMEINFO_FLAG_MECHANICALSHUTTER  = 0x00000200; /* Mechanical shutter: closed */
+    public final static int FRAMEINFO_FLAG_STILL              = 0x00008000; /* still image */
     
     public final static int IOCONTROLTYPE_GET_SUPPORTEDMODE            = 0x01; /* 0x01 => Input, 0x02 => Output, (0x01 | 0x02) => support both Input and Output */
     public final static int IOCONTROLTYPE_GET_GPIODIR                  = 0x03; /* 0x00 => Input, 0x01 => Output */
@@ -446,11 +473,11 @@ public class ogmacam implements AutoCloseable {
     public final static int IOCONTROLTYPE_GET_COUNTERVALUE             = 0x15; /* Counter Value, range: [1 ~ 65535] */
     public final static int IOCONTROLTYPE_SET_COUNTERVALUE             = 0x16;
     public final static int IOCONTROLTYPE_SET_RESETCOUNTER             = 0x18;
-    public final static int IOCONTROLTYPE_GET_PWM_FREQ                 = 0x19;
+    public final static int IOCONTROLTYPE_GET_PWM_FREQ                 = 0x19; /* PWM Frequency */
     public final static int IOCONTROLTYPE_SET_PWM_FREQ                 = 0x1a;
-    public final static int IOCONTROLTYPE_GET_PWM_DUTYRATIO            = 0x1b;
+    public final static int IOCONTROLTYPE_GET_PWM_DUTYRATIO            = 0x1b; /* PWM Duty Ratio */
     public final static int IOCONTROLTYPE_SET_PWM_DUTYRATIO            = 0x1c;
-    public final static int IOCONTROLTYPE_GET_PWMSOURCE                = 0x1d; /* 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02=> GPIO1 */
+    public final static int IOCONTROLTYPE_GET_PWMSOURCE                = 0x1d; /* PWM Source: 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02=> GPIO1 */
     public final static int IOCONTROLTYPE_SET_PWMSOURCE                = 0x1e;
     public final static int IOCONTROLTYPE_GET_OUTPUTMODE               = 0x1f; /*
                                                                                   0x00 => Frame Trigger Wait
@@ -554,11 +581,11 @@ public class ogmacam implements AutoCloseable {
     public final static int SATURATION_MIN           = 0;        /* saturation */
     public final static int SATURATION_MAX           = 255;      /* saturation */
     public final static int BRIGHTNESS_DEF           = 0;        /* brightness */
-    public final static int BRIGHTNESS_MIN           = -128;     /* brightness */
-    public final static int BRIGHTNESS_MAX           = 128;      /* brightness */
+    public final static int BRIGHTNESS_MIN           = -255;     /* brightness */
+    public final static int BRIGHTNESS_MAX           = 255;      /* brightness */
     public final static int CONTRAST_DEF             = 0;        /* contrast */
-    public final static int CONTRAST_MIN             = -250;     /* contrast */
-    public final static int CONTRAST_MAX             = 250;      /* contrast */
+    public final static int CONTRAST_MIN             = -255;     /* contrast */
+    public final static int CONTRAST_MAX             = 255;      /* contrast */
     public final static int GAMMA_DEF                = 100;      /* gamma */
     public final static int GAMMA_MIN                = 20;       /* gamma */
     public final static int GAMMA_MAX                = 180;      /* gamma */
@@ -710,7 +737,7 @@ public class ogmacam implements AutoCloseable {
     
     public static class ModelV2 {
         public String name;         /* model name */
-        public long flag;           /* OGMACAM_FLAG_xxx, 64 bits */
+        public long flag;           /* FLAG_xxx, 64 bits */
         public int maxspeed;        /* number of speed level, same as Ogmacam_get_MaxSpeed(), the speed range = [0, maxspeed], closed interval */
         public int preview;         /* number of preview resolution, same as get_ResolutionNumber() */
         public int still;           /* number of still resolution, same as get_StillResolutionNumber() */
@@ -1182,7 +1209,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 57.26291.20240811 */
+    /* get the version of this dll/so/dylib, which is: 57.27250.20241216 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -1527,11 +1554,11 @@ public class ogmacam implements AutoCloseable {
        bStill: to pull still image, set to 1, otherwise 0
        bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
              In RAW mode, this parameter is ignored.
-             bits = 0 means using default bits base on OGMACAM_OPTION_RGB.
-             When bits and OGMACAM_OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
-             See the following bits and OGMACAM_OPTION_RGB correspondence table:
+             bits = 0 means using default bits base on OPTION_RGB.
+             When bits and OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
+             See the following bits and OPTION_RGB correspondence table:
                ----------------------------------------------------------------------------------------------------------------------
-               | OGMACAM_OPTION_RGB |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
+               | OPTION_RGB         |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
                | bits = 0           |      24       |       48      |      32       |       8       |       16      |       64      |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
@@ -1810,7 +1837,8 @@ public class ogmacam implements AutoCloseable {
         return new int[] { p.getValue(), q.getValue() };
     }
     
-    /*  0: stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
+    /*  0: no realtime
+              stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
         1: realtime
               use minimum frame buffer. When new frame arrive, drop all the pending frame regardless of whether the frame buffer is full.
               If DDR present, also limit the DDR frame buffer to only one frame.
@@ -1842,10 +1870,10 @@ public class ogmacam implements AutoCloseable {
         | Temp                    |   1000~25000  |   6503                |
         | Tint                    |   100~2500    |   1000                |
         | LevelRange              |   0~255       |   Low = 0, High = 255 |
-        | Contrast                |   -250~250    |   0                   |
+        | Contrast                |   -255~255    |   0                   |
         | Hue                     |   -180~180    |   0                   |
         | Saturation              |   0~255       |   128                 |
-        | Brightness              |   -128~128    |   0                   |
+        | Brightness              |   -255~255    |   0                   |
         | Gamma                   |   20~180      |   100                 |
         | WBGain                  |   -127~127    |   0                   |
         ------------------------------------------------------------------|
@@ -2343,7 +2371,7 @@ public class ogmacam implements AutoCloseable {
      * cmd:
      * -1:       query the number
      * 0~number: query the nth pixel format
-     * output:   OGMACAM_PIXELFORMAT_xxxx
+     * output:   PIXELFORMAT_xxxx
     */
     public int get_PixelFormatSupport(byte cmd) throws HRESULTException {
         IntByReference p = new IntByReference();
@@ -2419,8 +2447,9 @@ public class ogmacam implements AutoCloseable {
     }
     
     /*
-        get the frame rate: framerate (fps) = Frame * 1000.0 / nTime
-        Frame, Time, TotalFrame
+        get the actual frame rate of the camera at the most recent time (about a few seconds):
+        return (Frame, Time, TotalFrame)
+        framerate (fps) = Frame * 1000.0 / Time
     */
     public int[] get_FrameRate() throws HRESULTException {
         IntByReference p = new IntByReference();

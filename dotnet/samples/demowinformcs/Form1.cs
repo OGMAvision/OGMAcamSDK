@@ -253,7 +253,7 @@ namespace demowinformcs
                 comboBox3.Items.Add("GPIO1");
                 comboBox3.Items.Add("Counter");
                 comboBox3.Items.Add("PWM");
-                comboBox3.Items.Add("Software");                
+                comboBox3.Items.Add("Software");
 
                 //output mode
                 comboBox4.Items.Add("Frame Trigger Wait");
@@ -286,7 +286,7 @@ namespace demowinformcs
                     {
                         button4.Text = "TEC ON";
                         trackBar4.Enabled = false;
-                    }  
+                    }
                 }
                 InitTecTargetRange();
 
@@ -527,7 +527,7 @@ namespace demowinformcs
                 nval = 5;
                 comboBox3.Enabled = false;
                 button5.Enabled = true;
-            }           
+            }
         }
 
         private void OnTriggerOne(object sender, EventArgs e)

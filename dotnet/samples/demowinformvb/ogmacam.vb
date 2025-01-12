@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 57.26291.20240811
+'    Version: 57.27250.20241216
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -17,6 +17,12 @@ Imports System.Threading
 '       (1) en.html, English
 '       (2) hans.html, Simplified Chinese
 '
+
+'   Please distinguish between camera ID (camId) and camera SN:
+'       (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
+'       (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
+'
+
 Friend Class Ogmacam
     Implements IDisposable
 
@@ -136,7 +142,10 @@ Friend Class Ogmacam
         '    default value: 1
         OPTION_AUTOEXP_POLICY = &H10
         OPTION_FRAMERATE = &H11                    ' limit the frame rate, the default value 0 means no limit
-        OPTION_DEMOSAIC = &H12                     ' demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0
+        ' demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing
+        '   In terms of CPU usage, EA is the lowest, followed by BILINEAR, and the others are higher.
+        '   default value: 0
+        OPTION_DEMOSAIC = &H12
         OPTION_DEMOSAIC_VIDEO = &H13               ' demosaic method for video
         OPTION_DEMOSAIC_STILL = &H14               ' demosaic method for still image
         OPTION_BLACKLEVEL = &H15                   ' black level
@@ -152,8 +161,8 @@ Friend Class Ogmacam
         ' Conversion Gain:
         '     0 = LCG
         '     1 = HCG
-        '     2 = HDR (for camera with flag OGMACAM_FLAG_CGHDR)
-        '     2 = MCG (for camera with flag OGMACAM_FLAG_GHOPTO)
+        '     2 = HDR (for camera with flag FLAG_CGHDR)
+        '     2 = MCG (for camera with flag FLAG_GHOPTO)
         OPTION_CG = &H19
         OPTION_PIXEL_FORMAT = &H1A                 ' pixel format
         ' flat field correction
@@ -184,6 +193,7 @@ Friend Class Ogmacam
         '         (val & 0xff): 0 => disable, 1 => enable, 2 => inited
         '         ((val & 0xff00) >> 8): sequence
         '         ((val & 0xff0000) >> 16): average number
+        '         (val & 0x01000000): capture finished
         OPTION_DFC = &H1D
         ' Sharpening: (threshold << 24) | (radius << 16) | strength)
         '    strength: [0, 500], default: 0 (disable)
@@ -214,22 +224,22 @@ Friend Class Ogmacam
         OPTION_BYTEORDER = &H2A                    ' Byte order, BGR or RGB: 0 => RGB, 1 => BGR, default value: 1(Win), 0(macOS, Linux, Android)
         OPTION_NOPACKET_TIMEOUT = &H2B             ' no packet timeout: 0 => disable, positive value (>= NOPACKET_TIMEOUT_MIN) => timeout milliseconds. default: disable
         OPTION_MAX_PRECISE_FRAMERATE = &H2C        ' get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported
-        OPTION_PRECISE_FRAMERATE = &H2D            ' precise frame rate current value in 0.1 fps, range:[1~maximum]
+        OPTION_PRECISE_FRAMERATE = &H2D            ' precise frame rate current value in 0.1 fps, precise frame rate current value in 0.1 fps. use OPTION_MAX_PRECISE_FRAMERATE, OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned
         OPTION_BANDWIDTH = &H2E                    ' bandwidth, [1-100]%
         OPTION_RELOAD = &H2F                       ' reload the last frame in trigger mode
         OPTION_CALLBACK_THREAD = &H30              ' dedicated thread for callback: 0 => disable, 1 => enable, default: 0
         ' frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
         ' All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
         OPTION_FRONTEND_DEQUE_LENGTH = &H31
-        OPTION_FRAME_DEQUE_LENGTH = &H31           ' alias of OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH
+        OPTION_FRAME_DEQUE_LENGTH = &H31           ' alias of OPTION_FRONTEND_DEQUE_LENGTH
         OPTION_MIN_PRECISE_FRAMERATE = &H32        ' get the precise frame rate minimum value in 0.1 fps, such as 15 means 1.5 fps
         OPTION_SEQUENCER_ONOFF = &H33              ' sequencer trigger: on/off
         OPTION_SEQUENCER_NUMBER = &H34             ' sequencer trigger: number, range = [1, 255]
-        ' sequencer trigger: exposure time, iOption = OGMACAM_OPTION_SEQUENCER_EXPOTIME | index, iValue = exposure time
+        ' sequencer trigger: exposure time, iOption = OPTION_SEQUENCER_EXPOTIME | index, iValue = exposure time
         '   For example, to set the exposure time of the third group to 50ms, call:
-        '     Ogmacam_put_Option(OGMACAM_OPTION_SEQUENCER_EXPOTIME | 3, 50000)
+        '     put_Option(OPTION_SEQUENCER_EXPOTIME | 3, 50000)
         OPTION_SEQUENCER_EXPOTIME = &H1000000
-        OPTION_SEQUENCER_EXPOGAIN = &H2000000      ' sequencer trigger: exposure gain, iOption = OGMACAM_OPTION_SEQUENCER_EXPOGAIN | index, iValue = gain
+        OPTION_SEQUENCER_EXPOGAIN = &H2000000      ' sequencer trigger: exposure gain, iOption = OPTION_SEQUENCER_EXPOGAIN | index, iValue = gain
         OPTION_DENOISE = &H35                      ' denoise, strength range: [0, 100], 0 means disable
         OPTION_HEAT_MAX = &H36                     ' get maximum level: heat to prevent fogging up
         OPTION_HEAT = &H37                         ' heat to prevent fogging up
@@ -259,8 +269,8 @@ Friend Class Ogmacam
         OPTION_FRONTEND_DEQUE_CURRENT = &H45       ' get the current number in frontend deque
         OPTION_BACKEND_DEQUE_CURRENT = &H46        ' get the current number in backend deque
         ' enable or disable hardware event: 0 => disable, 1 => enable; default: disable
-        '     (1) iOption = OGMACAM_OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
-        '     (2) iOption = OGMACAM_OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
+        '     (1) iOption = OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
+        '     (2) iOption = OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
         ' Only if both the master switch and the sub-switch of a particular type remain on are actually enabled for that type of event notification.
         OPTION_EVENT_HARDWARE = &H4000000
         OPTION_PACKET_NUMBER = &H47                ' get the received packet number
@@ -278,12 +288,12 @@ Friend Class Ogmacam
         '         1~99: top percent average
         '         0 or 100: full roi average, means "disabled"
         OPTION_AUTOEXPOSURE_PERCENT = &H4A
-        OPTION_ANTI_SHUTTER_EFFECT = &H4B          ' anti shutter effect: 1 => disable, 0 => disable; default: 0
+        OPTION_ANTI_SHUTTER_EFFECT = &H4B          ' anti shutter effect: 1 => enable, 0 => disable; default: 0
         ' get chamber humidity & temperature:
         '         high 16 bits: humidity, in 0.1%, such as: 325 means humidity is 32.5%
         '         low 16 bits: temperature, in 0.1 degrees Celsius, such as: 32 means 3.2 degrees Celsius
         OPTION_CHAMBER_HT = &H4C
-        OGMACAM_OPTION_ENV_HT = &H4D               ' get environment humidity & temperature
+        OPTION_ENV_HT = &H4D                       ' get environment humidity & temperature
         OPTION_EXPOSURE_PRE_DELAY = &H4E           ' exposure signal pre-delay, microsecond
         OPTION_EXPOSURE_POST_DELAY = &H4F          ' exposure signal post-delay, microsecond
         OPTION_AUTOEXPO_CONV = &H50                ' get auto exposure convergence status: 1(YES) or 0(NO), -1(NA)
@@ -377,6 +387,7 @@ Friend Class Ogmacam
         ' Default: 0
         OPTION_OVEREXP_POLICY = &H68
         ' Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
+        ' The working modes of the detector readout circuit can be divided into two types: ITR and IWR. Using the IWR readout mode can greatly increase the frame rate. In the ITR mode, the integration of the (n+1)th frame starts after all the data of the nth frame are read out, while in the IWR mode, the data of the nth frame is read out at the same time when the (n+1)th frame is integrated
         OPTION_READOUT_MODE = &H69
         ' Turn on/off tail Led light: 0 => off, 1 => on; default: on
         OPTION_TAILLIGHT = &H6A
@@ -394,6 +405,28 @@ Friend Class Ogmacam
         OPTION_CDS = &H6E
         ' Low Power Consumption: Enable if exposure time is greater than the set value
         OPTION_LOW_POWER_EXPOTIME = &H6F
+        ' Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0
+        OPTION_ZERO_OFFSET = &H70
+        ' GVCP Timeout: millisecond, range = [3, 75], default: 15
+        '   Unless in very special circumstances, generally no modification is required, just use the default value
+        OPTION_GVCP_TIMEOUT = &H71
+        ' GVCP Retry: range = [2, 8], default: 4
+        '   Unless in very special circumstances, generally no modification is required, just use the default value
+        OPTION_GVCP_RETRY = &H72
+        ' GVSP wait percent: range = [0, 100], default = (trigger mode: 100, realtime: 0, other: 1)
+        OPTION_GVSP_WAIT_PERCENT = &H73
+        ' Reset to 0: 1 => seq; 2 => timestamp; 3 => both
+        RESET_SEQ_TIMESTAMP = &H74
+        ' Trigger cancel mode: 0 => no frame, 1 => output frame; default: 0
+        OPTION_TRIGGER_CANCEL_MODE = &H75
+        ' Mechanical shutter: 0 => open, 1 => close; default: 0
+        OPTION_MECHANICALSHUTTER = &H76
+        ' Line-time of sensor in nanosecond
+        OPTION_LINE_TIME = &H77
+        ' Zero padding: 0 => high, 1 => low; default: 0
+        OPTION_ZERO_PADDING = &H78
+        ' device uptime in millisecond
+        OPTION_UPTIME = &H79
     End Enum
 
     ' HRESULT: Error code
@@ -428,11 +461,11 @@ Friend Class Ogmacam
     Public Const SATURATION_MIN = 0        ' saturation
     Public Const SATURATION_MAX = 255      ' saturation
     Public Const BRIGHTNESS_DEF = 0        ' brightness
-    Public Const BRIGHTNESS_MIN = -128     ' brightness
-    Public Const BRIGHTNESS_MAX = 128      ' brightness
+    Public Const BRIGHTNESS_MIN = -255     ' brightness
+    Public Const BRIGHTNESS_MAX = 255      ' brightness
     Public Const CONTRAST_DEF = 0        ' contrast
-    Public Const CONTRAST_MIN = -250     ' contrast
-    Public Const CONTRAST_MAX = 250      ' contrast
+    Public Const CONTRAST_MIN = -255     ' contrast
+    Public Const CONTRAST_MAX = 255      ' contrast
     Public Const GAMMA_DEF = 100      ' gamma
     Public Const GAMMA_MIN = 20       ' gamma
     Public Const GAMMA_MAX = 180      ' gamma
@@ -514,6 +547,7 @@ Friend Class Ogmacam
         PIXELFORMAT_HDR14HL = &H12   ' HDR, Bitdepth: 14, Conversion Gain: High + Low
     End Enum
 
+    <Flags>
     Public Enum eFRAMEINFO_FLAG As Integer
         FRAMEINFO_FLAG_SEQ = &H1                      ' frame sequence number
         FRAMEINFO_FLAG_TIMESTAMP = &H2                ' timestamp
@@ -524,6 +558,7 @@ Friend Class Ogmacam
         FRAMEINFO_FLAG_GPS = &H40                     ' GPS
         FRAMEINFO_FLAG_AUTOFOCUS = &H80               ' auto focus: uLum & uFV
         FRAMEINFO_FLAG_COUNT = &H100                  ' timecount, framecount, tricount
+        FRAMEINFO_FLAG_MECHANICALSHUTTER = &H200      ' Mechanical shutter: closed
         FRAMEINFO_FLAG_STILL = &H8000                 ' still image
     End Enum
 
@@ -562,11 +597,11 @@ Friend Class Ogmacam
         IOCONTROLTYPE_GET_COUNTERVALUE = &H15          ' Counter Value, range: [1 ~ 65535]
         IOCONTROLTYPE_SET_COUNTERVALUE = &H16
         IOCONTROLTYPE_SET_RESETCOUNTER = &H18
-        IOCONTROLTYPE_GET_PWM_FREQ = &H19
+        IOCONTROLTYPE_GET_PWM_FREQ = &H19              ' PWM Frequency
         IOCONTROLTYPE_SET_PWM_FREQ = &H1A
-        IOCONTROLTYPE_GET_PWM_DUTYRATIO = &H1B
+        IOCONTROLTYPE_GET_PWM_DUTYRATIO = &H1B         ' PWM Duty Ratio
         IOCONTROLTYPE_SET_PWM_DUTYRATIO = &H1C
-        IOCONTROLTYPE_GET_PWMSOURCE = &H1D             ' 0 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1
+        IOCONTROLTYPE_GET_PWMSOURCE = &H1D             ' PWM Source: 0 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1
         IOCONTROLTYPE_SET_PWMSOURCE = &H1E
         ' 0 => Frame Trigger Wait
         ' 1 => Exposure Active
@@ -673,7 +708,7 @@ Friend Class Ogmacam
     End Structure
     Public Structure ModelV2
         Public name As String           ' model name
-        Public flag As Long             ' OGMACAM_FLAG_xxx, 64 bits
+        Public flag As Long             ' FLAG_xxx, 64 bits
         Public maxspeed As UInteger     ' number of speed level, same as Ogmacam_get_MaxSpeed(), the speed range = [0, maxspeed], closed interval
         Public preview As UInteger      ' number of preview resolution, same as Ogmacam_get_ResolutionNumber()
         Public still As UInteger        ' number of still resolution, same as get_StillResolutionNumber()
@@ -831,7 +866,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 57.26291.20240811
+    ' get the version of this dll, which is: 57.27250.20241216
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -1244,11 +1279,11 @@ Friend Class Ogmacam
     ' bStill: to pull still image, set to 1, otherwise 0
     ' bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
     '       In RAW mode, this parameter is ignored.
-    '       bits = 0 means using default bits base on OGMACAM_OPTION_RGB.
-    '       When bits and OGMACAM_OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
-    '       See the following bits and OGMACAM_OPTION_RGB correspondence table:
+    '       bits = 0 means using default bits base on OPTION_RGB.
+    '       When bits and OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
+    '       See the following bits and OPTION_RGB correspondence table:
     '         ----------------------------------------------------------------------------------------------------------------------
-    '         | OGMACAM_OPTION_RGB |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
+    '         | OPTION_RGB         |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
     '         |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
     '         | bits = 0           |      24       |       48      |      32       |       8       |       16      |       64      |
     '         |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
@@ -1719,7 +1754,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_RawFormat(handle_, nFourCC, bitdepth))
     End Function
 
-    ' 0: stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
+    ' 0: no realtime
+    '       stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
     ' 1: realtime
     '       use minimum frame buffer. When new frame arrive, drop all the pending frame regardless of whether the frame buffer is full.
     '       If DDR present, also limit the DDR frame buffer to only one frame.
@@ -2423,7 +2459,7 @@ Friend Class Ogmacam
     Public Const FLASH_WRITE As UInteger = &H5   ' write
     Public Const FLASH_ERASE As UInteger = &H6   ' erase
     ' Flash:
-    ' action = OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+    ' action = FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
     ' addr = address
     ' see democpp
     Public Function rwc_Flash(action As UInteger, addr As UInteger, len As UInteger, pData As IntPtr) As Integer
@@ -2494,7 +2530,7 @@ Friend Class Ogmacam
     ' cmd: input
     '    -1:       query the number
     '    0~number: query the nth pixel format
-    ' pixelFormat: output, OGMACAM_PIXELFORMAT_xxxx
+    ' pixelFormat: output, PIXELFORMAT_xxxx
     '
     Public Function get_PixelFormatSupport(cmd As SByte, ByRef pixelFormat As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
@@ -2604,7 +2640,8 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_put_XY(handle_, x, y))
     End Function
 
-    ' get the frame rate: framerate (fps) = Frame * 1000.0 / nTime
+    ' get the actual frame rate of the camera at the most recent time (about a few seconds):
+    ' framerate (fps) = nFrame * 1000.0 / nTime
     Public Function get_FrameRate(ByRef nFrame As UInteger, ByRef nTime As UInteger, ByRef nTotalFrame As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -3479,10 +3516,10 @@ Friend Class Ogmacam
     '  | Temp                    |   1000~25000  |   6503                |
     '  | Tint                    |   100~2500    |   1000                |
     '  | LevelRange              |   0~255       |   Low = 0, High = 255 |
-    '  | Contrast                |   -250~250    |   0                   |
+    '  | Contrast                |   -255~255    |   0                   |
     '  | Hue                     |   -180~180    |   0                   |
     '  | Saturation              |   0~255       |   128                 |
-    '  | Brightness              |   -128~128    |   0                   |
+    '  | Brightness              |   -255~255    |   0                   |
     '  | Gamma                   |   20~180      |   100                 |
     '  | WBGain                  |   -127~127    |   0                   |
     '  ------------------------------------------------------------------|

@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 57.26291.20240811 */
+/* Version: 57.27250.20241216 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);

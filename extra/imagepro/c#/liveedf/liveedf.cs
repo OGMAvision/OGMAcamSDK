@@ -77,20 +77,20 @@ internal class Liveedf : IDisposable
     }
 
     [Obsolete]
-    public void Pull(Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV2 pInfo)
+    public int Pull(Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV2 pInfo)
     {
-        imagepro_edf_pull(handle_, hOgmacam, bFeed, pImageData, bits, rowPitch, out pInfo);
+        return imagepro_edf_pull(handle_, hOgmacam, bFeed, pImageData, bits, rowPitch, out pInfo);
     }
 
     [Obsolete]
-    public void Pull(Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV3 pInfo)
+    public int Pull(Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV3 pInfo)
     {
-        imagepro_edf_pullV3(handle_, hOgmacam, bFeed, pImageData, bits, rowPitch, out pInfo);
+        return imagepro_edf_pullV3(handle_, hOgmacam, bFeed, pImageData, bits, rowPitch, out pInfo);
     }
 
-    public void Pull(Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV4 pInfo)
+    public int Pull(Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV4 pInfo)
     {
-        imagepro_edf_pullV4(handle_, hOgmacam, bFeed, pImageData, bits, rowPitch, out pInfo);
+        return imagepro_edf_pullV4(handle_, hOgmacam, bFeed, pImageData, bits, rowPitch, out pInfo);
     }
 
     private static int sid_ = 0;
@@ -212,9 +212,9 @@ internal class Liveedf : IDisposable
     [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_edf_readdata(SafeLiveedfHandle handle, IntPtr data, int stride);
     [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
-    private static extern void imagepro_edf_pull(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV2 pInfo);
+    private static extern int imagepro_edf_pull(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV2 pInfo);
     [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
-    private static extern void imagepro_edf_pullV3(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV3 pInfo);
+    private static extern int imagepro_edf_pullV3(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV3 pInfo);
     [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void imagepro_edf_pullV4(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV4 pInfo);
+    private static extern int imagepro_edf_pullV4(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV4 pInfo);
 }

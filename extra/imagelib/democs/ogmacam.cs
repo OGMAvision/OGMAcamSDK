@@ -9,16 +9,23 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 57.26291.20240811
+    Version: 57.27250.20241216
 
-    For Microsoft dotNET Framework & dotNet Core
+    For .NET Framework & .NET Core
 
-    We use P/Invoke to call into the ogmacam.dll API, the c# class Ogmacam is a thin wrapper class to the native api of ogmacam.dll.
+    We use P/Invoke to call into the ogmacam.dll API, the c# class Ogmacam is a thin wrapper class to the native API of ogmacam.dll.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.cs.
     See them in the 'doc' directory:
        (1) en.html, English
        (2) hans.html, Simplified Chinese
 */
+
+/*
+    Please distinguish between camera ID (camId) and camera SN:
+        (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
+        (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
+*/
+
 internal class Ogmacam : IDisposable
 {
     [Flags]
@@ -250,7 +257,10 @@ internal class Ogmacam : IDisposable
         OPTION_AUTOEXP_POLICY = 0x10,
         /* limit the frame rate, range=[0, 63], the default value 0 means no limit */
         OPTION_FRAMERATE = 0x11,
-        /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0 */
+        /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing
+            In terms of CPU usage, EA is the lowest, followed by BILINEAR, and the others are higher.
+            default value: 0
+        */
         OPTION_DEMOSAIC = 0x12,
         /* demosaic method for video */
         OPTION_DEMOSAIC_VIDEO = 0x13,
@@ -273,8 +283,8 @@ internal class Ogmacam : IDisposable
         /* Conversion Gain:
                 0 = LCG
                 1 = HCG
-                2 = HDR (for camera with flag OGMACAM_FLAG_CGHDR)
-                2 = MCG (for camera with flag OGMACAM_FLAG_GHOPTO)
+                2 = HDR (for camera with flag FLAG_CGHDR)
+                2 = MCG (for camera with flag FLAG_GHOPTO)
         */
         OPTION_CG = 0x19,
         /* pixel format */
@@ -353,7 +363,7 @@ internal class Ogmacam : IDisposable
         OPTION_NOPACKET_TIMEOUT = 0x2b,
         /* get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported */
         OPTION_MAX_PRECISE_FRAMERATE = 0x2c,
-        /* precise frame rate current value in 0.1 fps, range:[1~maximum] */
+        /* precise frame rate current value in 0.1 fps. use OPTION_MAX_PRECISE_FRAMERATE, OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned */
         OPTION_PRECISE_FRAMERATE = 0x2d,
         /* bandwidth, [1-100]% */
         OPTION_BANDWIDTH = 0x2e,
@@ -365,7 +375,7 @@ internal class Ogmacam : IDisposable
             All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
         */
         OPTION_FRONTEND_DEQUE_LENGTH = 0x31,
-        /* alias of OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH */
+        /* alias of OPTION_FRONTEND_DEQUE_LENGTH */
         OPTION_FRAME_DEQUE_LENGTH = 0x31,
         /* get the precise frame rate minimum value in 0.1 fps, such as 15 means 1.5 fps */
         OPTION_MIN_PRECISE_FRAMERATE = 0x32,
@@ -375,7 +385,7 @@ internal class Ogmacam : IDisposable
         OPTION_SEQUENCER_NUMBER = 0x34,
         /* sequencer trigger: exposure time, iOption = OPTION_SEQUENCER_EXPOTIME | index, iValue = exposure time
             For example, to set the exposure time of the third group to 50ms, call:
-            Ogmacam_put_Option(OGMACAM_OPTION_SEQUENCER_EXPOTIME | 3, 50000)
+            put_Option(OPTION_SEQUENCER_EXPOTIME | 3, 50000)
         */
         OPTION_SEQUENCER_EXPOTIME = 0x01000000,
         /* sequencer trigger: exposure gain, iOption = OPTION_SEQUENCER_EXPOGAIN | index, iValue = gain */
@@ -426,8 +436,8 @@ internal class Ogmacam : IDisposable
         /* get the current number in backend deque */
         OPTION_BACKEND_DEQUE_CURRENT = 0x46,
         /* enable or disable hardware event: 0 => disable, 1 => enable; default: disable
-                (1) iOption = OGMACAM_OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
-                (2) iOption = OGMACAM_OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
+                (1) iOption = OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
+                (2) iOption = OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
             Only if both the master switch and the sub-switch of a particular type remain on are actually enabled for that type of event notification.
         */
         OPTION_EVENT_HARDWARE = 0x04000000,
@@ -579,7 +589,9 @@ internal class Ogmacam : IDisposable
             Default: 0
         */
         OPTION_OVEREXP_POLICY = 0x68,
-        /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read) */
+        /* Readout mode: 0 = IWR (Integrate While Read), 1 = ITR (Integrate Then Read)
+           The working modes of the detector readout circuit can be divided into two types: ITR and IWR. Using the IWR readout mode can greatly increase the frame rate. In the ITR mode, the integration of the (n+1)th frame starts after all the data of the nth frame are read out, while in the IWR mode, the data of the nth frame is read out at the same time when the (n+1)th frame is integrated
+        */
         OPTION_READOUT_MODE = 0x69,
         /* Turn on/off tail Led light: 0 => off, 1 => on; default: on */
         OPTION_TAILLIGHT = 0x6a,
@@ -596,7 +608,31 @@ internal class Ogmacam : IDisposable
         /* Correlated Double Sampling */
         OPTION_CDS = 0x6e,
         /* Low Power Consumption: Enable if exposure time is greater than the set value */
-        OPTION_LOW_POWER_EXPOTIME = 0x6f
+        OPTION_LOW_POWER_EXPOTIME = 0x6f,
+        /* Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0 */
+        OPTION_ZERO_OFFSET = 0x70,
+        /* GVCP Timeout: millisecond, range = [3, 75], default: 15
+             Unless in very special circumstances, generally no modification is required, just use the default value
+        */
+        OPTION_GVCP_TIMEOUT = 0x71,
+        /* GVCP Retry: range = [2, 8], default: 4
+             Unless in very special circumstances, generally no modification is required, just use the default value
+        */
+        OPTION_GVCP_RETRY = 0x72,
+        /* GVSP wait percent: range = [0, 100], default = (trigger mode: 100, realtime: 0, other: 1) */
+        OPTION_GVSP_WAIT_PERCENT = 0x73,
+        /* Reset to 0: 1 => seq; 2 => timestamp; 3 => both */
+        OPTION_RESET_SEQ_TIMESTAMP = 0x74,
+        /* Trigger cancel mode: 0 => no frame, 1 => output frame; default: 0 */
+        OPTION_TRIGGER_CANCEL_MODE = 0x75,
+        /* Mechanical shutter: 0 => open, 1 => close; default: 0 */
+        OPTION_MECHANICALSHUTTER = 0x76,
+        /* Line-time of sensor in nanosecond */
+        OPTION_LINE_TIME = 0x77,
+        /* Zero padding: 0 => high, 1 => low; default: 0 */
+        OPTION_ZERO_PADDING = 0x78
+        /* device uptime in millisecond */
+        OPTION_UPTIME = 0x79
     };
 
     /* HRESULT: error code */
@@ -645,11 +681,11 @@ internal class Ogmacam : IDisposable
     public const int SATURATION_MIN = 0;        /* saturation */
     public const int SATURATION_MAX = 255;      /* saturation */
     public const int BRIGHTNESS_DEF = 0;        /* brightness */
-    public const int BRIGHTNESS_MIN = -128;     /* brightness */
-    public const int BRIGHTNESS_MAX = 128;      /* brightness */
+    public const int BRIGHTNESS_MIN = -255;     /* brightness */
+    public const int BRIGHTNESS_MAX = 255;      /* brightness */
     public const int CONTRAST_DEF = 0;        /* contrast */
-    public const int CONTRAST_MIN = -250;     /* contrast */
-    public const int CONTRAST_MAX = 250;      /* contrast */
+    public const int CONTRAST_MIN = -255;     /* contrast */
+    public const int CONTRAST_MAX = 255;      /* contrast */
     public const int GAMMA_DEF = 100;      /* gamma */
     public const int GAMMA_MIN = 20;       /* gamma */
     public const int GAMMA_MAX = 180;      /* gamma */
@@ -739,6 +775,7 @@ internal class Ogmacam : IDisposable
         PIXELFORMAT_HDR14HL = 0x12
     };
 
+    [Flags]
     public enum eFRAMEINFO_FLAG : uint
     {
         /* frame sequence number */
@@ -759,6 +796,8 @@ internal class Ogmacam : IDisposable
         FRAMEINFO_FLAG_AUTOFOCUS = 0x00000080,
         /* timecount, framecount, tricount */
         FRAMEINFO_FLAG_COUNT = 0x00000100,
+        /* Mechanical shutter: closed */
+        FRAMEINFO_FLAG_MECHANICALSHUTTER = 0x00000200,
         /* still image */
         FRAMEINFO_FLAG_STILL = 0x00008000
     };
@@ -810,11 +849,13 @@ internal class Ogmacam : IDisposable
         IOCONTROLTYPE_GET_COUNTERVALUE = 0x15,
         IOCONTROLTYPE_SET_COUNTERVALUE = 0x16,
         IOCONTROLTYPE_SET_RESETCOUNTER = 0x18,
+        /* PWM Frequency */
         IOCONTROLTYPE_GET_PWM_FREQ = 0x19,
         IOCONTROLTYPE_SET_PWM_FREQ = 0x1a,
+        /* PWM Duty Ratio */
         IOCONTROLTYPE_GET_PWM_DUTYRATIO = 0x1b,
         IOCONTROLTYPE_SET_PWM_DUTYRATIO = 0x1c,
-        /* 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1 */
+        /* PWM Source: 0x00 => Opto-isolated input, 0x01 => GPIO0, 0x02 => GPIO1 */
         IOCONTROLTYPE_GET_PWMSOURCE = 0x1d,
         IOCONTROLTYPE_SET_PWMSOURCE = 0x1e,
         /*  0x00 => Frame Trigger Wait
@@ -881,11 +922,11 @@ internal class Ogmacam : IDisposable
         IOCONTROLTYPE_GET_USER_PULSE_NUMBER = 0x41,
         IOCONTROLTYPE_SET_USER_PULSE_NUMBER = 0x42,
         /* External trigger number */
-        OGMACAM_IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER = 0x43,
+        IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER = 0x43,
         /* Trigger signal number after debounce */
-        OGMACAM_IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = 0x45,
+        IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = 0x45,
         /* Effective trigger signal number */
-        OGMACAM_IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = 0x47
+        IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = 0x47
     };
 
     public const int IOCONTROL_DELAYTIME_MAX = 5 * 1000 * 1000;
@@ -945,7 +986,7 @@ internal class Ogmacam : IDisposable
     public struct ModelV2
     {
         public string name;         /* model name */
-        public ulong flag;          /* OGMACAM_FLAG_xxx, 64 bits */
+        public ulong flag;          /* FLAG_xxx, 64 bits */
         public uint maxspeed;       /* number of speed level, same as get_MaxSpeed(), the speed range = [0, maxspeed], closed interval */
         public uint preview;        /* number of preview resolution, same as get_ResolutionNumber() */
         public uint still;          /* number of still resolution, same as get_StillResolutionNumber() */
@@ -1132,7 +1173,7 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /* get the version of this dll/so, which is: 57.26291.20240811 */
+    /* get the version of this dll/so, which is: 57.27250.20241216 */
     public static string Version()
     {
         return Ogmacam_Version();
@@ -1639,11 +1680,11 @@ internal class Ogmacam : IDisposable
        bStill: to pull still image, set to 1, otherwise 0
        bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
              In RAW mode, this parameter is ignored.
-             bits = 0 means using default bits base on OGMACAM_OPTION_RGB.
-             When bits and OGMACAM_OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
-             See the following bits and OGMACAM_OPTION_RGB correspondence table:
+             bits = 0 means using default bits base on OPTION_RGB.
+             When bits and OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
+             See the following bits and OPTION_RGB correspondence table:
                ----------------------------------------------------------------------------------------------------------------------
-               | OGMACAM_OPTION_RGB |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
+               | OPTION_RGB         |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
                | bits = 0           |      24       |       48      |      32       |       8       |       16      |       64      |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
@@ -2177,7 +2218,8 @@ internal class Ogmacam : IDisposable
     }
 
     /*
-        0: stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
+        0: no realtime
+              stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
         1: realtime
               use minimum frame buffer. When new frame arrive, drop all the pending frame regardless of whether the frame buffer is full.
               If DDR present, also limit the DDR frame buffer to only one frame.
@@ -2984,7 +3026,7 @@ internal class Ogmacam : IDisposable
     * cmd: input
     *    -1:       query the number
     *    0~number: query the nth pixel format
-    * pixelFormat: output, OGMACAM_PIXELFORMAT_xxxx
+    * pixelFormat: output, PIXELFORMAT_xxxx
     */
     public bool get_PixelFormatSupport(sbyte cmd, out int pixelFormat)
     {
@@ -3093,7 +3135,8 @@ internal class Ogmacam : IDisposable
     }
 
     /*
-        get the frame rate: framerate (fps) = Frame * 1000.0 / nTime
+        get the actual frame rate of the camera at the most recent time (about a few seconds):
+        framerate (fps) = nFrame * 1000.0 / nTime
     */
     public bool get_FrameRate(out uint nFrame, out uint nTime, out uint nTotalFrame)
     {
@@ -3980,10 +4023,10 @@ internal class Ogmacam : IDisposable
         | Temp                    |   1000~25000  |   6503                |
         | Tint                    |   100~2500    |   1000                |
         | LevelRange              |   0~255       |   Low = 0, High = 255 |
-        | Contrast                |   -250~250    |   0                   |
+        | Contrast                |   -255~255    |   0                   |
         | Hue                     |   -180~180    |   0                   |
         | Saturation              |   0~255       |   128                 |
-        | Brightness              |   -128~128    |   0                   |
+        | Brightness              |   -255~255    |   0                   |
         | Gamma                   |   20~180      |   100                 |
         | WBGain                  |   -127~127    |   0                   |
         ------------------------------------------------------------------|

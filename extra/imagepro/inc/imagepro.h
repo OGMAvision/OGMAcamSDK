@@ -30,6 +30,25 @@ extern "C"
 typedef void* (__cdecl *pfun_imagepro_malloc)(size_t);
 IMAGEPRO_API(void) imagepro_init(pfun_imagepro_malloc pfun);
 
+#if !defined(_WIN32)
+#ifndef __BITMAPINFOHEADER_DEFINED__
+#define __BITMAPINFOHEADER_DEFINED__
+typedef struct {
+    unsigned        biSize;
+    int             biWidth;
+    int             biHeight;
+    unsigned short  biPlanes;
+    unsigned short  biBitCount;
+    unsigned        biCompression;
+    unsigned        biSizeImage;
+    int             biXPelsPerMeter;
+    int             biYPelsPerMeter;
+    unsigned        biClrUsed;
+    unsigned        biClrImportant;
+} BITMAPINFOHEADER;
+#endif
+#endif
+
 /* inputImage, outputImage: pointer to BITMAPINFOHEADER
     method:
         AUTO      = -1, (AREA for shrink, CUBIC for enlarge)
@@ -39,10 +58,8 @@ IMAGEPRO_API(void) imagepro_init(pfun_imagepro_malloc pfun);
         AREA      = 3,
         LANCZOS4  = 4
 */
-#if defined(_WIN32)
 IMAGEPRO_API(HRESULT) imagepro_resizeV1(void* srcImage, void* destImage, int method);
-IMAGEPRO_API(HRESULT) imagepro_resizeV2(PBITMAPINFOHEADER pSrc, int srcStep, void* srcImage, PBITMAPINFOHEADER pDest, int destStep, void* destImage, int method);
-#endif
+IMAGEPRO_API(HRESULT) imagepro_resizeV2(BITMAPINFOHEADER* pSrc, int srcStep, void* srcImage, BITMAPINFOHEADER* pDest, int destStep, void* destImage, int method);
 /*
 * informat: fourcc
 * outformat: BGR(0), BGRA(1), 2(RGB), 3(RGBA)
@@ -122,15 +139,13 @@ typedef void (__cdecl *IMAGEPRO_STITCH_CALLBACK)(void* ctx, void* outData, int s
                                         int posX, int posY, eImageproStitchQuality quality, float sharpness, int bUpdate, int bSize);
 typedef void (__cdecl *IMAGEPRO_STITCH_ECALLBACK)(void* ctx, eImageproStitchEvent evt);
 
-#if defined(_WIN32)
-typedef struct { int unused; } *HImageproStitch;
+typedef struct ImageproStitch_t { int unused; } *HImageproStitch;
 IMAGEPRO_API(HImageproStitch) imagepro_stitch_new(int bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
 IMAGEPRO_API(HImageproStitch) imagepro_stitch_newV2(eImageproFormat format, int bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
 IMAGEPRO_API(void) imagepro_stitch_delete(HImageproStitch handle);
 IMAGEPRO_API(void) imagepro_stitch_start(HImageproStitch handle);
 IMAGEPRO_API(void*) imagepro_stitch_stop(HImageproStitch handle, int normal, int crop);
 IMAGEPRO_API(void) imagepro_stitch_readdata(HImageproStitch handle, void* data, int w, int h, int roix = 0, int roiy = 0, int roiw = 0, int roih = 0);
-#endif
 
 enum eImageproEdfMethod {
     eImageproEdfM_Pyr_Max,
@@ -152,16 +167,15 @@ enum eImageproEdfMode {
 typedef void (__cdecl *IMAGEPRO_EDF_CALLBACK)(void* ctx, int result, void* outData, int stride, int outW, int outH, int outType);
 typedef void (__cdecl *IMAGEPRO_EDF_ECALLBACK)(void* ctx, eImageproEdfEvent evt);
 
-#if defined(_WIN32)
-typedef struct { int unused; } *HImageproEdf;
+typedef struct ImageproEdf_t { int unused; } *HImageproEdf;
 IMAGEPRO_API(HImageproEdf) imagepro_edf_new(eImageproEdfMethod method, IMAGEPRO_EDF_CALLBACK pEdfFun, IMAGEPRO_EDF_ECALLBACK pEventFun, void* ctx);
 IMAGEPRO_API(HImageproEdf) imagepro_edf_newV2(eImageproFormat format, eImageproEdfMethod method, IMAGEPRO_EDF_CALLBACK pEdfFun, IMAGEPRO_EDF_ECALLBACK pEventFun, void* ctx);
 IMAGEPRO_API(void) imagepro_edf_delete(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_start(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_stop(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_readdata(HImageproEdf handle, void* data, int stride);
-#endif
 
+#if defined(_WIN32)
 #define IMAGEPRO_LIVESTACK_NUM_MIN 1
 #define IMAGEPRO_LIVESTACK_NUM_MAX 99
 #define IMAGEPRO_LIVESTACK_NUM_DEF 10
@@ -196,6 +210,7 @@ IMAGEPRO_API(void) imagepro_livestack_ref(HLivestack handle, void* data, const i
 IMAGEPRO_API(void) imagepro_livestack_add(HLivestack handle, void* data, const int width, const int height, const int depth);
 IMAGEPRO_API(void) imagepro_livestack_setalign(HLivestack handle, int align); /* align: true or false */
 IMAGEPRO_API(void) imagepro_livestack_setnum(HLivestack handle, int num);
+#endif
 
 #ifdef __cplusplus
 }

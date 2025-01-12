@@ -1,7 +1,9 @@
 #ifndef __imagepro_ogmacam_H__
 #define __imagepro_ogmacam_H__
+
 #if defined(_WIN32)
 #pragma pack(push, 8)
+#endif
 
 #ifdef __cplusplus
 extern "C"
@@ -20,6 +22,7 @@ IMAGEPRO_API(HRESULT) imagepro_edf_pullV4(HImageproEdf handle, HOgmacam h, int b
 }
 #endif
 
+#if defined(_WIN32)
 #pragma pack(pop)
 #endif
 #endif

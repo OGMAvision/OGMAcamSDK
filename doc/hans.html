@@ -8,7 +8,7 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:57.26291.20240811</li></ul>
+<ul><li>版本:57.27250.20241216</li></ul>
 <ul><li>平台<ul>
       <li>Win32:<ul>
           <li>x64: Win7及以上版本</li>
@@ -60,8 +60,10 @@
 		  建议使用DPInst.exe来自动安装驱动, 如使用NSIS制作安装文件, 可以使用类似如下语句:
 			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>ExecWait '"$INSTDIR\drivers\x64\DPInst.exe" /SA /SW /PATH "$INSTDIR\drivers\x64"'</pre></td></tr></table>
 		</blockquote></blockquote>
-		<blockquote>GigE: GigE Performance Driver, 千兆相机可选安装, 万兆相机必须安装并启用. 请使用命令行(<b>管理员模式</b>), cd到.inf文件所在目录, 执行类似如下语句安装(install.cmd):<blockquote>
-			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>netcfg.exe -v -l gigepdrv.inf -c s -i gigepdrv</pre></td></tr></table>
+		<blockquote>GigE: GigE Performance Driver(Win7及以上版本), 千兆相机可选安装, 万兆相机必须安装并启用. 请使用命令行(<b>管理员模式</b>), cd到.inf文件所在目录, 执行类似如下语句安装(install.cmd). 如果存在老版本, 需要先卸载老版本(uninstall.cmd), 再安装新版本:<blockquote>
+			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>安装: netcfg.exe -v -l gigepdrv.inf -c s -i gigepdrv<br/>卸载: netcfg.exe -u gigepdrv</pre></td></tr></table>
+		另外:<br/>(a) 请开启网卡巨帧(<a href="https://en.wikipedia.org/wiki/Jumbo_frame">Jumbo Frame</a>), 选择&gt;=9000的值, 参阅<a href="#mtu">这里</a><br/>
+			(b) 保持网卡协议/驱动的简洁, 特别是生产环境下: 删除或禁用不相干的网卡协议和驱动(如Npcap Packet Driver等等). 最简洁的状态下, 只剩下Gige Performance Driver和TCP/IPv4两条.
 		</blockquote></blockquote>
 	</li></ul></li></ul><ul><li>linux: Linux平台文件<ul>
  	<li>udev: 99-ogmacam.rules, udev rule文件. 请参考: <a href="http://reactivated.net/writing_udev_rules.html" target="_blank">http://reactivated.net/writing_udev_rules.html</a>
@@ -96,7 +98,11 @@
 		<li>imagepro: liveedf, live stitch, live stack</li>
 </ul></li></ul>
 <hr/><h1><font color="#0000FF">3. 概念和术语</font></h1><hr/>
-<h2><font color="#0000FF">a. 获取图像数据的模式: “Pull” Mode vs “Push” Mode (“拉”模式 vs “推”模式)</font></h2>
+<h2><font color="#0000FF"><a id="camidsn">a. 相机ID(camId)和相机序列号(SN, Serial Number)</a></font></h2>
+<p>请区分相机ID(camId)和相机SN:<br/>
+(a) SN唯一并且是持久化的, 固化在相机内部一直保持不变, 不随连接和系统重启而变化.<br/>
+(b) 相机ID(camId)因为连接或者系统重启可能变化, 枚举相机得到相机ID, 然后调用Open函数传入camId参数打开相机.</p>
+<h2><font color="#0000FF">b. 获取图像数据的模式: “Pull” Mode vs “Push” Mode (“拉”模式 vs “推”模式)</font></h2>
 <p>Ogmacam提供了两种模式来获取图像数据: Pull Mode 和 Push Mode. 以下所讲的几种方式中, 从功能上说它们都是<strong>平等</strong>的, 开发者可以任选一种使用. 推荐使用拉模式, 因为它更简单, 且在多线程情况下更加不容易出错, 尤其是使用windows消息机制的情况下.</p>
 <ul>
   <li>Pull Mode, ogmacam 扮演被动角色, 应用程序从ogmacam“拉”图像数据. ogmacam内部线程从相机获得图像数据,并保存到内部缓存中, 然后通知应用程序来取图像数据. 应用程序可以调用Ogmacam_PullImageV4(V3)或Ogmacam_PullImage(WithRowPitch)(V2), Ogmacam_PullStillImage(WithRowPitch)(V2)来获取图像数据. 存在两种方式来通知应用程序:
@@ -186,19 +192,19 @@
    <td>硬件事件：心跳, 可以用于监视相机是否存活. 参见<a href="#heartbeat">OGMACAM_OPTION_HEARTBEAT</a></td>
 </tr></table></div></blockquote>
 <ul><li>Push Mode情况下, ogmacam作为主动方, 一旦内部底层线程从camera中抓取到图像数据, 就通过POGMACAM_DATA_CALLBACK_V4/V3把图像数据“推”给应用程序 (请注意这个回调函数是在ogmacam内部线程上下文中执行的). 调用Ogmacam_StartPushModeV4/V3函数进入推模式.推模式比较复杂, 有一些特别注意事项（如多线程问题, 也不能在POGMACAM_DATA_CALLBACK_V4/V3回调函数里面调用Ogmacam_Close和Ogmacam_Stop等等).</li>
-</ul><h2><font color="#0000FF">b. <a id="stillcapture">静态抓拍(静态图片, Still Image, Snap)</a></font></h2>
+</ul><h2><font color="#0000FF">c. <a id="stillcapture">静态抓拍(静态图片, Still Image, Snap)</a></font></h2>
 <p>大部分的相机型号都支持所谓静态抓拍的能力, 指相机在连续的视频预览过程中, 临时切换到另外一个分辨率, 抓取一帧静态图片之后, 马上把分辨率切换回原始分辨率的过程.</p>
 <p>举例来说, UCMOS05100KPA支持3种分辨率, 假设当前视频预览分辨率为1280 * 960, 调用函数Ogmacam_Snap(h, 0)静态抓拍分辨率2592 * 1944的静态图片, 这时相机临时切换到2592 * 1944的分辨率, 抓取一帧数据之后, 又把分辨率切换成原来的1280 * 960.</p>
 <blockquote>a) 拉模式下, 抓拍到静态图片之后, 通知外层应用OGMACAM_EVENT_STILLIMAGE事件, 然后外层应用调用Ogmacam_PullStillImage(V2)获取静态图片的数据.</blockquote>
 <blockquote>b) 推模式下, 抓拍到静态图片之后, 回调函数POGMACAM_DATA_CALLBACK_V4/V3, 参数bSnap设置为TRUE, 图片的分辨率等信息在参数pHeader中.</blockquote>
 <p>可以通过函数Ogmacam_get_StillResolutionNumber的返回值或者结构OgmacamModelV2的still值来查看是否支持静态抓拍能力.</p>
-<h2><font color="#0000FF"><a id="raw">c. 数据格式: RGB vs RAW</a></font></h2>
+<h2><font color="#0000FF"><a id="raw">d. 数据格式: RGB vs RAW</a></font></h2>
 <p>Ogmacam支持两种数据格式: RGB格式(默认)和RAW格式. RAW模式可以通过调用函数Ogmacam_put_Option设置参数OGMACAM_OPTION_RAW为1开启.</p>
 <ul><li>RGB格式: 本模式下, 获取底层传感器的数据之后, 进行内部的颜色处理, 输出结果中每像素包含3个分量分别代表R/G/B值.</li></ul>
 <ul><li>RAW格式: 本模式下, 直接获取底层传感器的“裸”数据, 不进行内部颜色处理. 具体的像素格式(Pixel Format)可以调用函数Ogmacam_get_RawFormat获取. RAW格式模式下, 有关颜色处理的功能(如白平衡)和函数（如Ogmacam_put_Hue, Ogmacam_AwbOnce等等)都无意义.</li></ul>
 <p>用户可以通过<a href="#rawo">OGMACAM_OPTION_RAW</a>调用函数Ogmacam_put_Option来切换这两种模式. 请注意相机必须处于<strong>非运行状态</strong>才能修改此设置.</p>
 <p>用户可以通过<a href="#rgb">OGMACAM_OPTION_RGB</a>调用函数Ogmacam_put_Option来设置RGB的bits数. 请注意相机必须处于<strong>非运行状态</strong>才能修改此设置.</p>
-<h2><font color="#0000FF"><a id="wb">d. 白平衡和自动白平衡: Temp/Tint模式 vs RGB Gain模式</a></font></h2>
+<h2><font color="#0000FF"><a id="wb">e. 白平衡和自动白平衡: Temp/Tint模式 vs RGB Gain模式</a></font></h2>
 <p>1. Ogmacam支持互相独立的两种模式描述白平衡: a) Temp/Tint模式; b) RGB Gain模式</p>
 <blockquote><p>a) 默认是Temp/Tint模式, 在本模式下, 使用Temp, Tint这2个参数来控制白平衡. Ogmacam_get_TempTint获取值, Ogmacam_put_TempTint设置值. Ogmacam_AwbOnce执行自动白平衡. 当白平衡参数改变时, 发送OGMACAM_EVENT_TEMPTINT通知消息.</p>
 <p>b) 在RGB Gain模式下, 使用3个通道的Gain值来控制白平衡. Ogmacam_get_WhiteBalanceGain获取值, Ogmacam_put_WhiteBalanceGain设置值. Ogmacam_AwbInit执行自动白平衡. 当白平衡参数改变时, 发送OGMACAM_EVENT_WBGAIN通知消息.</p>
@@ -211,7 +217,7 @@
 </blockquote>
 <p>2. 自动白平衡功能, 业界有两种模式, 一种是连续自动白平衡, 一种是触发式自动白平衡(once). 连续自动白平衡功能会一直进行白平衡参数的计算, 触发模式只是在触发的时候才会计算白平衡参数. Ogmacam使用触发式白平衡计算方法, 因为这种方法在显微镜等领域更加合适和精确. 连续自动白平衡在某些场景情况下会出现错误.</p>
 <p>3. 黑白相机不支持白平衡. 以上提到的函数一直返回E_NOTIMPL.</p>
-<h2><font color="#0000FF">e. <a id="trigger">触发模式</a></font></h2>
+<h2><font color="#0000FF">f. <a id="trigger">触发模式</a></font></h2>
 <p>1. 什么是触发</p><blockquote>
 		Ogmacam相机拥有2中工作模式: 视频模式和触发模式. 当处于触发模式时, 只有触发条件满足的情况下才能获取图像. 根据触发源有2种类型的触发类型: 外部触发, 软件触发.
 	</blockquote>
@@ -257,12 +263,21 @@
 		如果OGMACAM_FLAG_TRIGGER_SINGLE标志位是设置的, 那么nNumber参数只能为1, 意味着单次触发只能获取单张图片.<br/>
 		在调用Ogmacam_Trigger函数之前, 相机必须已经处于触发模式.
 	</blockquote><p>9. 触发超时</p><blockquote>超时时间建议不少于(曝光时间 * 102% + 4秒).</blockquote>
-<h2><font color="#0000FF">f. 线程安全</font></h2>
+<h2><font color="#0000FF">g. 线程安全</font></h2>
 <p>采用一种中性自然策略(类似C++标准库), 意味着:</p>
 <blockquote>
 <p>a) 从多个线程读取单个相机对象是线程安全的. 例如, 给定一个相机对象A, 同时从线程1和线程2读取A是安全的.</p>
 <p>b) 如果一个线程正在写入一个相机对象, 则同一线程或其他线程上对该对象的所有读取和写入都必须受到保护. 例如, 给定一个相机对象A, 如果线程1正在写A, 则必须阻止线程2读取或写入A.</p>
-<p>c) 即使某线程正在读取或写入某相机对象, 其它线程读取和写入另外一个不同的相机对象是安全的. 例如, 给定相机对象A和B, 当线程1写入A, 线程2读取或写入B, 这是安全的.</p>
+<p>c) 即使某线程正在读取或写入某相机对象, 其它线程读取和写入另外一个不同的相机对象是安全的. 例如, 给定相机对象A和B, 当线程1写入A, 线程2读取或写入B, 这是安全的. A和B完全独立.</p>
+<p>d) 多线程Pull Image是安全的</p>
+</blockquote>
+<h2><font color="#0000FF">h. 日志文件(log file)</font></h2>
+<p>SDK默认不输出日志. 如果SDK库文件所在目录存在并且具有<strong>写权限</strong>, 日志即被使能并记录在此文件中:</p>
+<blockquote>
+<p>a) 日志文件名和库文件完全相同, 扩展名修改为*.log (如ogmacam.dll对应log文件为ogmacam.log; xyz.dll对应为xyz.log; libxyz.so对应libxyz.log)</p>
+<p>b) 日志文件的时间默认使用相对时间, 把SDK启动时刻记为[00:00:00.000]. 如果想使用本地时间 (如[0923 17:11:01.491]), 在*.log增加字母"l" (即*.llog)</p>
+<p>c) 默认每次开启程序自动清空log文件的内容, 从0开始写日志. *.log增加字母"a", 表示使用append模式, 重启程序时不清空log文件内容</p>
+<p>d) <strong>请确保程序对log文件有写权限</strong>(比如程序安装在Program Files目录下, 经常发生日志文件非管理员模式下不可写, 建议管理员模式运行程序或者修改日志文件的权限配置)</p>
 </blockquote>
 <hr/><h1><font color="#0000FF">4. 函数</font></h1><hr/>
 <ul><li><h2><font color="#0000FF"><a id="hresult">HRESULT返回值</a></font></h2>
@@ -397,11 +412,11 @@ typedef struct{
 
 typedef struct {
 #if defined(_WIN32)
-    wchar_t  displayname[64];    /* 显示名称: 型号名称或用户指定的自定义名称(如果有并且使用Ogmacam_EnumWithName, 使用Ogmacam_EnumV2永远返回型号名称) */
-    wchar_t  id[64];             /* unique and opaque id of a connected camera, for Ogmacam_Open */
+    wchar_t  displayname[64];    /* 显示名称: 型号名称或用户指定的自定义名称(如果有并且使用Ogmacam_EnumWithName, 使用Ogmacam_EnumV2返回型号名称) */
+    wchar_t  id[64];             /* camId */
 #else
-    char     displayname[64];    /* 显示名称: 型号名称或用户指定的自定义名称(如果有并且使用Ogmacam_EnumWithName, 使用Ogmacam_EnumV2永远返回型号名称) */
-    char     id[64];             /* unique and opaque id of a connected camera, for Ogmacam_Open */
+    char     displayname[64];    /* 显示名称: 型号名称或用户指定的自定义名称(如果有并且使用Ogmacam_EnumWithName, 使用Ogmacam_EnumV2返回型号名称) */
+    char     id[64];             /* camId */
 #endif
     const OgmacamModelV2* model;
 } OgmacamDeviceV2; /* device instance for enumerating */
@@ -611,7 +626,8 @@ typedef struct {
   <ul><li><a id="hotplugnotify"><object>在Windows平台, 请参阅(<a href="https://learn.microsoft.com/en-us/windows/win32/devio/device-management" target="_blank">Device Management</a>, <a href="https://learn.microsoft.com/en-us/windows/win32/devio/detecting-media-insertion-or-removal" target="_blank">Detecting Media Insertion or Removal</a>, <a href="https://learn.microsoft.com/en-us/windows/win32/devio/processing-a-request-to-remove-a-device" target="_blank">Processing a Request to Remove a Device</a>).</object></a></li>
   <li>在Android平台, 请参阅<a href="https://developer.android.google.cn/guide/topics/connectivity/usb/host?hl=zh-cn" target="_blank">这里</a></li>
   <li>在Linux和macOS平台, 如果需要处理设备插入/拔出通知, 调用本函数注册回调函数. 当设备被插入/拔出时时, 程序通过回调函数得到通知, 然后调用Ogmacam_EnumV2重新枚举设备即可.</li>
-  <li>在macOS平台下也可以使用IONotificationPortCreate系列API.</li></ul>
+  <li>在macOS平台下也可以使用IONotificationPortCreate系列API.</li>
+  <li>本函数<strong>不适用于GigE设备</strong>, GigE设备的通知请参阅<a href="#apigige">这里</a>.</li></ul>
 </blockquote></li></ul><ul><li><h2><font color="#0000FF"><a id="apigige">Ogmacam_GigeEnable</a></font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
@@ -622,15 +638,18 @@ typedef struct {
     <p><strong>说明：</strong>初始化对GigE相机的支持, 只需要在进程启动时调用一次即可.</p>
 </li></ul><ul><li><h2><font color="#0000FF"><a id="apiopen">Ogmacam_Open</a></font></h2>
     <p><strong>返回值：</strong>相机句柄. 失败时返回NULL(如设备被突然拔出等等)</p>
-    <p><strong>参数：</strong>Ogmacam相机实例, 由Ogmacam_EnumV2枚举得到. <strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
-    <p><strong>说明：</strong>打开相机实例.</p>
-    <p>(1) 在camId后面支持附着一些额外参数(<strong>用分号;分割, 区分大小写</strong>), 如:</p>
+    <p><strong>参数：</strong></p>
+		<blockquote>
+	<p><a href="#camidsn">camId</a>: Ogmacam相机ID, 由Ogmacam_EnumV2枚举得到. <strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
+      	</blockquote>
+	<p><strong>说明：</strong>打开相机实例.</p>
+    <p>(1) 在camId后面支持附着一些额外参数(<strong>用分号;分割, 区分大小写</strong>), 如: </p>
     <blockquote><table width="100%" border="0" bgcolor="#B0D0B0">
 	<tr><td><div align="center">Ogmacam_Open(L"\\?\usb#vid_0547&amp;pid_1134#d&amp;397c94f3&amp;0&amp;3<strong>;registry=;wb=rgb</strong>"))</div></td></tr>
     </table></blockquote>
 	<p>见下表:</p>
   <div align="center"><table width="100%" border="1" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0"><tr>
-        <td width="15%" rowspan="5"><a id="cfg">相机配置</a></td>
+        <td width="15%" rowspan="5"><a id="cfg">相机配置</a><br/>(示例<a href="#democfg">这里</a>)</td>
         <td width="85%" colspan="3">不添加额外参数, 表示不需要相机配置的保存和加载功能.<br/>添加参数, 相机打开时自动加载指定参数, 相机停止时自动保存参数.</td>
       </tr><tr>
         <td width="15%">注册表(Windows only)</td>
@@ -715,16 +734,17 @@ Ogmacam_PullImage<br/>Ogmacam_PullStillImage<br/><a id="rowpitch1">Ogmacam_PullI
     <p>int rowPitch: 行间距(Stride, 跨距), 行与行之间的间距, =0表示默认使用行间距, =-1表示最小行间距(零填充)</p>
     <p>unsigned* pnWidth, unsigned* pnHeight：输出参数, 图像的宽度高度</p>
 	<p>OgmacamFrameInfoV4/V3/V2* pInfo：输出参数, 本帧图像Info:</p><table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>
-#define OGMACAM_FRAMEINFO_FLAG_SEQ          0x0001 /* 帧序号, frame sequence number */
-#define OGMACAM_FRAMEINFO_FLAG_TIMESTAMP    0x0002 /* 时间戳, timestamp */
-#define OGMACAM_FRAMEINFO_FLAG_EXPOTIME     0x0004 /* 曝光时间, exposure time */
-#define OGMACAM_FRAMEINFO_FLAG_EXPOGAIN     0x0008 /* 曝光增益, exposure gain */
-#define OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL   0x0010 /* 暗电平, black level */
-#define OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ   0x0020 /* 触发序号, sequence shutter counter */
-#define OGMACAM_FRAMEINFO_FLAG_GPS          0x0040 /* GPS */
-#define OGMACAM_FRAMEINFO_FLAG_AUTOFOCUS    0x0080 /* 自动对焦相关: uLum & uFV */
-#define OGMACAM_FRAMEINFO_FLAG_COUNT        0x0100 /* 计数: timecount, framecount, tricount */
-#define OGMACAM_FRAMEINFO_FLAG_STILL        0x8000 /* 静态图片, still image */
+#define OGMACAM_FRAMEINFO_FLAG_SEQ                0x00000001 /* 帧序号, frame sequence number */
+#define OGMACAM_FRAMEINFO_FLAG_TIMESTAMP          0x00000002 /* 时间戳, timestamp */
+#define OGMACAM_FRAMEINFO_FLAG_EXPOTIME           0x00000004 /* 曝光时间, exposure time */
+#define OGMACAM_FRAMEINFO_FLAG_EXPOGAIN           0x00000008 /* 曝光增益, exposure gain */
+#define OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL         0x00000010 /* 暗电平, black level */
+#define OGMACAM_FRAMEINFO_FLAG_SHUTTERSEQ         0x00000020 /* 触发序号, sequence shutter counter */
+#define OGMACAM_FRAMEINFO_FLAG_GPS                0x00000040 /* GPS */
+#define OGMACAM_FRAMEINFO_FLAG_AUTOFOCUS          0x00000080 /* 自动对焦相关: uLum &amp; uFV */
+#define OGMACAM_FRAMEINFO_FLAG_COUNT              0x00000100 /* 计数: timecount, framecount, tricount */
+#define OGMACAM_FRAMEINFO_FLAG_MECHANICALSHUTTER  0x00000200 /* 机械快门: 关闭 */
+#define OGMACAM_FRAMEINFO_FLAG_STILL              0x00008000 /* 静态图片, still image */
 
 typedef struct {
     unsigned            width;      /* 图像宽度, 一直有效 */
@@ -745,7 +765,7 @@ typedef struct {
     int                latitude;
     int                altitude;    /* 毫米 */
     unsigned short     satellite;   /* 卫星数量 */
-    unsigned short     reserved;    /* not used */
+    unsigned short     reserved;    /* 保留, 未使用 */
 } OgmacamGps;
 
 typedef struct {
@@ -940,7 +960,6 @@ typedef struct {
   <blockquote>
   	<p><strong>重要提示: 不允许在POGMACAM_EVENT_CALLBACK和POGMACAM_DATA_CALLBACK_V4/V3的回调上下文中调用Ogmacam_put_Roi, 否则返回E_WRONG_THREAD.</strong></p>
 	<p><strong>注意：坐标永远是相对原始分辨率而言的</strong>, 请参阅<a href="#cord">这里</a></p>
-  	<p>例外: UHCCD03100KPB, UHCCD05000KPA, UHCCD05100KPA的小分辨率不支持ROI功能, 函数返回值是E_NOTIMPL.</p>
   </blockquote>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_get_ResolutionNumber<br/>Ogmacam_get_Resolution<br/>Ogmacam_get_ResolutionRatio</font></h2>
       <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
@@ -970,9 +989,9 @@ typedef struct {
       <p><strong>返回值: </strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
       <p><strong>参数:</strong></p>
   <blockquote><p>HOgmacam h: 相机句柄</p>
-    <p>char cmd:<blockquote>
+    <p>char cmd:</p><blockquote>
 		-1: 查询支持的Pixel Format数量<br/>
-		0~number: 查询第n条支持的Pixel Format的值</blockquote></p>
+		0~number: 查询第n条支持的Pixel Format的值</blockquote>
     <p>int* pixelFormat: 输出, OGMACAM_PIXELFORMAT_xxxx, 参阅<a href="#pflist">这里</a></p>
   </blockquote>
 </li></ul>
@@ -989,30 +1008,30 @@ typedef struct {
     <p>unsigned iOption：选项, 见下表</p>
     <p>int iValue：值, 见下表</p>
   <div align="center"><table width="100%" border="1" cellpadding="0" cellspacing="0" bgcolor="#B0D0B0"><tr>
-        <td width="21%">选项</td><td width="52%">说明</td><td width="6%">默认值</td>
+        <td width="21%">选项</td><td width="4%">读写</td><td width="48%">说明</td><td width="6%">默认值</td>
 		<td width="21%">是否可以在相机处于运行状态设置该值<br/>(调用Ogmacam_StartXXXX之前或Ogmacam_Stop之后)</td>
       </tr><tr>
-        <td><a id="rawo">OGMACAM_OPTION_RAW</a></td>
+        <td><a id="rawo">OGMACAM_OPTION_RAW</a></td><td>RW</td>
         <td>0表示使用RGB模式.<br/>
           1表示RAW模式, 直接获取底层传感器数据.</td>
 		<td>0</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_ISP</td>
+        <td>OGMACAM_OPTION_ISP</td><td>RW</td>
         <td>启用/禁用硬件ISP:<br/>0 =&gt; 自动 (RAW模式时禁用, 其它启用)<br/>1 =&gt; 启用<br/>-1 =&gt; 禁用</td>
 		<td>0(自动)</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-	  	<td>OGMACAM_OPTION_BITDEPTH</td>
+	  	<td>OGMACAM_OPTION_BITDEPTH</td><td>RW</td>
 		<td>一些型号的相机支持大于8Bits的位深度(bitdepth), 如10,12,14,16等.<br/>
 		  0表示使用8Bits位深度.<br/>1表示使用本相机支持的最高位深度</td>
 		<td>型号特定</td><td>是<br/>(相对比较“重型”的操作, 不建议在相机处于运行状态时太频繁修改)</td>
 	  </tr><tr>
-      	<td>OGMACAM_OPTION_TRIGGER</td>
+      	<td>OGMACAM_OPTION_TRIGGER</td><td>RW</td>
       	<td>0 = 视频模式<br/>1 = 软件或模拟触发模式<br/>2 = 外部触发模式<br/><a id="mix">3 = 外部触发和软件触发都开启</a></td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td><a id="rgb">OGMACAM_OPTION_RGB</a></td>
+      	<td><a id="rgb">OGMACAM_OPTION_RGB</a></td><td>RW</td>
       	<td>0 = 使用RGB24<br/>
 				1 = 在位深度&gt;8时, 启用RGB48格式<br/>
 				2 = 使用RGB32<br/>
@@ -1022,60 +1041,67 @@ typedef struct {
       	<td>0</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-      	<td><a id="bgr">OGMACAM_OPTION_BYTEORDER</a></td>
+      	<td><a id="bgr">OGMACAM_OPTION_BYTEORDER</a></td><td>RW</td>
       	<td>字节序:<br/>1: BGR<br/>0: RGB</td>
       	<td>Win: 1<br/>Linux/MacOS/Android: 0</td>
       	<td>是<br/>(相对比较“重型”的操作, 不建议在相机处于运行状态时太频繁修改)</td>
       </tr><tr>
-      	<td><a id="upsidedown">OGMACAM_OPTION_UPSIDE_DOWN</a></td>
+      	<td><a id="upsidedown">OGMACAM_OPTION_UPSIDE_DOWN</a></td><td>RW</td>
       	<td>倒置:<br/>1: yes<br/>0: no<br/>请和Ogmacam_put_VFlip区别, 后者需要耗费CPU对每帧数据执行数据搬动的工作</td>
       	<td>Win: 1, Windows下默认倒置<br/>Linux/MacOS/Android: 0, 默认不倒置</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_WBGAIN</td>
+      	<td>OGMACAM_OPTION_ZERO_PADDING</td><td>RW</td>
+      	<td>当Bitdepth大于8小于16时补零方法:<br/>
+		0: 高位补零<br/>
+		1: 低位补零</td>
+      	<td>0</td>
+      	<td>是</td>
+      </tr><tr>
+      	<td>OGMACAM_OPTION_WBGAIN</td><td>RW</td>
       	<td>0 = 关闭内部白平衡增益<br/>1 = 开启内部白平衡增益</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FAN</td>
+      	<td>OGMACAM_OPTION_FAN</td><td>RW</td>
       	<td>一些型号的相机支持制冷风扇.<br/>
       	  0 = 关闭风扇<br/>[1, max] = 风扇速率<br/>
 		  设置为"-1"表示使用本型号的默认值</td>
       	<td>型号特定</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TEC</td>
+      	<td>OGMACAM_OPTION_TEC</td><td>RW</td>
       	<td>一些型号的相机支持开启关闭TEC制冷装置.<br/>0 = 关闭TEC制冷<br/>1 = 开启TEC制冷</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TECTARGET</td>
+      	<td>OGMACAM_OPTION_TECTARGET</td><td>RW</td>
       	<td>获取和设置TEC制冷的目标温度, 单位0.1℃. 例如, 125表示12.5℃, -35表示-3.5℃.<br/>设置目标温度为"-2730"或以下表示使用本型号的默认值.</td>
       	<td>型号特定</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TECTARGET_RANGE</td>
+      	<td>OGMACAM_OPTION_TECTARGET_RANGE</td><td>RO</td>
       	<td>获取TEC制冷的目标温度的范围, 单位0.1℃. 例如, 125表示12.5℃, -35表示-3.5℃.<br/>最小值(low 16 bits) = (short)(val &amp; 0xffff)<br/>最大值(high 16 bits) = (short)((val >> 16) &amp; 0xffff).</td>
       	<td>型号特定</td><td>是</td>
       </tr><tr>
-      	<td><a id="aepolicy">OGMACAM_OPTION_AUTOEXP_POLICY</a></td>
+      	<td><a id="aepolicy">OGMACAM_OPTION_AUTOEXP_POLICY</a></td><td>RW</td>
       	<td>自动曝光策略:<br/>0: 仅曝光<br/>1: 曝光优先<br/>2: 仅模拟增益<br/>3: 模拟增益优先</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_AUTOEXP_THRESHOLD</td>
+      	<td>OGMACAM_OPTION_AUTOEXP_THRESHOLD</td><td>RW</td>
       	<td>自动曝光阈值,范围: [2~15]</td>
       	<td>5</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FRAMERATE</td>
+      	<td>OGMACAM_OPTION_FRAMERATE</td><td>RW</td>
       	<td>帧率限制(每秒帧数). <br/>触发模式下帧率控制自动禁用.</td>
       	<td>0<br/>(表示不限制)</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-      	<td><a id="blacklevel">OGMACAM_OPTION_BLACKLEVEL</a></td>
+      	<td><a id="blacklevel">OGMACAM_OPTION_BLACKLEVEL</a></td><td>RW</td>
       	<td>暗电平(Black Level)<br/>对于不支持暗电平的相机返回E_NOTIMPL.</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_MULTITHREAD</td>
+      	<td>OGMACAM_OPTION_MULTITHREAD</td><td>RW</td>
       	<td>多线程图像处理</td><td>1</td>
 		<td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-      	<td><a id="binning">OGMACAM_OPTION_BINNING</a></td>
+      	<td><a id="binning">OGMACAM_OPTION_BINNING</a></td><td>RW</td>
       	<td>数字binning:<br/><br/>
 					0x01 (无binning)<br/><br/>
                     n: (饱和加法, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). 数据的Bitdepth保持不变.<br/><br/>
@@ -1084,11 +1110,11 @@ typedef struct {
                     最终图像尺寸向下圆整到偶数, 如640/3得到212</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td><a id="rotate">OGMACAM_OPTION_ROTATE</a></td>
+      	<td><a id="rotate">OGMACAM_OPTION_ROTATE</a></td><td>RW</td>
       	<td>顺时针旋转: 0°, 90°, 180°, 270°</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_CG</td>
+      	<td>OGMACAM_OPTION_CG</td><td>RW</td>
       	<td>转换增益(Conversion Gain):<br/>
 						0: LCG<br/>
 						1: HCG<br/>
@@ -1096,7 +1122,7 @@ typedef struct {
 						2: MCG(对于OGMACAM_FLAG_GHOPTO相机)</td>
       	<td>型号特定</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_PIXEL_FORMAT</td>
+      	<td>OGMACAM_OPTION_PIXEL_FORMAT</td><td>RW</td>
       	<td><a id="pflist">OGMACAM_PIXELFORMAT_RAW8<br/>
 OGMACAM_PIXELFORMAT_RAW10<br/>
 OGMACAM_PIXELFORMAT_RAW12<br/>
@@ -1118,14 +1144,14 @@ OGMACAM_PIXELFORMAT_HDR12HL(HDR, 位深度: 12, 转换增益: 高 + 低)<br/>
 OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td>
       	<td>型号特定</td><td>是<br/>(相对比较“重型”的操作, 不建议在相机处于运行状态时太频繁修改)</td>
       </tr><tr>
-      	<td><a id="ddrdepth">OGMACAM_OPTION_DDR_DEPTH</a></td>
+      	<td><a id="ddrdepth">OGMACAM_OPTION_DDR_DEPTH</a></td><td>RW</td>
       	<td>DDR最多可以缓存的帧数:<br/>
 						1: DDR最大缓存一帧<br/>
 						0: 自动, 视频模式下自动曝光开启时为1, 其他为全部容量<br/>
 					   -1: DDR最多可缓存至DDR全部容量</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td><a id="ffc">OGMACAM_OPTION_FFC</a></td>
+      	<td><a id="ffc">OGMACAM_OPTION_FFC</a></td><td>RW</td>
       	<td>平场校正(Flat Field Correction):<br/>
 					设置(set):
                         <blockquote>0: 禁用<br/>
@@ -1138,7 +1164,7 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
                         ((val &amp; 0xff0000) &gt;&gt; 16): 平均数</blockquote></td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td><a id="dfc">OGMACAM_OPTION_DFC</a></td>
+      	<td><a id="dfc">OGMACAM_OPTION_DFC</a></td><td>RW</td>
       	<td>暗场校正(Dark Field Correction):<br/>
 					设置(set):
                         <blockquote>0: 禁用<br/>
@@ -1151,7 +1177,7 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
                         ((val &amp; 0xff0000) &gt;&gt; 16): 平均数</blockquote></td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FPNC</td>
+      	<td>OGMACAM_OPTION_FPNC</td><td>RW</td>
       	<td>固定模式噪声校正(Fixed Pattern Noise Correction):<br/>
 					设置(set):
                         <blockquote>0: 禁用<br/>
@@ -1164,150 +1190,151 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
                         ((val &amp; 0xff0000) &gt;&gt; 16): 平均数</blockquote></td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_SHARPENING</td>
+      	<td>OGMACAM_OPTION_SHARPENING</td><td>RW</td>
       	<td>锐化, (threshold &lt;&lt; 24) | (radius &lt;&lt; 16) | strength)
 			<blockquote>强度(strength): [0, 500], default: 0 (disable)<br/>
 			半径(radius): [1, 10]<br/>
 			阈值(threshold): [0, 255]</blockquote></td>
       	<td>强度: 型号特定<br/>半径: 2<br/>阈值: 0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FACTORY</td>
+      	<td>OGMACAM_OPTION_FACTORY</td><td>WO</td>
       	<td>恢复出厂设置. 请注意恢复出厂设置可能导致分辨率改变</td>
       	<td>恒为0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TEC_VOLTAGE</td>
+      	<td>OGMACAM_OPTION_TEC_VOLTAGE</td><td>RO</td>
       	<td>获取TEC的当前工作电压, 单位0.1伏, 如59代表5.9伏.<br/>
 			请不要过于频繁获取本值, 建议间隔2秒或以上</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TEC_VOLTAGE_MAX</td>
+      	<td>OGMACAM_OPTION_TEC_VOLTAGE_MAX</td><td>RW</td>
       	<td>TEC的最大工作电压, 单位0.1伏, 如59代表5.9伏</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TEC_VOLTAGE_MAX_RANGE</td>
+      	<td>OGMACAM_OPTION_TEC_VOLTAGE_MAX_RANGE</td><td>RO</td>
       	<td>获取TEC的最大工作电压范围, 单位0.1伏, 如59代表5.9伏<br/>
         高16位: 最大值<br/>低16位: 最小值</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_POWER</td>
+      	<td>OGMACAM_OPTION_POWER</td><td>RO</td>
       	<td>获取功耗, 单位: 毫瓦</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_GLOBAL_RESET_MODE</td>
+      	<td>OGMACAM_OPTION_GLOBAL_RESET_MODE</td><td>RW</td>
       	<td>global reset mode</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_DEVICE_RESET</td>
+      	<td>OGMACAM_OPTION_DEVICE_RESET</td><td>WO</td>
       	<td>重置相机的usb连接, 相当于模拟一次重新插拔</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FOCUSPOS</td>
+      	<td>OGMACAM_OPTION_FOCUSPOS</td><td>RW</td>
       	<td>对焦马达位置</td>
       	<td>NA</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_AFMODE</td>
+      	<td>OGMACAM_OPTION_AFMODE</td><td>RW</td>
       	<td>自动对焦模式: 见OgmacamAFMode</td>
       	<td>NA</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_AFSTATUS</td>
+      	<td>OGMACAM_OPTION_AFSTATUS</td><td>RO</td>
       	<td>自动对焦状态: 见OgmacamAFStaus</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TESTPATTERN</td>
+      	<td>OGMACAM_OPTION_TESTPATTERN</td><td>RW</td>
       	<td>test pattern:<br/>0: off<br/>3: monochrome diagonal stripes<br/>5: monochrome vertical stripes<br/>7: monochrome horizontal stripes<br/>9: chromatic diagonal stripes</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-        <td><a id="noframe">OGMACAM_OPTION_NOFRAME_TIMEOUT</a></td>
+        <td><a id="noframe">OGMACAM_OPTION_NOFRAME_TIMEOUT</a></td><td>RW</td>
         <td>没有抓取到视频帧的超时时间. 当设定时间内没有获取到任何视频帧时, 触发事件<a href="#evnoframe">OGMACAM_EVENT_NOFRAMETIMEOUT</a><br/>
           0 =&gt; 禁用<br/>
           正整数(&gt;=OGMACAM_NOFRAME_TIMEOUT_MIN) =&gt; 超时毫秒数</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td><a id="nopacket">OGMACAM_OPTION_NOPACKET_TIMEOUT</a></td>
+        <td><a id="nopacket">OGMACAM_OPTION_NOPACKET_TIMEOUT</a></td><td>RW</td>
         <td>没有抓取到视频包的超时时间. 当设定时间内没有获取到任何视频包时, 触发事件<a href="#evnopacket">OGMACAM_EVENT_NOPACKETTIMEOUT</a><br/>
           0 =&gt; 禁用<br/>
           正整数(&gt;=OGMACAM_NOPACKET_TIMEOUT_MIN) =&gt; 超时毫秒数</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_BANDWIDTH</td>
+        <td>OGMACAM_OPTION_BANDWIDTH</td><td>RW</td>
         <td>带宽, 范围：[1-100]%<br/>设定带宽之后, 获取精确帧率的范围, 再设置精确帧率</td>
 		<td>100</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_MAX_PRECISE_FRAMERATE</td>
+        <td>OGMACAM_OPTION_MAX_PRECISE_FRAMERATE</td><td>RO</td>
         <td>获取最大精确帧率. 单位0.1帧/秒, 如115表示11.5帧/秒<br/>
           最大帧率和带宽的设置/分辨率/位深度/ROI相关, 当这些设置发生改变时, 最大帧率也会发生改变.<br/>
           相机处于非运行状态时返回E_UNEXPECTED, E_NOTIMPL表示不支持该功能</td>
 		<td>NA</td><td>NA</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_MIN_PRECISE_FRAMERATE</td>
+        <td>OGMACAM_OPTION_MIN_PRECISE_FRAMERATE</td><td>RO</td>
         <td>获取最小精确帧率. 单位0.1帧/秒, 如15表示1.5帧/秒<br/>
           最小帧率和带宽的设置/分辨率/位深度/ROI相关, 当这些设置发生改变时, 最小帧率也会发生改变<br/>
           相机处于非运行状态时返回E_UNEXPECTED, E_NOTIMPL表示不支持该功能</td>
 		<td>NA</td><td>NA</td>
       </tr><tr>
-        <td><a id="precise">OGMACAM_OPTION_PRECISE_FRAMERATE</a></td>
-        <td>单位0.1帧/秒, 如115表示11.5帧/秒. 范围：[1~最大值]</td>
+        <td><a id="precise">OGMACAM_OPTION_PRECISE_FRAMERATE</a></td><td>RW</td>
+        <td>精确帧率: 单位0.1帧/秒, 如115表示11.5帧/秒<br/>
+		使用OGMACAM_OPTION_MAX_PRECISE_FRAMERATE, OGMACAM_OPTION_MIN_PRECISE_FRAMERATE获取范围. 如果设置的值超出范围, 将返回E_INVALIDARG</td>
 		<td>最大帧率的90%</td><td>是</td>
       </tr><tr>
-        <td><a id="reload">OGMACAM_OPTION_RELOAD</a></td>
+        <td><a id="reload">OGMACAM_OPTION_RELOAD</a></td><td>RW</td>
         <td>触发模式下发生帧丢失时恢复最后一帧的数据.<br/>
             get返回值S_OK表示支持本功能, E_NOTIMPL表示不支持.</td>
 		<td>NA</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_CALLBACK_THREAD</td>
+        <td>OGMACAM_OPTION_CALLBACK_THREAD</td><td>RW</td>
         <td>单独的专门线程用于回调, 只在拉(Pull)模式下Callback可用, 不能用于推(Push)模式:<br/>
 		0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>0</td><td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-        <td><a id="frontend">OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH</a><br/>或<br/>OGMACAM_OPTION_FRAME_DEQUE_LENGTH</td>
+        <td><a id="frontend">OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH</a><br/>或<br/>OGMACAM_OPTION_FRAME_DEQUE_LENGTH</td><td>RW</td>
         <td>前端(裸数据)帧队列长度, 范围[2~1024]<br/>内存将在相机start的时候全部预分配, 请关注内存占用</td>
 		<td>4</td><td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-        <td><a id="backend">OGMACAM_OPTION_BACKEND_DEQUE_LENGTH</a></td>
+        <td><a id="backend">OGMACAM_OPTION_BACKEND_DEQUE_LENGTH</a></td><td>RW</td>
         <td>后端(Pipeline处理后)帧队列长度(仅在拉模式下可用, Push模式下忽略), 范围[2~1024]<br/>内存将在相机start的时候全部预分配, 请关注内存占用</td>
 		<td>3</td><td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_SEQUENCER_ONOFF</td>
+        <td>OGMACAM_OPTION_SEQUENCER_ONOFF</td><td>RW</td>
         <td>sequencer trigger: 开启/关闭</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_SEQUENCER_NUMBER</td>
+        <td>OGMACAM_OPTION_SEQUENCER_NUMBER</td><td>RW</td>
         <td>sequencer trigger: 数量, 范围[1~255]</td>
 		<td>NA</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_SEQUENCER_EXPOTIME</td>
+        <td>OGMACAM_OPTION_SEQUENCER_EXPOTIME</td><td>RW</td>
         <td>sequencer trigger: 曝光时间<br/>iOption = OGMACAM_OPTION_SEQUENCER_EXPOTIME | index<br/>iValue = 曝光时间值(不参考50/60HZ约束)<br/>
 		如设置第3组的曝光时间50ms, 则调用:<br/>Ogmacam_put_Option(h, OGMACAM_OPTION_SEQUENCER_EXPOTIME | 3, 50000)</td>
 		<td>NA</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_SEQUENCER_EXPOGAIN</td>
+        <td>OGMACAM_OPTION_SEQUENCER_EXPOGAIN</td><td>RW</td>
         <td>sequencer trigger: 增益<br/>iOption = OGMACAM_OPTION_SEQUENCER_EXPOGAIN | index<br/>iValue = 增益值</td>
 		<td>NA</td><td>是</td>
       </tr><tr>
-        <td><a id="denoise">OGMACAM_OPTION_DENOISE</a></td>
+        <td><a id="denoise">OGMACAM_OPTION_DENOISE</a></td><td>RW</td>
         <td>去噪<br/>强度范围[0, 100], 0表示禁用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td><a id="heatmax">OGMACAM_OPTION_HEAT_MAX</a></td>
+        <td><a id="heatmax">OGMACAM_OPTION_HEAT_MAX</a></td><td>RO</td>
         <td>获取最大加热去雾级别<br/>[0, max], 0表示关闭</td><td>NA</td><td>NA</td>
       </tr><tr>
-        <td><a id="heat">OGMACAM_OPTION_HEAT</a></td>
+        <td><a id="heat">OGMACAM_OPTION_HEAT</a></td><td>RW</td>
         <td>加热去雾级别</td><td>型号特定</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_LIGHTSOURCE_MAX</td>
+        <td>OGMACAM_OPTION_LIGHTSOURCE_MAX</td><td>RO</td>
         <td>获取最大光源亮度级别<br/>
 		[0, max], 0表示关闭</td>
 		<td>NA</td><td>NA</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_LIGHTSOURCE</td>
+        <td>OGMACAM_OPTION_LIGHTSOURCE</td><td>RW</td>
         <td>光源亮度级别</td>
 		<td>50%最大级别</td><td>是</td>
       </tr><tr>
-        <td><a id="heartbeat">OGMACAM_OPTION_HEARTBEAT</a></td>
+        <td><a id="heartbeat">OGMACAM_OPTION_HEARTBEAT</a></td><td>RW</td>
         <td>心跳间隔, 单位毫秒<br/>范围: [OGMACAM_HEARTBEAT_MIN, OGMACAM_HEARTBEAT_MAX]<br/>0: 禁用</td>
 		<td>禁用</td><td>是</td>
       </tr><tr>
-        <td><a id="hwoption">OGMACAM_OPTION_EVENT_HARDWARE</a></td>
+        <td><a id="hwoption">OGMACAM_OPTION_EVENT_HARDWARE</a></td><td>RW</td>
         <td>启用或禁用硬件事件通知: iValue = 1 (enable), 0 (disable)
         <blockquote>(1) iOption = OGMACAM_OPTION_EVENT_HARDWARE, 所有硬件事件通知的总开关<br/>
         (2) iOption = OGMACAM_OPTION_EVENT_HARDWARE | <a href="#hwevent">(event type)</a>, 特定类型的子开关</blockquote>
@@ -1315,99 +1342,106 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
         </td><td>禁用</td>
 		<td>总开关: <b>否</b><br/>子开关: 是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_LOW_POWERCONSUMPTION</td>
+        <td>OGMACAM_OPTION_LOW_POWERCONSUMPTION</td><td>RO</td>
         <td>低功耗模式:<br/>0 : 禁用<br/>1 : 启用<br/>&gt; 1 : 曝光时间大于设定值时启用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_LOW_POWER_EXPOTIME</td>
+        <td>OGMACAM_OPTION_LOW_POWER_EXPOTIME</td><td>RW</td>
         <td>低功耗模式: 曝光时间大于设定值时启用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td><a id="lownoise">OGMACAM_OPTION_LOW_NOISE</a></td>
+        <td><a id="lownoise">OGMACAM_OPTION_LOW_NOISE</a></td><td>RW</td>
         <td>低噪声模式(更高的信噪比, 更低的帧率):<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_HIGH_FULLWELL</td>
+        <td>OGMACAM_OPTION_HIGH_FULLWELL</td><td>RW</td>
         <td>高满阱模式:<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_AUTOEXPOSURE_PERCENT</td>
+        <td>OGMACAM_OPTION_AUTOEXPOSURE_PERCENT</td><td>RW</td>
         <td>自动曝光亮度统计值峰值模式: 计算感兴趣区域中指定百分比最亮像素的平均亮度. 当背景较暗且目标在平均模式下曝光过度时启用本选项, 启用本选项时, 由于更多的CPU消耗, 帧速率可能会受到影响<br/>
         1~99: 自动曝光ROI矩形内指定百分比最亮像素的平均亮度<br/>
         0或100: 自动曝光ROI矩形内全部像素的平均亮度, 意味着“禁用”</td>
 		<td>0(禁用)</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_DEFECT_PIXEL</td>
+        <td>OGMACAM_OPTION_DEFECT_PIXEL</td><td>RW</td>
         <td>坏点校正<br/>0 =&gt; 禁用, 1 =&gt; 启用</td>
 		<td>启用(1)</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_HDR_KB</td>
+        <td>OGMACAM_OPTION_HDR_KB</td><td>RW</td>
         <td>HDR合成<br/>K(高16位): [1, 25500]<br/>B(低16位): [0, 65535]<br/>0xffffffff => 设置为默认值</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_HDR_THRESHOLD</td>
+        <td>OGMACAM_OPTION_HDR_THRESHOLD</td><td>RW</td>
         <td>HDR合成<br/>阈值: [1, 4094]<br/>0xffffffff => 设置为默认值</td>
 		<td>型号特定</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_DYNAMIC_DEFECT</td>
+        <td>OGMACAM_OPTION_DYNAMIC_DEFECT</td><td>RW</td>
         <td>动态坏点校正:<br/>死点系数, t1(高16位): [0, 100], 表示[0.0, 1.0]<br/>噪点系数, t2: (低16位): [0, 100], 表示[0.0, 1.0]<br/>见:<br/>OGMACAM_DYNAMIC_DEFECT_T1_(MIN/MAX/DEF), OGMACAM_DYNAMIC_DEFECT_T2_(MIN/MAX/DEF)</td>
 		<td>不启用<br/>(t1=10, t2=0)</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_ANTI_SHUTTER_EFFECT</td>
+        <td>OGMACAM_OPTION_ANTI_SHUTTER_EFFECT</td><td>RW</td>
         <td>anti shutter effect: 1 =&gt; 启用, 0 =&gt; 禁用</td>
 		<td>禁用(0)</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_OVERCLOCK_MAX</td>
+        <td>OGMACAM_OPTION_OVERCLOCK_MAX</td><td>RO</td>
         <td>获取超频最大挡位</td>
 		<td>NA</td><td>NA</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_OVERCLOCK</td>
+        <td>OGMACAM_OPTION_OVERCLOCK</td><td>RW</td>
         <td>超频挡位</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_RESET_SENSOR</td>
+        <td>OGMACAM_OPTION_RESET_SENSOR</td><td>WO</td>
         <td>传感器复位</td>
 		<td>NA</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_CHAMBER_HT</td>
+        <td>OGMACAM_OPTION_RESET_SEQ_TIMESTAMP</td><td>WO</td>
+        <td>复位seq, timestamp:<br/>
+		1: seq<br/>
+		2: timestamp<br/>
+		3: both</td>
+		<td>NA</td><td>是</td>
+      </tr><tr>
+        <td>OGMACAM_OPTION_CHAMBER_HT</td><td>RO</td>
         <td>密封舱湿度和温度:<br/>
         高16位: 湿度, 单位0.1%, 如325表示湿度=32.5%<br/>
         低16位: 温度, 单位0.1℃, 如32表示3.2℃</td>
 		<td>NA</td><td>NA</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_ENV_HT</td>
+        <td>OGMACAM_OPTION_ENV_HT</td><td>RO</td>
         <td>环境湿度和温度</td>
 		<td>NA</td><td>NA</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_EXPOSURE_PRE_DELAY</td>
+        <td>OGMACAM_OPTION_EXPOSURE_PRE_DELAY</td><td>RW</td>
         <td>曝光信号预延迟, 微秒</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_EXPOSURE_POST_DELAY</td>
+        <td>OGMACAM_OPTION_EXPOSURE_POST_DELAY</td><td>RW</td>
         <td>曝光信号后延迟, 微秒</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_LINE_PRE_DELAY</td>
+        <td>OGMACAM_OPTION_LINE_PRE_DELAY</td><td>RW</td>
         <td>指定行预延迟, 微秒</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_LINE_POST_DELAY</td>
+        <td>OGMACAM_OPTION_LINE_POST_DELAY</td><td>RW</td>
         <td>指定行后延迟, 微秒</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_AUTOEXPO_CONV</td>
+        <td>OGMACAM_OPTION_AUTOEXPO_CONV</td><td>RO</td>
         <td>获取当前自动曝光收敛状态:<br/>1(YES) or 0(NO), -1(NA)</td>
 		<td></td><td>NA</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP</td>
+        <td>OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP</td><td>RW</td>
         <td>自动曝光阻尼系数: 曝光时间 (千分数)<br/>阻尼系数越大, 曝光时间改变越平滑越慢</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_AUTOEXP_GAIN_DAMP</td>
+        <td>OGMACAM_OPTION_AUTOEXP_GAIN_DAMP</td><td>RW</td>
         <td>自动曝光阻尼系数: 增益 (千分数)<br/>阻尼系数越大, 增益改变越平滑越慢</td>
 		<td>0</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_OVEREXP_POLICY</td>
+        <td>OGMACAM_OPTION_OVEREXP_POLICY</td><td>RW</td>
         <td>自动曝光过曝策略: 当过曝时,<br/>
 			<blockquote>0 =&gt; 直接降低曝光时间/增益到最小值; 或<br/>
 			1 =&gt; 按当前和目标亮度的比例降低曝光时间/增益; 或<br/>
@@ -1416,18 +1450,18 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		策略1避免黑屏, 但是收敛速度更慢.</td>
 		<td>是</td><td>是</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_AUTOEXPO_TRIGGER</td>
+        <td>OGMACAM_OPTION_AUTOEXPO_TRIGGER</td><td>RW</td>
         <td>触发模式下自动曝光:<br/>1(启用) or 0(禁用)</td>
 		<td>0</td><td>是</td>
 		</tr><tr>
-		<td>OGMACAM_OPTION_AWB_CONTINUOUS</td>
+		<td>OGMACAM_OPTION_AWB_CONTINUOUS</td><td>RW</td>
 		<td>自动白平衡: 连续模式<br/><blockquote>
 			0:  禁用<br/>
 			n&gt;0: 每隔n毫秒<br/>
 			n&lt;0: 每隔-n帧</blockquote>
 		</td><td>0(禁用)</td><td>Yes</td>
       </tr><tr>
-        <td>OGMACAM_OPTION_THREAD_PRIORITY</td>
+        <td>OGMACAM_OPTION_THREAD_PRIORITY</td><td>RW</td>
         <td>设置内部线程的优先级.<br/>
           Win:<blockquote>
 		  0 = THREAD_PRIORITY_NORMAL;<br/>1 = THREAD_PRIORITY_ABOVE_NORMAL;<br/>2 = THREAD_PRIORITY_HIGHEST;<br/>3 = THREAD_PRIORITY_TIME_CRITICAL;<br/>请参阅: <a href="https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority" target="_blank">SetThreadPriority</a>
@@ -1435,43 +1469,44 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 		  Linux &amp; macOS: <blockquote>高16位为调度策略, 低16位为优先级.<br/>请参阅: <a href="https://linux.die.net/man/3/pthread_setschedparam" target="_blank">pthread_setschedparam</a></blockquote></td>
 		<td>Win: 1<br/>Linux / macOS: NA</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_LINEAR</td>
+      	<td>OGMACAM_OPTION_LINEAR</td><td>RW</td>
       	<td>内部linear tone mapping:<br/>0 = 关闭<br/>1 = 开启</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_CURVE</td>
+      	<td>OGMACAM_OPTION_CURVE</td><td>RW</td>
       	<td>内部curve tone mapping:<br/>0 = 关闭<br/>
       	  1 = 开启多项式(polynomial)拟合<br/>
 		  2 = 开启对数(logarithmic)拟合</td>
       	<td>2</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_COLORMATIX</td>
+      	<td>OGMACAM_OPTION_COLORMATIX</td><td>RW</td>
       	<td>0 = 关闭内部颜色矩阵<br/>1 = 开启内部颜色矩阵</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td><a id="demosaic">OGMACAM_OPTION_DEMOSAIC</a></td>
+      	<td><a id="demosaic">OGMACAM_OPTION_DEMOSAIC</a></td><td>RW</td>
       	<td>视频和静态图像的Demosaic算法：(请参阅<a href="https://en.wikipedia.org/wiki/Demosaicing" target="_blank">https://en.wikipedia.org/wiki/Demosaicing</a>)<br/>
       			0 = BILINEAR<br/>
       			1 = VNG(Variable Number of Gradients, 可变数量梯度)<br/>
       			2 = PPG(Patterned Pixel Grouping)<br/>
       			3 = AHD(Adaptive Homogeneity Directed, 自适应同质导向)<br/>
 				4 = EA(Edge Aware, 边缘感知)<br/>
+				就CPU使用率而言, EA是最低的, BILINEAR次之, 其它的都更高.<br/>
       			对于黑白相机始终返回E_NOTIMPL.</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_DEMOSAIC_VIDEO</td>
+      	<td>OGMACAM_OPTION_DEMOSAIC_VIDEO</td><td>RW</td>
       	<td>视频的Demosaic算法</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_DEMOSAIC_STILL</td>
+      	<td>OGMACAM_OPTION_DEMOSAIC_STILL</td><td>RW</td>
       	<td>静态图像的Demosaic算法</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_OPEN_USB_ERRORCODE</td>
+      	<td>OGMACAM_OPTION_OPEN_USB_ERRORCODE</td><td>RW</td>
       	<td>打开USB的错误码. get only</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FLUSH</td>
+      	<td>OGMACAM_OPTION_FLUSH</td><td>WO</td>
       	<td>1: 硬flush, 丢弃相机内部DDR缓存的帧(如果有的话)<br/>
 			2: 软flush, 丢弃ogmacam.dll内部缓存的帧(如果有的话)<br/>
 			3: 硬+软<br/>
@@ -1479,25 +1514,26 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
             成功时返回被软flush掉的帧数目, 失败时返回<a href="#hresult">HRESULT</a></td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_READOUT_MODE</td>
+      	<td>OGMACAM_OPTION_READOUT_MODE</td><td>RW</td>
       	<td>读出模式:<br/>
 		0 = IWR (边读出边积分, Integrate While Read)<br/>
-		1 = ITR (先积分后读出, Integrate Then Read)</td>
+		1 = ITR (先积分后读出, Integrate Then Read)<br/>
+		探测器读出电路的工作模式可分为两种: ITR和IWR. 使用IWR读出模式, 可以大大提高帧频. 在ITR模式中, 第(n+1)帧积分在第n帧所有数据读出完成后开始, 而IWR模式中第(n+1)帧积分时, 同时读出第n帧的数据</td>
       	<td>NA</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_TAILLIGHT</td>
+      	<td>OGMACAM_OPTION_TAILLIGHT</td><td>RW</td>
       	<td>打开关闭尾灯:<br/>0 =&gt; 关<br/>1 =&gt; 开</td>
 		<td>1</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_PSEUDO_COLOR_START</td>
+      	<td>OGMACAM_OPTION_PSEUDO_COLOR_START</td><td>RW</td>
       	<td>伪彩色: 起始颜色, BGR格式</td>
       	<td>NA</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_PSEUDO_COLOR_END</td>
+      	<td>OGMACAM_OPTION_PSEUDO_COLOR_END</td><td>RW</td>
       	<td>伪彩色: 结束颜色, BGR格式</td>
       	<td>NA</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_PSEUDO_COLOR_ENABLE</td>
+      	<td>OGMACAM_OPTION_PSEUDO_COLOR_ENABLE</td><td>RW</td>
       	<td>伪彩色:<br/>-1 => 自定义: 使用起始颜色和结束颜色产生颜色映射表格<br/>
                                                                     0 =&gt; 禁用<br/>
                                                                     1 =&gt; spot<br/>
@@ -1528,40 +1564,52 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
 																	26 =&gt; blue</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_NUMBER_DROP_FRAME</td>
+      	<td>OGMACAM_OPTION_NUMBER_DROP_FRAME</td><td>RO</td>
       	<td>已经从USB抓取但是被软件丢弃的帧数</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_DUMP_CFG</td>
+      	<td>OGMACAM_OPTION_DUMP_CFG</td><td>RW</td>
       	<td>0 = 当相机被停止时, 不自动刷新配置到文件或EEPROM<br/>
             1 = 当相机被停止时, 自动刷新配置到文件或EEPROM<br/>
             -1 = 执行一次手动刷新配置到文件或EEPROM</td>
       	<td>1</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FRONTEND_DEQUE_CURRENT</td>
+      	<td>OGMACAM_OPTION_FRONTEND_DEQUE_CURRENT</td><td>RO</td>
       	<td>获取前端队列的当前帧数目</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_BACKEND_DEQUE_CURRENT</td>
+      	<td>OGMACAM_OPTION_BACKEND_DEQUE_CURRENT</td><td>RO</td>
       	<td>获取后端队列的当前帧数目</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_PACKET_NUMBER</td>
+      	<td>OGMACAM_OPTION_PACKET_NUMBER</td><td>RO</td>
       	<td>获取接收到的包数目</td>
       	<td>NA</td><td>NA</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_GIGETIMEOUT</td>
+      	<td>OGMACAM_OPTION_GVCP_TIMEOUT</td><td>RW</td>
+      	<td>GVCP Timeout, 毫秒, 范围: [3, 75]<br/>除非非常特殊情况, 一般而言不需要修改, 保持默认值即可</td>
+      	<td>15</td><td>是</td>
+      </tr><tr>
+      	<td>OGMACAM_OPTION_GVCP_RETRY</td><td>RW</td>
+      	<td>GVCP Retry, 次数, 范围: [2, 8]<br/>除非非常特殊情况, 一般而言不需要修改, 保持默认值即可</td>
+      	<td>4</td><td>是</td>
+      </tr><tr>
+      	<td>OGMACAM_OPTION_GVSP_WAIT_PERCENT</td><td>RW</td>
+      	<td>GVSP wait 百分比: 范围: [0, 100]</td>
+      	<td>触发模式: 100, 实时: 0, 其它: 1</td><td>是</td>
+      </tr><tr>
+      	<td>OGMACAM_OPTION_GIGETIMEOUT</td><td>RW</td>
       	<td>For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive. If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection. When the application is stopped by the debugger, the application cannot create the heartbeat signals.<br/>
 		0 =&gt; 自动: 当相机被打开时, 如存在调试器则禁用, 如不存在调试器则启用<br/>
 		1 =&gt; 启用<br/>
 		2 =&gt; 禁用</td>
       	<td>0</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FILTERWHEEL_SLOT</td>
+      	<td>OGMACAM_OPTION_FILTERWHEEL_SLOT</td><td>RW</td>
       	<td>滤镜轮孔数</td>
       	<td>7</td><td>是</td>
       </tr><tr>
-      	<td>OGMACAM_OPTION_FILTERWHEEL_POSITION</td>
+      	<td>OGMACAM_OPTION_FILTERWHEEL_POSITION</td><td>RW</td>
       	<td>滤镜轮位置:<br/>
 					设置(set):
                         <blockquote>-1: 校准<br/>
@@ -1570,12 +1618,28 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
                     获取(get):
                         <blockquote>-1: 动作中<br/>
                         val: 目标到达</blockquote>
-        </td><td>NA</td><td>是</td>
-</tr></table></div>
-  <p><strong>重要提示: </strong></p>
-  <p><strong>a. 部分设置只可以在相机不在运行时才可以修改(以上表格最后一列值为“否”).</strong></p>
-  <p><strong>b. <a id="wrongthread3">不允许在POGMACAM_EVENT_CALLBACK和POGMACAM_DATA_CALLBACK_V4/V3的回调上下文中调用Ogmacam_put_Option设置OGMACAM_OPTION_TRIGGER, OGMACAM_OPTION_BITDEPTH, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_OPTION_BINNING, OGMACAM_OPTION_ROTATE, 否则返回E_WRONG_THREAD.</a></strong></p>
-  <p>c. UHCCD03100KPB, UHCCD05000KPA, UHCCD05100KPA的小分辨率不支持RAW模式.</p>
+        </td><td>NA</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_TRIGGER_CANCEL_MODE</td><td>RW</td>
+      	<td>触发取消模式:<br/>
+		0: 不输出帧<br/>
+		1: 输出帧</td>
+      	<td>0</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_MECHANICALSHUTTER</td><td>RW</td>
+      	<td>机械快门:<br/>
+		0: 开<br/>
+		1: 关</td>
+      	<td>0</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_LINE_TIME</td><td>RO</td>
+      	<td>传感器行时间(纳秒)</td>
+      	<td>NA</td><td>NA</td></tr><tr>
+      	<td>OGMACAM_OPTION_UPTIME</td><td>RO</td>
+      	<td>设备上电行时间(毫秒)</td>
+      	<td>NA</td><td>NA</td></tr>
+</table></div>
+<p><strong>重要提示: </strong></p>
+<p>a. RW = <strong>R</strong>ead/<strong>W</strong>rite(可读可写); RO = <strong>R</strong>ead <strong>O</strong>nly(只读); WO = <strong>W</strong>rite <strong>O</strong>nly(只写)</p>
+<p><strong>b. 部分设置只可以在相机不在运行时才可以修改(以上表格最后一列值为“否”).</strong></p>
+<p><strong>c. <a id="wrongthread3">不允许在POGMACAM_EVENT_CALLBACK和POGMACAM_DATA_CALLBACK_V4/V3的回调上下文中调用Ogmacam_put_Option设置OGMACAM_OPTION_TRIGGER, OGMACAM_OPTION_BITDEPTH, OGMACAM_OPTION_PIXEL_FORMAT, OGMACAM_OPTION_BINNING, OGMACAM_OPTION_ROTATE, 否则返回E_WRONG_THREAD.</a></strong></p>
 </blockquote>
 </li></ul><ul><li><h2><font color="#0000FF"><a id="realtime">Ogmacam_put_RealTime<br/>Ogmacam_get_RealTime</a></font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
@@ -1583,7 +1647,7 @@ OGMACAM_PIXELFORMAT_HDR14HL(HDR, 位深度: 14, 转换增益: 高 + 低)</a></td
   <blockquote>
     <p>HOgmacam h：相机句柄</p>
     <p>int val:</p>
-    <blockquote>0: 当帧缓冲队列满时停止抓帧, 直到队列中的帧被取走从而队列非满<br/>
+    <blockquote>0: 非实时<blockquote>当帧缓冲队列满时停止抓帧, 直到队列中的帧被取走从而队列非满</blockquote>
     1: 实时<blockquote>使用最小的帧缓冲. 当新帧来到时, 不论帧缓冲区是否满, 都把所有的老帧全部丢弃.<br/>
           如果有DDR, 将同时把DDR帧缓冲也设为1.</blockquote>
     2: 软实时<blockquote>当帧缓冲区满时, 丢弃最老的帧再入队新帧</blockquote>
@@ -1643,6 +1707,17 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   </blockquote>
   <p><strong>说明：</strong>最小帧速率等级是0. 最大帧速率级别可以通过Ogmacam_get_MaxSpeed函数得到, 和OgmacamModelV2的maxspeed是一个意思.<br/>
   对于部分支持所谓<a href="#precise">精确帧率</a>的相机, 建议使用精确帧率控制. 为了保持兼容, Speed仍然有效, 映射机制为: MaxSpeed为9(共10级), 分别对应Bandwidth从10%~100%时的最大帧率. 如设置speed为8, 等同于: 精确帧率设置为Bandwith设置为90%时的最大帧率.</p>
+</li></ul><ul><li><h2><font color="#0000FF">Ogmacam_get_FrameRate</font></h2>
+    <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
+    <p><strong>参数：</strong></p>
+  <blockquote><p>HOgmacam h：相机句柄</p>
+    <p>unsigned* nFrame: 最近时间的帧数</p>
+	<p>unsigned* nTime: 时间(毫秒数)</p>
+	<p>unsigned* nTotalFrame: 相机开启以来收到的总帧数</p>
+  </blockquote>
+  <p><strong>说明：</strong>获取最近时间(大约几秒)相机实际帧率. 用以下算式计算:</p><blockquote><table width="100%" border="0" bgcolor="#B0D0B0">
+	<tr><td><div align="center">FrameRate(fps) = nFrame * 1000.0 / nTime</div></td></tr>
+	</table></blockquote>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_put_HZ<br/>Ogmacam_get_HZ</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
@@ -1734,12 +1809,12 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>参数：</strong></p>
   <blockquote><p>HOgmacam h：相机句柄</p>
     <p>char sn[32]：存放序列号的缓冲区. 如：TP110826145730ABCD1234FEDC56787</p>
-    <p>char fwver[16]: 存放固件版本号的缓冲区. 如: 3.2.1.20140922</p>
-    <p>char hwver[16]: 存放硬件版本好的缓冲区. 如: 3.12</p>
-    <p>char pdate[10]: 存放生产日期的缓冲区. 如: 20150327</p>
+    <p>char fwver[16]: 存放固件版本号的缓冲区, 如: 3.2.1.20140922</p>
+    <p>char hwver[16]: 存放硬件版本好的缓冲区, 如: 3.12</p>
+    <p>char pdate[10]: 存放生产日期的缓冲区, 如: 20150327</p>
 	<p>unsigned short pRevision: revision</p>
   </blockquote>
-  <p><strong>说明：</strong>每个相机都有一个唯一的31位的序列号(少量型号的相机只能在开启相机之后才能获取序列号).</p>
+  <p><strong>说明：</strong>每个相机都有一个唯一的序列号, <a href="#camidsn">这里</a>.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_get_PixelSize</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
@@ -1839,6 +1914,12 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
  </tr><tr><td>OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE</td>
  </tr><tr><td>OGMACAM_IOCONTROLTYPE_SET_RESETCOUNTER</td>
    <td>计数器复位</td>
+ </tr><tr><td>OGMACAM_IOCONTROLTYPE_GET_PWM_FREQ</td>
+   <td rowspan="2">PWM频率</td>
+ </tr><tr><td>OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE</td>
+ </tr><tr><td>OGMACAM_IOCONTROLTYPE_GET_PWM_DUTYRATIO</td>
+   <td rowspan="2">PWM占空比</td>
+ </tr><tr><td>OGMACAM_IOCONTROLTYPE_SET_COUNTERVALUE</td>
  </tr><tr><td>OGMACAM_IOCONTROLTYPE_GET_PWMSOURCE</td>
    <td rowspan="2">脉冲模式信号源：<br/>0x00 =&gt; 光耦隔离输入<br/>0x01 =&gt; GPIO0<br/>0x02 =&gt; GPIO1</td>
  </tr><tr><td>OGMACAM_IOCONTROLTYPE_SET_PWMSOURCE</td>
@@ -1932,7 +2013,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_Update</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p><blockquote><p>camId：相机实例ID</p>
-	<p>filePath: ufw文件全路径</p>
+	<p>filePath: *.ufw文件全路径</p>
 	<p>pFun, ctxProgress: 进度百分比回调函数</p></blockquote>
     <p><strong>说明：</strong>固件升级. 升级过程中请千万不要拔出设备或断电, 这非常非常重要. 一旦升级过程中拔出设备或断电, 相机将不再可用, 只能返厂维修.</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_Replug</font></h2>
@@ -2005,7 +2086,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 		<td>硬件</td><td>Ogmacam_get_LevelRangeV2</td>
         <td colspan="2">Ogmacam_put_LevelRangeV2</td>
 	  </tr><tr>
-        <td colspan="3">Contrast(对比度)</td><td>-250~250</td><td>0</td>
+        <td colspan="3">Contrast(对比度)</td><td>-255~255</td><td>0</td>
         <td>Ogmacam_get_Contrast</td><td>Ogmacam_put_Contrast</td><td></td>
       </tr><tr>
         <td colspan="3">Hue(色度)</td><td>-180~180</td><td>0</td>
@@ -2014,7 +2095,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
         <td colspan="3">Saturation(饱和度)</td><td>0~255</td><td>128</td>
         <td>Ogmacam_get_Saturation</td><td>Ogmacam_put_Saturation</td><td></td>
       </tr><tr>
-        <td colspan="3">Brightness(亮度)</td><td>-128~128</td><td>0</td>
+        <td colspan="3">Brightness(亮度)</td><td>-255~255</td><td>0</td>
         <td>Ogmacam_get_Brightness</td><td>Ogmacam_put_Brightness</td><td></td>
       </tr><tr>
         <td colspan="3">Gamma</td><td>20~180</td><td>100</td><td>Ogmacam_get_Gamma</td><td>Ogmacam_put_Gamma</td>
@@ -2052,7 +2133,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
 </table></div></li></ul>
 <hr/><h1><font color="#0000FF"><a id="dotnet">5. .NET(C#和VB.NET)</a></font></h1><hr/>
 <p>Ogmacam支持.NET开发环境(C#和VB.NET).</p>
-<p>ogmacam.cs使用P/Invoke调用至ogmacam.dll. 把ogmacam.cs拷贝到你的C#工程中使用, 请参考示例代码.</p>
+<p>ogmacam.cs使用P/Invoke调用至ogmacam.dll. 把ogmacam.cs拷贝到你的C#工程中使用, 请参考<a href="#dotnetsample">示例代码</a>.</p>
 <p>请主意<strong>Ogmacam C#包装类的实例通过静态方法Open或者OpenByIndex得到, 而不是通常的obj = new Ogmacam</strong>(构造函数特意是私有的).</p>
 <p>绝大多数Ogmacam类的方法和属性都P/Invoke调用至ogmacam.dll/so中对应的原生C/C++ Ogmacam_xxx函数. 所以, 关于Ogmacam_xxx的文档说明都适用于C#中对应的属性或方法, 比如, C#中的Snap方法调用Ogmacam_Snap函数, 关于Ogmacam_Snap函数的说明同样适用于C# Ogmacam类的Snap方法：</p>
 <table width="100%" border="0" bgcolor="#B0D0B0">
@@ -2067,7 +2148,7 @@ public bool Snap(uint nResolutionIndex)
 }</pre></td></tr></table>
 <p>VB.NET和C#是类似的, 不另说明.</p>
 <hr/><h1><font color="#0000FF"><a id="python">6. Python</a></font></h1><hr/>
-<p>Ogmacam支持Python(版本3.0及以上)开发, 请import ogmacam导入ogmacam.py, 参考示例代码simplest.py和qt.py.</p>
+<p>Ogmacam支持Python(版本3.0及以上)开发, 请import ogmacam导入ogmacam.py, <a href="#demopython">参考示例代码simplest.py, qt5.py, qt6.py</a>.</p>
 <p>请注意<strong>ogmacam.Ogmacam python包装类的实例通过类方法(classmethod)Open或者OpenByIndex得到, 而不是通常的obj = ogmacam.Ogmacam()</strong>.</p>
 <p>绝大多数Ogmacam类的方法都通过ctypes调用至ogmacam.dll/so/dylib中对应的原生C/C++ Ogmacam_xxx函数. 所以, 关于Ogmacam_xxx的文档说明都适用于python中的对应方法.</p>
 <p>参见ogmacam.py中的__errcheck, 原始的HRESULT返回值被映射成HRESULTException异常(win32平台从OSError继承).</p>
@@ -2088,10 +2169,10 @@ public bool Snap(uint nResolutionIndex)
         <td width="60%">描述</td>
       </tr><tr>
 		<td colspan="2">demosimplest</td>
-		<td rowspan="11">Win32<br/>Linux<br/>macOS<br/>Android</td>
-		<td rowspan="21">C++</td>
-		<td rowspan="11">&nbsp;</td>
-		<td rowspan="11">console</td>
+		<td rowspan="12">Win32<br/>Linux<br/>macOS<br/>Android</td>
+		<td rowspan="22">C++</td>
+		<td rowspan="12">&nbsp;</td>
+		<td rowspan="12">console</td>
 		<td>最简单的示例, 大约70行代码. <a href="./images/demosimplest.png">截图</a>.</td>
 	  </tr><tr>
 		<td colspan="2">gigesimplest</td>
@@ -2111,6 +2192,9 @@ public bool Snap(uint nResolutionIndex)
       </tr><tr>
 		<td colspan="2">demotriggersync</td>
 		<td>同步软触发(TriggerSync)示例, 大约80行代码.</td>
+      </tr><tr>
+		<td colspan="2"><a id="democfg">democfg</a></td>
+		<td>配置文件示例(参阅<a href="#cfg">这里</a>), 大约80行代码.</td>
       </tr><tr>
 		<td colspan="2">demoexternaltrigger</td>
 		<td>最简单的外部触发示例, 大约130行代码.</td>
@@ -2160,7 +2244,7 @@ public bool Snap(uint nResolutionIndex)
 		<td colspan="2">autotest</td>
 		<td><a href="./images/autotest.png">截图</a>. 自动测试工具(用于自动测试开关相机, 分辨率切换, 抓拍, ROI, 位深度切换等等)</td>
 	  </tr><tr>
-		<td colspan="2">demowpf</td>
+		<td colspan="2"><a id="dotnetsample">demowpf</a></td>
 		<td rowspan="4">.NET</td>
 		<td rowspan="3">C#</td>
 		<td>WPF</td>
@@ -2204,7 +2288,7 @@ public bool Snap(uint nResolutionIndex)
 		<td></td><td>console</td>
 		<td>最简单python示例</td>
 	  </tr><tr>
-		<td>qt</td><td>PyQt</td><td rowspan="10">GUI</td>
+		<td>qt5<br/>qt6</td><td>PyQt</td><td rowspan="11">GUI</td>
 		<td>PyQt示例, <a href="./images/pyqt.png">截图</a>.</td>
 	  </tr><tr>
 		<td colspan="2"><a id="demodshow">demodshow</a></td>
@@ -2226,9 +2310,9 @@ public bool Snap(uint nResolutionIndex)
         <td colspan="2">LVDemo3</td>
         <td>Labview示例, <a href="./images/lvdemo3.png">截图</a>.<br />打开设备, 预览视频, 抓拍(静态)图像, 设置分辨率, 设置自动曝光, 位深度切换, 颜色调整, 白(黑)平衡设置, 数字binning设置, 平场(暗场)校正, 等等.</td>
 	  </tr><tr>
-		<td rowspan="4">imagepro</td>
+		<td rowspan="5">imagepro</td>
 		<td rowspan="2">liveedf</td>
-		<td rowspan="4">Win32</td>
+		<td rowspan="5">Win32</td>
 		<td>C++</td><td>Qt</td>
 		<td>Qt示例, <a href="./images/liveedfqt.png">snapshot</a>.</td>
 	  </tr><tr>
@@ -2241,8 +2325,18 @@ public bool Snap(uint nResolutionIndex)
 	  </tr><tr>
 	  <td>C#</td><td>WinForm</td>
 		<td>C#示例, <a href="./images/livestackcs.png">snapshot</a>.</td>
+	  </tr><tr>
+		<td>demostitch</td>
+		<td>C++</td><td>Qt</td>
+		<td>Qt示例</td>	
 </tr></table></div>
-<hr/><h1><font color="#0000ff">9. 更新历史</font></h1><hr/>
+<hr/><h1><font color="#0000ff">9. 杂项</font></h1><hr/>
+<h2><font color="#0000FF">a. <a id="mtu">Windows设置网卡MTU, 开启巨帧</a></font></h2>
+(1) 启动"设备管理器", 展开"网络适配器". <a href="./images/devmgr.png">截图</a><br/>
+(2) 右键单击目标网卡, 然后选择右键菜单"属性"<br/>
+(3) 选择"高级"选项卡, 在属性框中选择"巨型数据包"(Jumbo Frame), 然后在右侧的值中选择"9014字节"(不同网卡型号可能数值稍有不同), 单击"确定"保存更改. <a href="./images/mtu.png">截图</a><br/>
+(4) 执行以下命令查看网卡MTU. <a href="./images/mtushow.png">截图</a><br/><table width="100%" border="0" bgcolor="#B0D0B0"><tr><td align="center"><pre>netsh interface ipv4 show subinterface</pre></td></tr></table>
+<hr/><h1><font color="#0000ff">10. 更新历史</font></h1><hr/>
 <p>v57: 增加Ogmacam_PullImageV4, OgmacamFrameInfoV4, GPS</p>
 <p>v56: 性能提升: RAW模式下减少帧数据copy</p>
 <p>v55: 增加支持HDR Pixel Format</p>

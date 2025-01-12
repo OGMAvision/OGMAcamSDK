@@ -655,7 +655,7 @@ void COptionsDlg::OnOK()
 	g_bEnableCheckBlack = IsDlgButtonChecked(IDC_CHECK2) ? true : false;
 	g_bRealtime = IsDlgButtonChecked(IDC_CHECK3) ? true : false;
 
-	int nCpu = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();	
+	int nCpu = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();
 	if (nCpu != g_thrd.size())
 	{
 		g_work = false;
