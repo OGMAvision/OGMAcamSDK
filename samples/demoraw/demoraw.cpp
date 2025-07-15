@@ -63,32 +63,30 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
 
 int main(int, char**)
 {
-    OgmacamDeviceV2 tdev[OGMACAM_MAX] = { 0 };
-    const unsigned ncam = Ogmacam_EnumV2(tdev);
-    if (0 == ncam)
-    {
-        printf("no camera found\n");
-        return -1;
-    }
-    
-    g_hcam = Ogmacam_Open(tdev[0].id);
-    if (NULL == g_hcam)
-    {
-        printf("failed to open camera\n");
-        return -1;
-    }
-    
-    HRESULT hr = Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_RAW, 1); /* use raw image data */
+    Ogmacam_GigeEnable(NULL, NULL); /* Enable GigE */
+    do { /* wait to discover GigE camera and then open it */
+        g_hcam = Ogmacam_Open(NULL);
+        if (g_hcam)
+        {
+#if defined(_WIN32)
+            wprintf(L"open camera ok, model: %s\n", Ogmacam_query_Model(g_hcam)->name);
+#else
+            printf("open camera ok, model: %s\n", Ogmacam_query_Model(g_hcam)->name);
+#endif
+            break;
+        }
+        printf("wait to find camera\n");
+#if defined(_WIN32)
+        Sleep(1000);
+#else
+        sleep(1);
+#endif
+    } while (1);
+
+    HRESULT hr = Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_RAW, -1); /* use raw image data */
     printf("put option raw: hr = 0x%08x\n", hr);
 
-    if (tdev[0].model->preview > 1)
-        Ogmacam_put_eSize(g_hcam, 1);
-
-    if (tdev[0].model->flag & (OGMACAM_FLAG_RAW10 | OGMACAM_FLAG_RAW12 | OGMACAM_FLAG_RAW14 | OGMACAM_FLAG_RAW16))  /* bitdepth supported */
-    {
-        Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, 1); /* enable bitdepth */
-        g_bBitdepth = true;
-    }
+    Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, 0); /* enable bitdepth */    
 
     int nMaxWidth = 0, nMaxHeight = 0;
     hr = Ogmacam_get_Resolution(g_hcam, 0, &nMaxWidth, &nMaxHeight);
@@ -121,9 +119,6 @@ int main(int, char**)
                         g_bSave = true;
                         break;
                     default:
-                        if (tdev[0].model->still)             /* snap supported */
-                            Ogmacam_Snap(g_hcam, 0);
-                        else
                             bloop = false;
                         break;
                     }

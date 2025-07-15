@@ -61,14 +61,16 @@ void CTriggerTestPropertyPage::OnEnChangeEditTriggerTestInterval()
 
 void CTriggerTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 {
-	Ogmacam_Trigger(g_hcam, m_number);
-
-	++m_count;
-	UpdateHint();
 	if (m_count >= m_totalCount)
 	{
 		Stop();
-		AfxMessageBox(_T("Trigger test completed."));
+		AfxMessageBox(_T("Trigger test completed."), MB_ICONINFORMATION | MB_OK);
+	}
+	else
+	{
+		Ogmacam_Trigger(g_hcam, m_number);
+		g_TriggerTestCount = m_count++;
+		UpdateHint();
 	}
 }
 
@@ -94,7 +96,7 @@ void CTriggerTestPropertyPage::OnBnClickedButtonTriggerTestStart()
 
 		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_TRIGGER, 1);
 		m_bStart = g_bTriggerTest = g_bTesting = true;
-		m_count = 0;
+		m_count = g_TriggerTestCount = 0;
 		SetDlgItemText(IDC_BUTTON_TRIGGER_TEST_START, _T("Stop"));
 		GetDlgItem(IDC_EDIT_TRIGGER_TEST_TIMES)->EnableWindow(FALSE);
 		GetDlgItem(IDC_EDIT_TRIGGER_TEST_INTERVAL)->EnableWindow(FALSE);

@@ -7,6 +7,8 @@
 #include "CSamplingPropertyPage.h"
 #include "CBitDepthPropertyPage.h"
 #include "CFrameRatePropertyPage.h"
+#include "CCoolingPropertyPage.h"
+#include "CCGPropertyPage.h"
 
 CSettingPropertySheet::CSettingPropertySheet(LPCTSTR pszCaption, CWnd* pParentWnd, UINT iSelectPage)
 	:CPropertySheet(pszCaption, pParentWnd, iSelectPage)
@@ -16,6 +18,8 @@ CSettingPropertySheet::CSettingPropertySheet(LPCTSTR pszCaption, CWnd* pParentWn
 	, m_pSamplingPropertyPage(new CSamplingPropertyPage())
 	, m_pBitDepthPropertyPage(new CBitDepthPropertyPage())
 	, m_pFrameRatePropertyPage(new CFrameRatePropertyPage())
+	, m_pCoolingPropertyPage(new CCoolingPropertyPage())
+	, m_pCGPropertyPage(new CCGPropertyPage())
 {
 	m_psh.dwFlags &= ~PSH_HASHELP;
 	m_psh.dwFlags |= PSH_NOAPPLYNOW;
@@ -25,6 +29,8 @@ CSettingPropertySheet::CSettingPropertySheet(LPCTSTR pszCaption, CWnd* pParentWn
 	AddPage(m_pSamplingPropertyPage);
 	AddPage(m_pBitDepthPropertyPage);
 	AddPage(m_pFrameRatePropertyPage);
+	AddPage(m_pCoolingPropertyPage);
+	AddPage(m_pCGPropertyPage);
 }
 
 CSettingPropertySheet::~CSettingPropertySheet()
@@ -35,6 +41,8 @@ CSettingPropertySheet::~CSettingPropertySheet()
 	delete m_pSamplingPropertyPage;
 	delete m_pBitDepthPropertyPage;
 	delete m_pFrameRatePropertyPage;
+	delete m_pCoolingPropertyPage;
+	delete m_pCGPropertyPage;
 }
 
 CExposureGainPropertyPage* CSettingPropertySheet::GetExposureGainPropertyPage() const

@@ -4,6 +4,7 @@
 
 class CBitDepthTestPropertyPage : public CTestPropertyPage
 {
+	int m_formatCount;
 public:
 	CBitDepthTestPropertyPage();
 

@@ -162,6 +162,7 @@ BOOL CdemomfcDlg::OnInitDialog()
 	GetDlgItem(IDC_SLIDER3)->EnableWindow(FALSE);
 	GetDlgItem(IDC_COMBO1)->EnableWindow(FALSE);
 
+	Ogmacam_GigeEnable(NULL, NULL); /* Enable GigE */
 	return TRUE;
 }
 

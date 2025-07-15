@@ -37,7 +37,7 @@ void CSnapResTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 	if (m_count >= m_totalCount)
 	{
 		Stop();
-		AfxMessageBox(_T("Snap and resolution test completed."));
+		AfxMessageBox(_T("Snap and resolution test completed."), MB_OK | MB_ICONINFORMATION);
 		return;
 	}
 	if (m_snap == 0)

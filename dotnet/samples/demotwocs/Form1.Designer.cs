@@ -58,6 +58,7 @@
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox1.TabIndex = 7;
             this.pictureBox1.TabStop = false;
+            this.pictureBox1.Paint += new System.Windows.Forms.PaintEventHandler(this.pictureBox1_Paint);
             // 
             // timer1
             // 
@@ -67,11 +68,20 @@
             // label1
             // 
             this.label1.Location = new System.Drawing.Point(10, 159);
-            this.label1.Name = "label4";
+            this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(162, 12);
             this.label1.TabIndex = 13;
             this.label1.Text = "0; fps = 0.0";
             this.label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            // 
+            // label2
+            // 
+            this.label2.Location = new System.Drawing.Point(10, 316);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(162, 12);
+            this.label2.TabIndex = 15;
+            this.label2.Text = "0; fps = 0.0";
+            this.label2.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
             // pictureBox2
             // 
@@ -81,6 +91,7 @@
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox2.TabIndex = 14;
             this.pictureBox2.TabStop = false;
+            this.pictureBox2.Paint += new System.Windows.Forms.PaintEventHandler(this.pictureBox2_Paint);
             // 
             // checkBox1
             // 
@@ -92,15 +103,6 @@
             this.checkBox1.Text = "Auto Exposure";
             this.checkBox1.UseVisualStyleBackColor = true;
             this.checkBox1.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
-            // 
-            // label2
-            // 
-            this.label2.Location = new System.Drawing.Point(10, 316);
-            this.label2.Name = "label1";
-            this.label2.Size = new System.Drawing.Size(162, 12);
-            this.label2.TabIndex = 15;
-            this.label2.Text = "0; fps = 0.0";
-            this.label2.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
             // Form1
             // 

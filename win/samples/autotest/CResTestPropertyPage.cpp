@@ -4,6 +4,7 @@
 #include "CResTestPropertyPage.h"
 #include "AutoTestDlg.h"
 
+
 CResTestPropertyPage::CResTestPropertyPage()
 	: CTestPropertyPage(IDD_PROPERTY_RESOLUTION_TEST)
 	, m_resCount(0)
@@ -57,17 +58,56 @@ void CResTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 	if ((m_count >= m_totalCount) || g_bBlack)
 	{
 		Stop();
-		AfxMessageBox((m_count >= m_totalCount) ? _T("Resolution test completed.") : _T("Image is completely black."));
+		if (g_bBlack)
+			AfxMessageBox(_T("Image is completely black."), MB_ICONEXCLAMATION | MB_OK);
+		else
+			AfxMessageBox(_T("Resolution test completed."), MB_ICONINFORMATION | MB_OK);
 		return;
 	}
 
 	g_snapCount = m_count;
-	if (++m_resCount >= Ogmacam_get_ResolutionNumber(g_hcam))
+	int resNum = Ogmacam_get_ResolutionNumber(g_hcam);
+	if (IsDlgButtonChecked(IDC_CHECK_RES_RANDOM))
 	{
-		++m_count;
-		UpdateHint();
-		m_resCount = 0;
+		srand(time(NULL));
+		while (true)
+		{
+			int rand_num = rand() % resNum;
+			if (!hash_set[rand_num])
+			{
+				hash_set[rand_num] = true;
+				m_resCount = rand_num;
+				UpdateHint();
+				break;
+			}
+		}
+
+		bool all_picked = true;
+		for (int i = 0; i < resNum; ++i)
+		{
+			if (!hash_set[i])
+			{
+				all_picked = false;
+				break;
+			}
+		}
+		if (all_picked)
+		{
+			hash_set.clear();
+			hash_set.resize(resNum, false);
+			++m_count;
+		}
 	}
+	else
+	{
+		if (++m_resCount >= resNum)
+		{
+			++m_count;
+			UpdateHint();
+			m_resCount = 0;
+		}
+	}
+
 	g_pMainDlg->SendMessage(WM_USER_PREVIEW_CHANGE, m_resCount);
 	g_bImageSnap = true;
 }
@@ -86,8 +126,11 @@ void CResTestPropertyPage::OnBnClickedButtonResolutionTestStart()
 		g_bCheckBlack = g_bEnableCheckBlack;
 		g_bBlack = false;
 		m_resCount = 0;
+		hash_set.resize(Ogmacam_get_ResolutionNumber(g_hcam), false);
 		SetDlgItemText(IDC_BUTTON_RESOLUTION_TEST_START, _T("Stop"));
 		GetDlgItem(IDC_EDIT_RESOLUTION_TEST_COUNT)->EnableWindow(FALSE);
 		SetTimer(1, 2000, nullptr);
 	}
 }
+
+

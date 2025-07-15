@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 57.27250.20241216 */
+/* Version: 59.28926.20250709 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -294,7 +294,7 @@ DECLARE_INTERFACE_(IOgmacam, IUnknown)
     STDMETHOD(get_FfcStatus) (THIS_ int* status) PURE; /* see OGMACAM_OPTION_FFC */
     STDMETHOD(put_FfcStatus) (THIS_ int status) PURE;
         
-    STDMETHOD(IoControl)(unsigned ioLineNumber, unsigned nType, int outVal, int* inVal) PURE;
+    STDMETHOD(IoControl)(unsigned ioLine, unsigned nType, int outVal, int* inVal) PURE;
         
     /* Dark Field Correction */
     STDMETHOD(DfcOnce) (THIS_) PURE;
@@ -405,6 +405,12 @@ DECLARE_INTERFACE_(IOgmacam, IUnknown)
     STDMETHOD(FpncExport) (THIS_ const char* filePath) PURE;
     STDMETHOD(FpncImport) (THIS_ const char* filePath) PURE;
 #endif
+
+    STDMETHOD(get_BinningNumber) (THIS_) PURE;
+    STDMETHOD(get_BinningValue) (THIS_ unsigned index, const char** ppValue) PURE;
+    STDMETHOD(get_BinningMethod) (THIS_ unsigned index, const char** ppMethod) PURE;
+    STDMETHOD(get_Binning)(THIS_ const char** ppValue, const char** ppMethod) PURE;
+    STDMETHOD(put_Binning)(THIS_ const char* pValue, const char* pMethod) PURE;
 };
 
 /* most Camera DirectShow source filters has two output pins, one is pin category PIN_CATEGORY_PREVIEW, and the other is pin category PIN_CATEGORY_STILL.
@@ -507,7 +513,7 @@ static void InitAx(const wchar_t* clsid)
     {
         wchar_t axPath[MAX_PATH + 1] = { 0 };
         DWORD cbData = MAX_PATH * sizeof(wchar_t);
-        if (ERROR_SUCCESS == RegQueryValueExW(hKey, NULL, NULL, NULL, (PBYTE)axPath, &cbData)) /* query the full path of ogmacam.ax */
+        if (ERROR_SUCCESS == RegQueryValueExW(hKey, NULL, NULL, NULL, (PBYTE)(axPath), &cbData)) /* query the full path of ogmacam.ax */
         {
             g_hModuleAx = LoadLibraryW(axPath);
             if (g_hModuleAx)

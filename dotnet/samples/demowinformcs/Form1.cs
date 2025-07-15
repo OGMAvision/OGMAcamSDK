@@ -85,7 +85,7 @@ namespace demowinformcs
                     MessageBox.Show(ex.ToString());
                 }
                 if (bOK)
-                    pictureBox1.Image = bmp_;
+                    pictureBox1.Invalidate();
             }
         }
 
@@ -549,6 +549,16 @@ namespace demowinformcs
         {
             int nval = comboBox4.SelectedIndex;
             cam_.IoControl(1, eIoControType.IOCONTROLTYPE_SET_OUTPUTMODE, nval);
+        }
+
+        private void pictureBox1_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            if (bmp_ != null)
+            {
+                g.DrawImage(bmp_, pictureBox1.ClientRectangle);
+                g.DrawString(label4.Text, this.Font, SystemBrushes.ControlText, 0, 0);
+            }
         }
     }
 }

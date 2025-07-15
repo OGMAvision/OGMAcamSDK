@@ -42,6 +42,8 @@ private:
 	void OnEventTempTint();
 	void OnEventStillImage();
 	void UpdateInfo();
+	void OpenCloseCamera(unsigned nRes);
+	void CheckBlackProc();
 };
 
 extern CAutoTestDlg* g_pMainDlg;

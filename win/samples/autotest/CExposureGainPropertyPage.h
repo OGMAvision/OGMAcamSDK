@@ -12,9 +12,13 @@ public:
 	void OnAutoExposure();
 protected:
 	virtual BOOL OnInitDialog();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnBnClickedCheckAuto();
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+	afx_msg void OnEnKillfocusEditExpotime();
+	afx_msg void OnEnKillfocusEditExpogain();
 	DECLARE_MESSAGE_MAP()
+
 private:
 	void UpdateSlidersEnable();
 	void SetTargetValue(int value);

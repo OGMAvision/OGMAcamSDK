@@ -6,6 +6,8 @@ class CWhiteBalancePropertyPage;
 class CSamplingPropertyPage;
 class CBitDepthPropertyPage;
 class CFrameRatePropertyPage;
+class CCoolingPropertyPage;
+class CCGPropertyPage;
 
 class CSettingPropertySheet : public CPropertySheet
 {
@@ -15,6 +17,8 @@ class CSettingPropertySheet : public CPropertySheet
 	CSamplingPropertyPage* m_pSamplingPropertyPage;
 	CBitDepthPropertyPage* m_pBitDepthPropertyPage;
 	CFrameRatePropertyPage* m_pFrameRatePropertyPage;
+	CCoolingPropertyPage* m_pCoolingPropertyPage;
+	CCGPropertyPage* m_pCGPropertyPage;
 public:
 	CSettingPropertySheet(LPCTSTR pszCaption, CWnd* pParentWnd = nullptr, UINT iSelectPage = 0);
 	virtual ~CSettingPropertySheet();

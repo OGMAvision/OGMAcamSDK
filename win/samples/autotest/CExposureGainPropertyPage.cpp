@@ -35,6 +35,8 @@ void CExposureGainPropertyPage::UpdateSlidersEnable()
 	GetDlgItem(IDC_SLIDER_TARGET)->EnableWindow(bAutoExp);
 	GetDlgItem(IDC_SLIDER_EXPOSURE)->EnableWindow(!bAutoExp);
 	GetDlgItem(IDC_SLIDER_GAIN)->EnableWindow(!bAutoExp);
+	GetDlgItem(IDC_EDIT_EXPOSURE)->EnableWindow(!bAutoExp);
+	GetDlgItem(IDC_EDIT_GAIN)->EnableWindow(!bAutoExp);
 
 	((CSliderCtrl*)GetDlgItem(IDC_SLIDER_TARGET))->SetRange(OGMACAM_AETARGET_MIN, OGMACAM_AETARGET_MAX);
 	unsigned short target = 0;
@@ -77,6 +79,8 @@ void CExposureGainPropertyPage::SetGainValue(int value)
 BEGIN_MESSAGE_MAP(CExposureGainPropertyPage, CPropertyPage)
 	ON_BN_CLICKED(IDC_CHECK_AUTO, &CExposureGainPropertyPage::OnBnClickedCheckAuto)
 	ON_WM_HSCROLL()
+	ON_EN_KILLFOCUS(IDC_EDIT_EXPOSURE, &CExposureGainPropertyPage::OnEnKillfocusEditExpotime)
+	ON_EN_KILLFOCUS(IDC_EDIT_GAIN, &CExposureGainPropertyPage::OnEnKillfocusEditExpogain)
 END_MESSAGE_MAP()
 
 void CExposureGainPropertyPage::OnBnClickedCheckAuto()
@@ -95,6 +99,19 @@ BOOL CExposureGainPropertyPage::OnInitDialog()
 	UpdateSlidersEnable();
 
 	return TRUE;
+}
+
+BOOL CExposureGainPropertyPage::PreTranslateMessage(MSG* pMsg)
+{
+	if (WM_KEYDOWN == pMsg->message && VK_RETURN == pMsg->wParam)
+	{
+		if (GetFocus() == GetDlgItem(IDC_EDIT_EXPOSURE))
+			GetDlgItem(IDC_STATIC_EXPOSURE)->SetFocus();
+		else if (GetFocus() == GetDlgItem(IDC_EDIT_GAIN))
+			GetDlgItem(IDC_STATIC_GAIN)->SetFocus();
+		return true;
+	}
+	return CDialog::PreTranslateMessage(pMsg);
 }
 
 void CExposureGainPropertyPage::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
@@ -136,4 +153,49 @@ void CExposureGainPropertyPage::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* p
 	}
 
 	CPropertyPage::OnHScroll(nSBCode, nPos, pScrollBar);
+}
+
+
+void CExposureGainPropertyPage::OnEnKillfocusEditExpotime()
+{
+	CString strTemp;
+	GetDlgItemText(IDC_EDIT_EXPOSURE, strTemp);
+	if (!strTemp.IsEmpty())
+	{
+		strTemp.Trim();
+		TCHAR* endptr = nullptr;
+		double value = _tcstod((LPCTSTR)strTemp, &endptr);
+		if (nullptr == endptr || '\0' == *endptr)
+		{
+			unsigned nMinExpoTime, nMaxExpoTime, nDefExpoTime;
+			Ogmacam_get_ExpTimeRange(g_hcam, &nMinExpoTime, &nMaxExpoTime, &nDefExpoTime);
+			if (value < nMinExpoTime)
+				value = nMinExpoTime;
+			else if (value > nMaxExpoTime)
+				value = nMaxExpoTime;
+			Ogmacam_put_ExpoTime(g_hcam, value);
+			SetDlgItemText(IDC_EDIT_EXPOSURE, _T(""));
+			UpdateData(false);
+		}
+		else
+			AfxMessageBox(_T("The exposure time is invalid"), MB_OK | MB_ICONINFORMATION);
+	}
+}
+
+void CExposureGainPropertyPage::OnEnKillfocusEditExpogain()
+{
+	CString strTemp;
+	GetDlgItemText(IDC_EDIT_GAIN, strTemp);
+	if (!strTemp.IsEmpty())
+	{
+		unsigned short nMinExpoAGain, nMaxExpoAGain, nDefExpoAGain;
+		Ogmacam_get_ExpoAGainRange(g_hcam, &nMinExpoAGain, &nMaxExpoAGain, &nDefExpoAGain);
+		int value = GetDlgItemInt(IDC_EDIT_GAIN);
+		if (value < nMinExpoAGain)
+			value = nMinExpoAGain;
+		else if (value > nMaxExpoAGain)
+			value = nMaxExpoAGain;
+		Ogmacam_put_ExpoAGain(g_hcam, value);
+		SetDlgItemText(IDC_EDIT_GAIN, _T(""));
+	}
 }

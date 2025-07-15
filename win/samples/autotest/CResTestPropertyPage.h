@@ -1,10 +1,12 @@
 #pragma once
 
 #include "CTestPropertyPage.h"
+#include <vector>
 
 class CResTestPropertyPage : public CTestPropertyPage
 {
 	int m_resCount;
+	std::vector<bool> hash_set;
 public:
 	CResTestPropertyPage();
 
@@ -21,4 +23,5 @@ protected:
 private:
 	void Stop();
 	void UpdateHint();
+	
 };

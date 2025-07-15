@@ -5,6 +5,7 @@
 
 CBitDepthTestPropertyPage::CBitDepthTestPropertyPage()
 	: CTestPropertyPage(IDD_PROPERTY_BITDEPTH_TEST)
+	, m_formatCount(0)
 {
 }
 
@@ -39,17 +40,27 @@ void CBitDepthTestPropertyPage::OnEnChangeEditBitDepthTestCount()
 
 void CBitDepthTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 {
-	int bitDepth = 0;
-	Ogmacam_get_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, &bitDepth);
-	bitDepth = !bitDepth;
-	Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, bitDepth);
-
-	++m_count;
-	UpdateHint();
-	if (m_count >= m_totalCount)
+	if (m_count >= m_totalCount || g_bBlack)
 	{
 		Stop();
-		AfxMessageBox(_T("Bitdepth test completed."));
+		if (g_bBlack)
+			AfxMessageBox(_T("Image is completely black."), MB_ICONEXCLAMATION | MB_OK);
+		else
+			AfxMessageBox(_T("Bitdepth test completed."), MB_ICONINFORMATION | MB_OK);
+		return;
+	}
+
+	g_snapCount = m_count;
+	int pixelNum = -1, iFormat = -1;
+	Ogmacam_get_PixelFormatSupport(g_hcam, -1, &pixelNum);
+	Ogmacam_get_PixelFormatSupport(g_hcam, m_formatCount, &iFormat);
+	Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_PIXEL_FORMAT, iFormat);
+	g_bBitdepthTest = true;
+	if (++m_formatCount >= pixelNum)
+	{
+		++m_count;
+		UpdateHint();
+		m_formatCount = 0;
 	}
 }
 
@@ -67,8 +78,13 @@ void CBitDepthTestPropertyPage::OnBnClickedButtonBitDepthTestStart()
 		Stop();
 	else if (OnStart())
 	{
+		g_snapDir = GetAppTimeDir(_T("BitDepthTest"));
+		if (!PathIsDirectory((LPCTSTR)g_snapDir))
+			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
+
 		m_bStart = g_bTesting = true;
-		g_bCheckBlack = false;
+		g_bCheckBlack = g_bEnableCheckBlack;
+		g_bBlack = false;
 		m_count = 0;
 		SetDlgItemText(IDC_BUTTON_BITDEPTH_TEST_START, _T("Stop"));
 		GetDlgItem(IDC_EDIT_BITDEPTH_TEST_CNT)->EnableWindow(FALSE);

@@ -45,7 +45,7 @@ Public Class Form1
                 MessageBox.Show(ex.ToString())
             End Try
             If bOK Then
-                pictureBox1.Image = bmp_
+                pictureBox1.Invalidate()
             End If
         End If
     End Sub
@@ -312,6 +312,14 @@ Public Class Form1
             If cam_.get_FrameRate(nFrame, nTime, nTotalFrame) AndAlso nTime > 0 Then
                 label4.Text = String.Format("{0}; fps = {1:#.0}", nTotalFrame, CType(nFrame, Double) * 1000.0 / CType(nTime, Double))
             End If
+        End If
+    End Sub
+
+    Private Sub pictureBox1_Paint(sender As Object, e As PaintEventArgs) Handles pictureBox1.Paint
+        Dim g As Graphics = e.Graphics
+        If (bmp_ IsNot Nothing) Then
+            g.DrawImage(bmp_, pictureBox1.ClientRectangle)
+            g.DrawString(label4.Text, Me.Font, SystemBrushes.ControlText, 0, 0)
         End If
     End Sub
 End Class

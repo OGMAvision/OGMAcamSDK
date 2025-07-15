@@ -44,10 +44,13 @@ void CSnapTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 {
 	if (!g_bSnapFinish)
 		return;
-	if (m_count >= m_totalCount)
+	if (m_count >= m_totalCount || g_bBlack)
 	{
 		Stop();
-		AfxMessageBox(_T("Snap test completed."));
+		if (g_bBlack)
+			AfxMessageBox(_T("Image is completely black."), MB_ICONEXCLAMATION | MB_OK);
+		else
+			AfxMessageBox(_T("Snap test completed."), MB_OK | MB_ICONINFORMATION);
 		return;
 	}
 	g_bSnapFinish = false;
@@ -73,7 +76,8 @@ void CSnapTestPropertyPage::OnBnClickedButtonStart()
 			SHCreateDirectory(m_hWnd, (LPCTSTR)g_snapDir);
 
 		g_bSnapTest = g_bSnapFinish = m_bStart = g_bTesting = true;
-		g_bCheckBlack = false;
+		g_bCheckBlack = g_bEnableCheckBlack;
+		g_bBlack = false;
 		m_count = m_snap = 0;
 		SetDlgItemText(IDC_BUTTON_SNAP_START, _T("Stop"));
 		GetDlgItem(IDC_EDIT_SNAP_COUNT)->EnableWindow(FALSE);

@@ -51,8 +51,9 @@ int main(int, char**)
 #endif
 	} while (1);
 	
+	Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_RAW, 1);
 	int nWidth = 0, nHeight = 0;
-	HRESULT hr = Ogmacam_get_Size(g_hcam, &nWidth, &nHeight);
+	HRESULT hr = Ogmacam_get_FinalSize(g_hcam, &nWidth, &nHeight);
 	if (FAILED(hr))
 		printf("failed to get size, hr = 0x%08x\n", hr);
 	else

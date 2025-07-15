@@ -18,6 +18,8 @@ IMAGEPRO_API(HRESULT) imagepro_edf_pull(HImageproEdf handle, HOgmacam h, int bFe
 IMAGEPRO_API(HRESULT) imagepro_edf_pullV3(HImageproEdf handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV3* pInfo);
 IMAGEPRO_API(HRESULT) imagepro_edf_pullV4(HImageproEdf handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV4* pInfo);
 
+IMAGEPRO_API(HRESULT) imagepro_spot_pull(HImageproSpot handle, HOgmacam h, int bFeed, void* pImageData, int bits, int rowPitch, OgmacamFrameInfoV2* pInfo, BeamPacket* result);
+
 #ifdef __cplusplus
 }
 #endif

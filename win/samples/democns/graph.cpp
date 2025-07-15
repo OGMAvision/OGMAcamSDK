@@ -319,6 +319,11 @@ void CGraph::SaveReg()
 	m_regkey.SetBinaryValue(str, &vecOffset[0], sizeof(int) * vecOffset.size());
 }
 
+double CGraph::pixeltoCoordY(double value)const
+{
+	return (m_rect.bottom - value) / double(m_rect.Height()) * (m_ymaxCur - m_yminCur) + m_yminCur;
+}
+
 void CGraph::Set(const std::vector<BYTE>& vecVisible, const std::vector<int>& vecOffset)
 {
 	ATLASSERT(!m_bTemp);
@@ -545,13 +550,35 @@ void CGraph::ZoomOut(bool bX)
 
 		m_yminCur = newmin;
 		m_ymaxCur = newmax;
-	
+
 		CalcYStep();
 	}
 	
 	Invalidate(FALSE);
 }
 
+void CGraph::ZoomY(int yCoord, bool zoomIn)
+{
+	if ((!zoomIn || !CanZoomIn(false)) && (zoomIn || !CanZoomOut(false)))
+		return;
+	double scaleFactor = zoomIn ? 0.8 : 1.20;
+	int newmin = static_cast<int>(yCoord - (yCoord - m_yminCur) * scaleFactor);
+	int newmax = static_cast<int>(yCoord + (m_ymaxCur - yCoord) * scaleFactor);	
+	if (newmin < m_ymin)
+		newmin = m_ymin;
+	if (newmax > m_ymax)
+		newmax = m_ymax;
+	AdjustZoomY(newmin, newmax);
+
+	if (newmin != m_yminCur || newmax != m_ymaxCur)
+	{
+		m_yminCur = newmin;
+		m_ymaxCur = newmax;
+		CalcYStep();
+		Invalidate(FALSE);
+	}
+}
+ 
 void CGraph::CalcYStep()
 {
 	if ((m_rect.Height() > 4) && (m_ymaxCur > m_yminCur))
@@ -925,12 +952,27 @@ LRESULT CGraph::OnWmLbuttondown(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& b
 
 LRESULT CGraph::OnWmMousewheel(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
-	if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
-		Down();
-	else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
-		Up();
+	if (GetKeyState(VK_CONTROL) & 0X8000)
+	{
+		CPoint pt(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		ScreenToClient(&pt);
+		double yCoord = pixeltoCoordY(pt.y);
+		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			ZoomY(yCoord, true);
+		else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+			ZoomY(yCoord, false);
+		else
+			bHandled = FALSE;
+	}
 	else
-		bHandled = FALSE;
+	{
+		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			Down();
+		else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+			Up();
+		else
+			bHandled = FALSE;
+	}
 	return bHandled ? 0 : 1;
 }
 

@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.ComponentModel;
 
 namespace demowpf
 {
@@ -88,8 +87,6 @@ namespace demowpf
                 {
                     MessageBox.Show(ex.ToString());
                 }
-                if (bOK)
-                    image_.Source = bmp_;
             }
         }
 
@@ -248,7 +245,7 @@ namespace demowpf
                             }
                         };
                         timer_.Start();
-                        
+                        image_.Source = bmp_;
                         started_ = true;
                     }
                 }

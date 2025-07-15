@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Reflection.Emit;
 using System.Windows.Forms;
 
 namespace demotwocs
@@ -50,9 +51,9 @@ namespace demotwocs
                 if (bOK)
                 {
                     if (0 == idx)
-                        pictureBox1.Image = bmp_[idx];
+                        pictureBox1.Invalidate();
                     else
-                        pictureBox2.Image = bmp_[idx];
+                        pictureBox2.Invalidate();
                 }
             }
         }
@@ -171,6 +172,26 @@ namespace demotwocs
                 uint nFrame = 0, nTime = 0, nTotalFrame = 0;
                 if (cam_[1].get_FrameRate(out nFrame, out nTime, out nTotalFrame) && (nTime > 0))
                     label2.Text = string.Format("{0}; fps = {1:#.0}", nTotalFrame, ((double)nFrame) * 1000.0 / (double)nTime);
+            }
+        }
+
+        private void pictureBox1_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            if (bmp_[0] != null)
+            {
+                g.DrawImage(bmp_[0], pictureBox1.ClientRectangle);
+                g.DrawString(label1.Text, this.Font, SystemBrushes.ControlText, 0, 0);
+            }
+        }
+
+        private void pictureBox2_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            if (bmp_[1] != null)
+            {
+                g.DrawImage(bmp_[1], pictureBox2.ClientRectangle);
+                g.DrawString(label2.Text, this.Font, SystemBrushes.ControlText, 0, 0);
             }
         }
     }

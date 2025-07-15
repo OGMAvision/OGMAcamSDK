@@ -150,6 +150,7 @@ BOOL CAutoTestDlg::OnInitDialog()
 	CheckDlgButton(IDC_CHECK2, g_bEnableCheckBlack ? 1 : 0);
 
 	SetTimer(2, 1000, nullptr);
+	SetTimer(3, 1000, nullptr);
 	return TRUE;
 }
 
@@ -217,6 +218,17 @@ void CAutoTestDlg::OnTimer(UINT_PTR nIDEvent)
 		}
 		SetDlgItemText(IDC_FRAMENUM, str);
 	}
+	else if (3 == nIDEvent)
+	{
+		CString strTmp;
+		if (g_hcam)
+		{
+			short nTemperature;
+			if (SUCCEEDED(Ogmacam_get_Temperature(g_hcam, &nTemperature)))
+				strTmp.Format(_T("Temperature: %0.1f¡æ"), nTemperature / 10.0);
+		}
+		SetDlgItemText(IDC_TEMPERATURE, strTmp);
+	}
 }
 
 LRESULT CAutoTestDlg::OnPreviewResChanged(WPARAM wp, LPARAM lp)
@@ -244,7 +256,8 @@ LRESULT CAutoTestDlg::OnPreviewResChanged(WPARAM wp, LPARAM lp)
 
 LRESULT CAutoTestDlg::OnCloseOpen(WPARAM wp, LPARAM lp)
 {
-	OnBnClickedButtonStart();
+	unsigned nSel = (unsigned)wp;
+	OpenCloseCamera(nSel);
 	return 0;
 }
 
@@ -395,7 +408,7 @@ void CAutoTestDlg::OnEventImage()
 			SYSTEMTIME tm;
 			GetLocalTime(&tm);
 			CString str;
-			str.Format(g_snapDir + _T("\\%04hu%02hu%02hu_%02hu%02hu%02hu_%03hu.jpg"), tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, tm.wMilliseconds);
+			str.Format(g_snapDir + _T("\\%d_%04hu%02hu%02hu_%02hu%02hu%02hu_%03hu.jpg"), g_TriggerTestCount, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, tm.wMilliseconds);
 			SaveImageByWIC(str, m_pImageData, &m_header);
 		}
 		else if (g_bImageSnap)
@@ -407,35 +420,22 @@ void CAutoTestDlg::OnEventImage()
 			GetLocalTime(&tm);
 			str.Format(g_snapDir + _T("\\%d_%dx%d_%04hu%02hu%02hu_%02hu%02hu%02hu_%03hu.jpg"), g_snapCount, resWidth, resHeight, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, tm.wMilliseconds);
 			SaveImageByWIC(str, m_pImageData, &m_header);
-			if (g_bCheckBlack)
-			{
-				const int pitchWidth = TDIBWIDTHBYTES(m_header.biWidth * 24);
-				char* pData = static_cast<char*>(m_pImageData);
-				bool bBlack = false;
-				int blackCnt = 0;
-				for (int i = 0; i < m_header.biHeight; ++i)
-				{
-					for (int j = 0; j < m_header.biWidth; ++j)
-					{
-						const int value0 = *(pData + i * pitchWidth + j);
-						const int value1 = *(pData + i * pitchWidth + j + 1);
-						const int value2 = *(pData + i * pitchWidth + j + 2);
-						if (0 == value0 && 0 == value1 && 0 == value2)
-						{
-							++blackCnt;
-							if (blackCnt > m_header.biHeight * m_header.biWidth / 2)
-							{
-								bBlack = true;
-								break;
-							}
-						}
-					}
-					if (bBlack)
-						break;
-				}
-				g_bBlack = bBlack;
-			}
+			CheckBlackProc();
 			g_bImageSnap = false;
+		}
+		else if (g_bBitdepthTest)
+		{
+			int resWidth = 0, resHeight = 0, iFormat = 0;
+			Ogmacam_get_Size(g_hcam, &resWidth, &resHeight);
+			Ogmacam_get_Option(g_hcam, OGMACAM_OPTION_PIXEL_FORMAT, &iFormat);
+			const char* formatName = Ogmacam_get_PixelFormatName(iFormat);
+			CString str;
+			SYSTEMTIME tm;
+			GetLocalTime(&tm);
+			str.Format(g_snapDir + _T("\\%d_%dx%d_%S_%04hu%02hu%02hu_%02hu%02hu%02hu_%03hu.jpg"), g_snapCount, resWidth, resHeight, formatName, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, tm.wMilliseconds);
+			SaveImageByWIC(str, m_pImageData, &m_header);
+			CheckBlackProc();
+			g_bBitdepthTest = false;
 		}
 		else
 		{
@@ -496,6 +496,7 @@ void CAutoTestDlg::OnEventStillImage()
 				CString str;
 				str.Format(g_snapDir + _T("\\%d_%dx%d_%dx%d.jpg"), g_snapCount, resWidth, resHeight, info.v3.width, info.v3.height);
 				SaveImageByWIC(str, pData, &header);
+				CheckBlackProc();
 				g_bSnapFinish = true;
 			}
 			else
@@ -519,6 +520,80 @@ void CAutoTestDlg::UpdateInfo()
 		CString str;
 		str.Format(_T("autotest: [%d x %d]"), width, height);
 		SetWindowText(str);
+	}
+}
+
+void CAutoTestDlg::OpenCloseCamera(unsigned nRes)
+{
+	CString startBtnText;
+	GetDlgItemText(IDC_BUTTON_START, startBtnText);
+	if (0 == startBtnText.Compare(_T("Open")))
+	{
+		if (g_cameraCnt <= 0)
+			return;
+
+		g_cur = g_cam[m_camList.GetCurSel()];
+		g_hcam = Ogmacam_Open(g_cur.id);
+		if (nullptr == g_hcam)
+			return;
+
+		m_dwHeartbeat = 0;
+		if (g_HeartbeatTimeout && (g_cur.model->flag & OGMACAM_FLAG_EVENT_HARDWARE))
+		{
+			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_EVENT_HARDWARE, 1);
+			Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_EVENT_HARDWARE | OGMACAM_EVENT_HEARTBEAT, 1);
+
+			SetTimer(1, 1000, nullptr);
+		}
+		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOPACKET_TIMEOUT, g_NopacketTimeout);
+		Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_NOFRAME_TIMEOUT, g_NoframeTimeout);
+		Ogmacam_put_RealTime(g_hcam, g_bRealtime ? 1 : 0);
+		Ogmacam_put_eSize(g_hcam, nRes);
+		StartCamera();
+
+		SetDlgItemText(IDC_BUTTON_START, _T("Close"));
+		UpdateInfo();
+	}
+	else
+	{
+		CloseCamera();
+
+		SetDlgItemText(IDC_BUTTON_START, _T("Open"));
+		SetWindowText(_T(""));
+	}
+
+	UpdateButtonsState();
+}
+
+void CAutoTestDlg::CheckBlackProc()
+{
+	if (g_bCheckBlack)
+	{
+		const int pitchWidth = TDIBWIDTHBYTES(m_header.biWidth * 24);
+		char* pData = static_cast<char*>(m_pImageData);
+		bool bBlack = false;
+		int blackCnt = 0;
+		for (int i = 0; i < m_header.biHeight; ++i)
+		{
+			for (int j = 0; j < m_header.biWidth; ++j)
+			{
+				const int value0 = *(pData + i * pitchWidth + j);
+				const int value1 = *(pData + i * pitchWidth + j + 1);
+				const int value2 = *(pData + i * pitchWidth + j + 2);
+				if (0 == value0 && 0 == value1 && 0 == value2)
+				{
+					++blackCnt;
+					if (blackCnt > m_header.biHeight * m_header.biWidth / 2)
+					{
+						bBlack = true;
+						break;
+					}
+				}
+			}
+			if (bBlack)
+				break;
+		}
+		g_bBlack = bBlack;
 	}
 }
 

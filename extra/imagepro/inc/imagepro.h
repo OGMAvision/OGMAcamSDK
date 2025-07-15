@@ -135,13 +135,43 @@ enum eImageproStitchEvent {
     eImageproStitchE_RESTART_START
 };
 
+enum eImageproStitchPrecision {
+    eImageproStitchP_Lower,
+    eImageproStitchP_Low,
+    eImageproStitchP_Medium,
+    eImageproStitchP_High,
+    eImageproStitchP_Higher
+};
+
+enum eImageproStitchThreshold {
+    eImageproStitchT_Smaller,
+    eImageproStitchT_Small,
+    eImageproStitchT_Medium,
+    eImageproStitchT_Large,
+    eImageproStitchT_Larger
+};
+
 typedef void (__cdecl *IMAGEPRO_STITCH_CALLBACK)(void* ctx, void* outData, int stride, int outW, int outH, int curW, int curH, int curType,
                                         int posX, int posY, eImageproStitchQuality quality, float sharpness, int bUpdate, int bSize);
 typedef void (__cdecl *IMAGEPRO_STITCH_ECALLBACK)(void* ctx, eImageproStitchEvent evt);
 
 typedef struct ImageproStitch_t { int unused; } *HImageproStitch;
+
+/*
+    Create new stitch handle
+    format: Buffer pixel format
+    bGlobalShutter: Whether the camera use global shutter, this parameter is currently ineffective
+    videoW, viedoH: Buffer width and height
+    background: Output image background, 0: transparent, 1: white, 2: black
+    pFun, pEFun: Stitch handle callback function
+    ctx: User context pointer, passed in when calling callback function
+    precision: The precision level of the input image during stitching, affects both the processing speed and the stitching precision
+    threshold: Stitch threshold level, larger threshold improves output quality, but reduces success rate and requires higher-quality input images
+*/
 IMAGEPRO_API(HImageproStitch) imagepro_stitch_new(int bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
 IMAGEPRO_API(HImageproStitch) imagepro_stitch_newV2(eImageproFormat format, int bGlobalShutter, int videoW, int videoH, int background, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
+IMAGEPRO_API(HImageproStitch) imagepro_stitch_newV3(eImageproFormat format, int bGlobalShutter, int videoW, int videoH, int background, eImageproStitchPrecision precision, eImageproStitchThreshold threshold, IMAGEPRO_STITCH_CALLBACK pFun, IMAGEPRO_STITCH_ECALLBACK pEFun, void* ctx);
+IMAGEPRO_API(void) imagepro_stitch_cropparams(HImageproStitch handle, int* roix, int* roiy, int* roiw, int* roih);
 IMAGEPRO_API(void) imagepro_stitch_delete(HImageproStitch handle);
 IMAGEPRO_API(void) imagepro_stitch_start(HImageproStitch handle);
 IMAGEPRO_API(void*) imagepro_stitch_stop(HImageproStitch handle, int normal, int crop);
@@ -174,6 +204,27 @@ IMAGEPRO_API(void) imagepro_edf_delete(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_start(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_stop(HImageproEdf handle);
 IMAGEPRO_API(void) imagepro_edf_readdata(HImageproEdf handle, void* data, int stride);
+
+typedef struct{
+    double x, y;
+    double rx, ry;
+} ApertureSt;
+
+typedef struct{
+    double allenergy;
+    double centroidX;
+    double centroidY;
+    double beamWidthX;
+    double beamWidthY;
+    double ellipticity;
+    ApertureSt aperture;
+} BeamPacket;
+
+typedef struct ImageproSpot_t { int unused; } *HImageproSpot;
+IMAGEPRO_API(HImageproSpot) imagepro_spot_new(int spotnum, int maxpacket);
+IMAGEPRO_API(void) imagepro_spot_reset(HImageproSpot handle);
+IMAGEPRO_API(void) imagepro_spot_setAperture(HImageproSpot handle, ApertureSt aperture);
+IMAGEPRO_API(void) imagepro_spot_delete(HImageproSpot handle);
 
 #if defined(_WIN32)
 #define IMAGEPRO_LIVESTACK_NUM_MIN 1

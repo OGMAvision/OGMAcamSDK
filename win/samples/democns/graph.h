@@ -91,6 +91,7 @@ public:
 	void ZoomMax(bool bX);
 	void ZoomIn(bool bX);
 	void ZoomOut(bool bX);
+	void ZoomY(int yCoord, bool zoomIn);
 public:
 	LRESULT OnWmPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnWmSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
@@ -114,6 +115,7 @@ private:
 	bool CalcZoomInY(int& newminY, int& newmaxY)const;
 	void AdjustZoomY(int& yVal1, int& yVal2)const;
 	void SaveReg();
+	double pixeltoCoordY(double value)const;
 };
 
 extern HCURSOR g_curHand2, g_curHand1, g_curMove, g_curArrow;
