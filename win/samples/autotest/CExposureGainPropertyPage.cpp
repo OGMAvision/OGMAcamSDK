@@ -45,6 +45,8 @@ void CExposureGainPropertyPage::UpdateSlidersEnable()
 
 	unsigned timeMin = 0, timeMax = 0, timeDef = 0, timeVal = 0;
 	Ogmacam_get_ExpTimeRange(g_hcam, &timeMin, &timeMax, &timeDef);
+	if (timeMax > 0x7fffffff)
+		timeMax = 0x7fffffff;
 	((CSliderCtrl*)GetDlgItem(IDC_SLIDER_EXPOSURE))->SetRange(timeMin, timeMax);
 	Ogmacam_get_ExpoTime(g_hcam, &timeVal);
 	SetExpoTimeValue(timeVal);
@@ -155,7 +157,6 @@ void CExposureGainPropertyPage::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* p
 	CPropertyPage::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
-
 void CExposureGainPropertyPage::OnEnKillfocusEditExpotime()
 {
 	CString strTemp;
@@ -178,7 +179,9 @@ void CExposureGainPropertyPage::OnEnKillfocusEditExpotime()
 			UpdateData(false);
 		}
 		else
+		{
 			AfxMessageBox(_T("The exposure time is invalid"), MB_OK | MB_ICONINFORMATION);
+		}
 	}
 }
 

@@ -3,7 +3,6 @@
 #include "AutoTest.h"
 #include "CCGPropertyPage.h"
 
-
 CCGPropertyPage::CCGPropertyPage()
 	: CPropertyPage(IDD_PROPERTY_CG), m_ConversionGain(2)
 {
@@ -51,7 +50,9 @@ BOOL CCGPropertyPage::OnInitDialog()
 		}
 		if (g_cur.model->flag & OGMACAM_FLAG_CGHDR)
 			GetDlgItem(IDC_RADIO_MCG)->SetWindowText(L"HDR");
-		if (g_cur.model->flag & OGMACAM_FLAG_CG)
+		else if (g_cur.model->flag & OGMACAM_FLAG_GHOPTO)
+			GetDlgItem(IDC_RADIO_MCG)->SetWindowText(L"MCG");
+		else 
 			GetDlgItem(IDC_RADIO_MCG)->ShowWindow(SW_HIDE);
 	}
 	else

@@ -178,6 +178,8 @@ Public Class Form1
     Private Sub startDevice(camId As String)
         cam_ = Ogmacam.Open(camId)
         If cam_ IsNot Nothing Then
+            cam_.put_RealTime(1)
+
             checkBox1.Enabled = True
             comboBox1.Enabled = True
             button2.Enabled = True

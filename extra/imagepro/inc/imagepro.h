@@ -1,6 +1,18 @@
 #ifndef __imagepro_H__
 #define __imagepro_H__
 
+/*
+   Platform & Architecture:
+       (1) Win32:
+             (a) x86: XP SP3 or above; CPU supports SSE2 instruction set or above
+             (b) x64: Win7 or above
+       (2) macOS: x64; macOS 11.0 or above
+       (3) Linux: kernel 2.6.27 or above
+             (a) x86: CPU supports SSE3 instruction set or above; GLIBC 2.17 or above
+             (b) x64: GLIBC 2.17 or above
+             (c) arm64: GLIBC 2.17 or above
+*/
+
 #if defined(_WIN32)
 #ifdef IMAGEPRO_EXPORTS
 #define IMAGEPRO_API(r) __declspec(dllexport) r __cdecl
@@ -11,6 +23,15 @@
 #else
 #define __cdecl
 #define IMAGEPRO_API(r) r
+#if (!defined(HRESULT)) && (!defined(__COREFOUNDATION_CFPLUGINCOM__)) /* CFPlugInCOM.h */
+#define HRESULT int
+#endif
+#ifndef SUCCEEDED
+#define SUCCEEDED(hr)   (((HRESULT)(hr)) >= 0)
+#endif
+#ifndef FAILED
+#define FAILED(hr)      (((HRESULT)(hr)) < 0)
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -30,8 +51,7 @@ extern "C"
 typedef void* (__cdecl *pfun_imagepro_malloc)(size_t);
 IMAGEPRO_API(void) imagepro_init(pfun_imagepro_malloc pfun);
 
-#if !defined(_WIN32)
-#ifndef __BITMAPINFOHEADER_DEFINED__
+#if !(defined(_WIN32) || defined(__BITMAPINFOHEADER_DEFINED__))
 #define __BITMAPINFOHEADER_DEFINED__
 typedef struct {
     unsigned        biSize;
@@ -47,19 +67,19 @@ typedef struct {
     unsigned        biClrImportant;
 } BITMAPINFOHEADER;
 #endif
-#endif
 
 /* inputImage, outputImage: pointer to BITMAPINFOHEADER
     method:
         AUTO      = -1, (AREA for shrink, CUBIC for enlarge)
-        NN        = 0,
+        NN        = 0, (Nearest Neighbors)
         LINEAR    = 1,
         CUBIC     = 2,
         AREA      = 3,
         LANCZOS4  = 4
 */
-IMAGEPRO_API(HRESULT) imagepro_resizeV1(void* srcImage, void* destImage, int method);
-IMAGEPRO_API(HRESULT) imagepro_resizeV2(BITMAPINFOHEADER* pSrc, int srcStep, void* srcImage, BITMAPINFOHEADER* pDest, int destStep, void* destImage, int method);
+IMAGEPRO_API(HRESULT) imagepro_resizeV1(const void* srcImage, void* destImage, int method);
+IMAGEPRO_API(HRESULT) imagepro_resizeV2(const BITMAPINFOHEADER* pSrc, int srcStep, void* srcImage, BITMAPINFOHEADER* pDest, int destStep, void* destImage, int method);
+
 /*
 * informat: fourcc
 * outformat: BGR(0), BGRA(1), 2(RGB), 3(RGBA)
@@ -211,12 +231,13 @@ typedef struct{
 } ApertureSt;
 
 typedef struct{
-    double allenergy;
+    double totalEnergy;
     double centroidX;
     double centroidY;
     double beamWidthX;
     double beamWidthY;
     double ellipticity;
+    double orientation;
     ApertureSt aperture;
 } BeamPacket;
 
@@ -224,9 +245,11 @@ typedef struct ImageproSpot_t { int unused; } *HImageproSpot;
 IMAGEPRO_API(HImageproSpot) imagepro_spot_new(int spotnum, int maxpacket);
 IMAGEPRO_API(void) imagepro_spot_reset(HImageproSpot handle);
 IMAGEPRO_API(void) imagepro_spot_setAperture(HImageproSpot handle, ApertureSt aperture);
+IMAGEPRO_API(void) imagepro_spot_setRoi(HImageproSpot handle, unsigned xOffset, unsigned yOffset, unsigned xWidth, unsigned yHeight);
+IMAGEPRO_API(void) imagepro_spot_setEllipse(HImageproSpot handle, int isEllipse /* bool */);
+IMAGEPRO_API(void) imagepro_spot_setPseudoColor(HImageproSpot handle, int isPseudoColor /* bool */);
 IMAGEPRO_API(void) imagepro_spot_delete(HImageproSpot handle);
 
-#if defined(_WIN32)
 #define IMAGEPRO_LIVESTACK_NUM_MIN 1
 #define IMAGEPRO_LIVESTACK_NUM_MAX 99
 #define IMAGEPRO_LIVESTACK_NUM_DEF 10
@@ -254,6 +277,7 @@ typedef enum {
 } eImageproLivestackType;
 
 IMAGEPRO_API(HLivestack) imagepro_livestack_new(eImageproLivestackMode mode, eImageproLivestackType type, IMAGEPRO_LIVESTACK_CALLBACK pfun, void* ctx);
+IMAGEPRO_API(HLivestack) imagepro_livestack_newV2(eImageproFormat format, int use32F, eImageproLivestackMode mode, eImageproLivestackType type, IMAGEPRO_LIVESTACK_CALLBACK pfun, void* ctx);
 IMAGEPRO_API(void) imagepro_livestack_delete(HLivestack handle);
 IMAGEPRO_API(void) imagepro_livestack_start(HLivestack handle);
 IMAGEPRO_API(void) imagepro_livestack_stop(HLivestack handle);
@@ -261,7 +285,11 @@ IMAGEPRO_API(void) imagepro_livestack_ref(HLivestack handle, void* data, const i
 IMAGEPRO_API(void) imagepro_livestack_add(HLivestack handle, void* data, const int width, const int height, const int depth);
 IMAGEPRO_API(void) imagepro_livestack_setalign(HLivestack handle, int align); /* align: true or false */
 IMAGEPRO_API(void) imagepro_livestack_setnum(HLivestack handle, int num);
-#endif
+
+typedef struct { unsigned unused; } *HImageproEdge;
+IMAGEPRO_API(HImageproEdge) imagepro_edge_new(eImageproFormat format, const int width, const int height, const int radius);
+IMAGEPRO_API(int) imagepro_edge_get(HImageproEdge handle, void* data, unsigned* x, unsigned* y, const int radius);
+IMAGEPRO_API(void) imagepro_edge_delete(HImageproEdge handle);
 
 #ifdef __cplusplus
 }

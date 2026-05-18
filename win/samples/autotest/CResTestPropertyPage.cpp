@@ -4,7 +4,6 @@
 #include "CResTestPropertyPage.h"
 #include "AutoTestDlg.h"
 
-
 CResTestPropertyPage::CResTestPropertyPage()
 	: CTestPropertyPage(IDD_PROPERTY_RESOLUTION_TEST)
 	, m_resCount(0)
@@ -132,5 +131,3 @@ void CResTestPropertyPage::OnBnClickedButtonResolutionTestStart()
 		SetTimer(1, 2000, nullptr);
 	}
 }
-
-

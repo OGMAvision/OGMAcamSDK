@@ -250,13 +250,13 @@ public:
 	{
 		if (m_hcam)
 		{
-			int bAutoExposure = 0;
-			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &bAutoExposure)))
+			int mode = 0;
+			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &mode)))
 			{
-				bAutoExposure = !bAutoExposure;
-				Ogmacam_put_AutoExpoEnable(m_hcam, bAutoExposure);
-				UISetCheck(ID_CONFIG_AUTOEXPOSURE, bAutoExposure ? 1 : 0);
-				UIEnable(ID_CONFIG_EXPOSURETIME, !bAutoExposure);
+				mode = !mode;
+				Ogmacam_put_AutoExpoEnable(m_hcam, mode);
+				UISetCheck(ID_CONFIG_AUTOEXPOSURE, mode ? 1 : 0);
+				UIEnable(ID_CONFIG_EXPOSURETIME, !mode);
 			}
 		}
 	}
@@ -574,11 +574,11 @@ private:
 				statusbar.SetText(2, res);
 			}
 
-			BOOL bAutoExposure = TRUE;
-			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &bAutoExposure)))
+			int mode = 1;
+			if (SUCCEEDED(Ogmacam_get_AutoExpoEnable(m_hcam, &mode)))
 			{
-				UISetCheck(ID_CONFIG_AUTOEXPOSURE, bAutoExposure ? 1 : 0);
-				UIEnable(ID_CONFIG_EXPOSURETIME, !bAutoExposure);
+				UISetCheck(ID_CONFIG_AUTOEXPOSURE, mode ? 1 : 0);
+				UIEnable(ID_CONFIG_EXPOSURETIME, !mode);
 			}
 		}
 

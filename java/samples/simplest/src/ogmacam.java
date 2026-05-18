@@ -1,6 +1,8 @@
 import java.util.Hashtable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import com.sun.jna.*;
@@ -9,7 +11,7 @@ import com.sun.jna.win32.*;
 import com.sun.jna.Structure.FieldOrder;
 
 /*
-    Version: 59.28926.20250709
+    Version: 59.30850.20260211
 
     We use JNA (https://github.com/java-native-access/jna) to call into the ogmacam.dll/so/dylib API, the java class ogmacam is a thin wrapper class to the native api.
     So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.java.
@@ -22,6 +24,14 @@ import com.sun.jna.Structure.FieldOrder;
     Please distinguish between camera ID (camId) and camera SN:
         (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
         (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
+*/
+
+/*
+    Coordinate:
+        (a) Functions with coordinate parameters, such as Ogmacam_put_Roi, Ogmacam_put_AEAuxRect, etc., the coordinate is always relative to the original resolution,
+            even that the image has been flipped, rotated, digital binning, ROI, or combination of the previous operations.
+        (b) Exception: if the image is upside down (see here), the coordinate must be also upsize down.
+        (c) Exception: hardware binning.
 */
 
 public class ogmacam implements AutoCloseable {
@@ -73,7 +83,7 @@ public class ogmacam implements AutoCloseable {
     public final static long FLAG_GIGE                    = 0x0000200000000000L;  /* 1 Gigabit GigE */
     public final static long FLAG_10GIGE                  = 0x0000400000000000L;  /* 10 Gigabit GigE */
     public final static long FLAG_5GIGE                   = 0x0000800000000000L;  /* 5 Gigabit GigE */
-    public final static long FLAG_25GIGE                  = 0x0001000000000000L;  /* 2.5 Gigabit GigE */
+    public final static long FLAG_40GIGE                  = 0x0001000000000000L;  /* 40 Gigabit GigE */
     public final static long FLAG_AUTOFOCUSER             = 0x0002000000000000L;  /* astro auto focuser */
     public final static long FLAG_LIGHT_SOURCE            = 0x0004000000000000L;  /* stand alone light source */
     public final static long FLAG_CAMERALINK              = 0x0008000000000000L;  /* camera link */
@@ -83,8 +93,11 @@ public class ogmacam implements AutoCloseable {
     public final static long FLAG_RAW11                   = 0x0080000000000000L;  /* pixel format, RAW 11bits */
     public final static long FLAG_GHOPTO                  = 0x0100000000000000L;  /* ghopto sensor */
     public final static long FLAG_RAW10PACK               = 0x0200000000000000L;  /* pixel format, RAW 10bits packed */
-    public final static long FLAG_USB32                   = 0x0400000000000000L;  /* usb3.2 */
-    public final static long FLAG_USB32_OVER_USB30        = 0x0800000000000000L;  /* usb3.2 camera connected to usb3.0 port */
+    public final static long FLAG_USB32                   = 0x0400000000000000L;  /* USB 3.2 Gen 2 */
+    public final static long FLAG_USB32_OVER_USB30        = 0x0800000000000000L;  /* USB 3.2 Gen 2 camera connected to usb3.0 port */
+    public final static long FLAG_LINESCAN                = 0x1000000000000000L;  /* line scan camera */
+    public final static long FLAG_25GIGE                  = 0x2000000000000000L;  /* 2.5 Gigabit GigE */
+    public final static long FLAG_RAW14PACK               = 0x4000000000000000L;  /* pixel format, RAW 14bits packed */
     
     public final static int EVENT_EXPOSURE                = 0x0001; /* exposure time or gain changed */
     public final static int EVENT_TEMPTINT                = 0x0002; /* white balance changed, Temp/Tint mode */
@@ -117,7 +130,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_NOFRAME_TIMEOUT        = 0x01;       /* [RW] no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable */
     public final static int OPTION_THREAD_PRIORITY        = 0x02;       /* [RW] set the priority of the internal thread which grab data from the usb device.
                                                                              Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
-                                                                             Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
+                                                                             Linux & macOS: similar to Win
                                                                         */
     public final static int OPTION_RAW                    = 0x04;       /* [RW]
                                                                            0: RGB mode
@@ -152,7 +165,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_DEMOSAIC_STILL         = 0x14;       /* [RW] demosaic method for still image */
     public final static int OPTION_BLACKLEVEL             = 0x15;       /* [RW] black level */
     public final static int OPTION_MULTITHREAD            = 0x16;       /* [RW] multithread image processing */
-    public final static int OPTION_BINNING                = 0x17;       /* [RW] binning
+    public final static int OPTION_BINNING                = 0x17;       /* [RW] digital binning
                                                                                0x01: (no binning)
                                                                                n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
                                                                                0x40 | n: (unsaturated add, n*n, works only in RAW mode), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
@@ -227,7 +240,9 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_PRECISE_FRAMERATE      = 0x2d;       /* [RW] precise frame rate current value in 0.1 fps. use OPTION_MAX_PRECISE_FRAMERATE, OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned */
     public final static int OPTION_BANDWIDTH              = 0x2e;       /* [RW] bandwidth, [1-100]% */
     public final static int OPTION_RELOAD                 = 0x2f;       /* [RW] reload the last frame in trigger mode */
-    public final static int OPTION_CALLBACK_THREAD        = 0x30;       /* [RW] dedicated thread for callback: 0 => disable, 1 => enable, default: 0 */
+    public final static int OPTION_CALLBACK_THREAD        = 0x30;       /* [RW] dedicated thread for callback: 0 => disable, 1 => enable
+                                                                                default: 1(GigE), 0(others)
+                                                                        */
     public final static int OPTION_FRONTEND_DEQUE_LENGTH  = 0x31;       /* [RW] frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
                                                                            All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
                                                                         */
@@ -379,10 +394,10 @@ public class ogmacam implements AutoCloseable {
                                                                                     ((val & 0xff00) >> 8): sequence
                                                                                     ((val & 0xff0000) >> 16): average number
                                                                         */
-    public final static int OPTION_OVEREXP_POLICY          = 0x68;      /* [RW] Auto exposure over exposure policy: when overexposed,
+    public final static int OPTION_OVEREXP_POLICY          = 0x68;      /* [RW] Auto exposure overexposure policy: when overexposed,
                                                                                 0 => directly reduce the exposure time/gain to the minimum value; or
-                                                                                1 => reduce exposure time/gain in proportion to current and target brightness; or
-                                                                                n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
+                                                                                1 => reduce exposure time/gain according to the ratio between current and target brightness; or
+                                                                                n(n>1) => first, adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
                                                                             The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
                                                                             Policy 1 avoids the black screen, but the convergence speed is slower.
                                                                             Default: 0
@@ -398,13 +413,13 @@ public class ogmacam implements AutoCloseable {
                                                                             n<0: every -n frame
                                                                         */
     public final static int OPTION_TECTARGET_RANGE        = 0x6d;       /* [RO] TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff) */
-    public final static int OPTION_CDS                    = 0x6e;       /* [RW] Correlated Double Sampling */
+    public final static int OPTION_CDS                    = 0x6e;       /* [RW] Correlated Double Sampling: 0~max (OPTION_CDS_MAX) */
     public final static int OPTION_LOW_POWER_EXPOTIME     = 0x6f;       /* [RW] Low Power Consumption: Enable if exposure time is greater than the set value */
     public final static int OPTION_ZERO_OFFSET            = 0x70;       /* [RW] Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0 */
-    public final static int OPTION_GVCP_TIMEOUT           = 0x71;       /* [RW] GVCP Timeout: millisecond, range = [3, 75], default: 15
+    public final static int OPTION_GVCP_TIMEOUT           = 0x71;       /* [RW] GVCP Timeout: millisecond, range = [5, 150], default: 15(wire), 30(wireless)
                                                                              Unless in very special circumstances, generally no modification is required, just use the default value
                                                                         */
-    public final static int OPTION_GVCP_RETRY             = 0x72;       /* [RW] GVCP Retry: range = [2, 8], default: 4
+    public final static int OPTION_GVCP_RETRY             = 0x72;       /* [RW] GVCP Retry: range = [2, 16], default: 4(wire), 8(wireless)
                                                                              Unless in very special circumstances, generally no modification is required, just use the default value
                                                                         */
     public final static int OPTION_GVSP_WAIT_PERCENT      = 0x73;       /* [RW] GVSP wait percent: range = [0, 100], default = (trigger mode: 100, realtime: 0, other: 1) */
@@ -420,7 +435,7 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_TIMED_TRIGGER_LOW      = 0x20000000; /* [RW] Timed trigger: lower 32 bits of 64-bit integer, nanosecond since epoch (00:00:00 UTC on Thursday, 1 January 1970, see https://en.wikipedia.org/wiki/Unix_time) */
     public final static int OPTION_TIMED_TRIGGER_HIGH     = 0x40000000; /* [RW] Timed trigger: high 32 bits. The lower 32 bits must be set first, followed by the higher 32 bits */
     public final static int OPTION_AUTOEXP_THLD_TRIGGER   = 0x7d;       /* [RW] trigger threshold of auto exposure */
-    public final static int OPTION_LANE                   = 0x7e;       /* [RW] */
+    public final static int OPTION_LANE                   = 0x7e;       /* [RW] Lane */
     public final static int OPTION_VOLTAGEBIAS            = 0x7f;       /* [RW] Voltage bias */
     public final static int OPTION_VOLTAGEBIAS_RANGE      = 0x80;       /* [RO] Voltage bias range: min (low 16bits), max (high 16bits) */
     public final static int OPTION_READ_TIME              = 0x81;       /* [RO] */
@@ -430,7 +445,17 @@ public class ogmacam implements AutoCloseable {
     public final static int OPTION_BACKEND_FULL           = 0x85;       /* [RO] get the number of backend deque full */
     public final static int OPTION_GPS                    = 0x86;       /* [RO] gps status: 0 => not supported; -1 => gps device offline; 1 => gps device online */
     public final static int OPTION_LINE_LENGTH            = 0x87;       /* [RW] Line length in pixel clock */
-    public final static int OPTION_SCAN_DIRECTION         = 0x88;       /* [RW] Scan direction: 0 (forward), 1(reverse), 2(alternate) */
+    public final static int OPTION_SCAN_DIRECTION         = 0x88;       /* [RW] Scan direction: 0(forward), 1(reverse), 2(alternate) */
+    public final static int OPTION_BLACKLEVEL_AUTOADJUST  = 0x89;       /* [RW] Black level automatic adjustment function: 0: off, 1: on
+                                                                                This setting turn on/off black level auto adjust function by OB(Optical Black) level.
+                                                                                In case of long exposure and so on, OB level is offset by leak or any other reason.
+                                                                                Because of it, if the adjustment becomes a problem, this setting is introduced for one of the solution.
+                                                                        */
+    public final static int OPTION_USER_SET               = 0x8a;       /* [RW] user set */
+    public final static int OPTION_DIGITAL_GAIN           = 0x1001;     /* [RW] digital gain */
+    public final static int OPTION_ANTI_BLOOMING          = 0x8b;       /* [RW] Anti Blooming */
+    public final static int OPTION_ANTI_BLOOMING_MAX      = 0x8c;       /* [RO} Anti Blooming */
+    public final static int OPTION_CDS_MAX                = 0x8d;       /* [RO} Correlated Double Sampling */
 
     public final static int PIXELFORMAT_RAW8              = 0x00;
     public final static int PIXELFORMAT_RAW10             = 0x01;
@@ -452,6 +477,7 @@ public class ogmacam implements AutoCloseable {
     public final static int PIXELFORMAT_HDR12HL           = 0x11;   /* HDR, Bitdepth: 12, Conversion Gain: High + Low */
     public final static int PIXELFORMAT_HDR14HL           = 0x12;   /* HDR, Bitdepth: 14, Conversion Gain: High + Low */
     public final static int PIXELFORMAT_RAW10PACK         = 0x13;
+    public final static int PIXELFORMAT_RAW14PACK         = 0x14;
     
     public final static int FRAMEINFO_FLAG_SEQ                = 0x00000001; /* frame sequence number */
     public final static int FRAMEINFO_FLAG_TIMESTAMP          = 0x00000002; /* timestamp */
@@ -675,8 +701,24 @@ public class ogmacam implements AutoCloseable {
     public final static int HDR_THRESHOLD_MIN         = 0;
     public final static int HDR_THRESHOLD_MAX         = 4094;
     public final static int CDS_MIN                   = 0;        /* Correlated Double Sampling */
-    public final static int CDS_MAX                   = 100;
+    public final static int ANTIBLOOMING_MIN          = 0;        /* Anti Blooming */
+    public final static int GVCP_RETRY_DEF            = 4;        /* GVCP Retry */
+    public final static int GVCP_RETRY_MIN            = 2;
+    public final static int GVCP_RETRY_MAX            = 20;
+    public final static int GVCP_TIMEOUT_DEF          = 40;       /* GVCP Timeout */
+    public final static int GVCP_TIMEOUT_MIN          = 20;
+    public final static int GVCP_TIMEOUT_MAX          = 200;
+    public final static int GVSP_WAIT_PERCENT_DEF     = 1;        /* GVSP wait percent */
+    public final static int GVSP_WAIT_PERCENT_MIN     = 0;
+    public final static int GVSP_WAIT_PERCENT_MAX     = 100;
+    public final static int FRONTEND_MAX              = 1024;     /* frontend frame buffer deque length */
+    public final static int FRONTEND_DEF              = 4;
+    public final static int FRONTEND_MIN              = 2;
+    public final static int BACKEND_MAX               = 1024;     /* backend frame buffer deque length */
+    public final static int BACKEND_DEF               = 3;
+    public final static int BACKEND_MIN               = 2;
     
+    /* flash action */
     public final static int FLASH_SIZE               = 0x00;    /* query total size */
     public final static int FLASH_EBLOCK             = 0x01;    /* query erase block size */
     public final static int FLASH_RWBLOCK            = 0x02;    /* query read/write block size */
@@ -684,6 +726,10 @@ public class ogmacam implements AutoCloseable {
     public final static int FLASH_READ               = 0x04;    /* read */
     public final static int FLASH_WRITE              = 0x05;    /* write */
     public final static int FLASH_ERASE              = 0x06;    /* erase */
+    
+    /* flash zone */
+    public final static int FLASH_SENSOR             = 0x00;    /* sensor */
+    public final static int FLASH_USER               = 0x02;    /* user */
 
     static public int TDIBWIDTHBYTES(int bits) {
         return ((bits + 31) & (~31)) / 8;
@@ -702,11 +748,12 @@ public class ogmacam implements AutoCloseable {
         public final static int E_POINTER       = 0x80004003; /* Pointer that is not valid */ /* Remark: Pointer is NULL */
         public final static int E_FAIL          = 0x80004005; /* Generic failure */
         public final static int E_WRONG_THREAD  = 0x8001010e; /* Call function in the wrong thread */
-        public final static int E_GEN_FAILURE   = 0x8007001f; /* Device not functioning */ /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc */
+        public final static int E_GEN_FAILURE   = 0x8007001f; /* Device not functioning */ /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc */
         public final static int E_BUSY          = 0x800700aa; /* The requested resource is in use */ /* Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc */
         public final static int E_PENDING       = 0x8000000a; /* The data necessary to complete this operation is not yet available */ /* Remark: No data is available at this time */
         public final static int E_TIMEOUT       = 0x8001011f; /* This operation returned because the timeout period expired */
-        public final static int E_UNREACH       = 0x80072743; /* Network is unreachable */
+        public final static int E_UNREACH       = 0x80072743; /* Network is unreachable */ /* Remark: Please check the IP settings of the camera and the computer, or the firewall settings */
+        public final static int E_CANCELLED     = 0x800704c7; /* The operation was canceled by the user */
         
         private final int _hresult;
         
@@ -739,7 +786,7 @@ public class ogmacam implements AutoCloseable {
                     return "Out of memory";
                 case E_WRONG_THREAD:
                     return "Call function in the wrong thread";
-                case E_GEN_FAILURE: /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc */
+                case E_GEN_FAILURE: /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc */
                     return "Device not functioning";
                 case E_BUSY: /* Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc */
                     return "The requested resource is in use";
@@ -749,6 +796,8 @@ public class ogmacam implements AutoCloseable {
                     return "This operation returned because the timeout period expired";
                 case E_UNREACH:
                     return "Network is unreachable";
+                case E_CANCELLED:
+                    return "The operation was canceled by the user";
                 default:
                     return "Unspecified failure";
             }
@@ -953,8 +1002,8 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_put_Roi(Pointer h, int xOffset, int yOffset, int xWidth, int yHeight);
         int Ogmacam_put_RoiN(Pointer h, int[] xOffset, int[] yOffset, int[] xWidth, int[] yHeight, int Num);
         int Ogmacam_put_XY(Pointer h, int x, int y);
-        int Ogmacam_get_AutoExpoEnable(Pointer h, IntByReference bAutoExposure);
-        int Ogmacam_put_AutoExpoEnable(Pointer h, int bAutoExposure);
+        int Ogmacam_get_AutoExpoEnable(Pointer h, IntByReference mode);
+        int Ogmacam_put_AutoExpoEnable(Pointer h, int mode);
         int Ogmacam_get_AutoExpoTarget(Pointer h, ShortByReference Target);
         int Ogmacam_put_AutoExpoTarget(Pointer h, short Target);
         int Ogmacam_put_AutoExpoRange(Pointer h, int maxTime, int minTime, short maxGain, short minGain);
@@ -1063,7 +1112,7 @@ public class ogmacam implements AutoCloseable {
         int Ogmacam_AAF(Pointer h, int action, int outVal, IntByReference inVal);
         int Ogmacam_get_LensInfo(Pointer h, Pointer pInfo);
         int Ogmacam_get_AFState(Pointer h, Pointer pState);
-        int Ogmacam_put_AFMode(Pointer h, int mode);
+        int Ogmacam_put_AFMode(Pointer h, int mode, int bFixedWD, int uiNear, int uiFar);
         int Ogmacam_put_AFRoi(Pointer h, int xOffset, int yOffset, int xWidth, int yHeight);
         int Ogmacam_put_AFAperture(Pointer h, int iAperture);
         int Ogmacam_put_AFFMPos(Pointer h, int iFMPos);
@@ -1117,6 +1166,7 @@ public class ogmacam implements AutoCloseable {
         }
         int Ogmacam_Update(WString camId, WString filePath, PROGRESS_CALLBACK funProgress, Pointer ctxProgress);
         int Ogmacam_GigeEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug);
+        int Ogmacam_GigeEnableV2(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug, String opt);
         int Ogmacam_PciEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug);
         int Ogmacam_CtiEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug, WString[] ctiPath);
 
@@ -1153,6 +1203,7 @@ public class ogmacam implements AutoCloseable {
         }
         int Ogmacam_Update(String camId, String filePath, PROGRESS_CALLBACK funProgress, Pointer ctxProgress);
         int Ogmacam_GigeEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug);
+        int Ogmacam_GigeEnableV2(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug, String opt);
         int Ogmacam_PciEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug);
         int Ogmacam_CtiEnable(HOTPLUG_CALLBACK funHotplug, Pointer ctxHotplug, String[] ctiPath);
 
@@ -1255,7 +1306,7 @@ public class ogmacam implements AutoCloseable {
         _hash.remove(_objid);
     }
     
-    /* get the version of this dll/so/dylib, which is: 59.28926.20250709 */
+    /* get the version of this dll/so/dylib, which is: 59.30850.20260211 */
     public static String Version() {
         if (Platform.isWindows())
             return _lib.Ogmacam_Version().getWideString(0);
@@ -1383,6 +1434,13 @@ public class ogmacam implements AutoCloseable {
 
     /* Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to null */
     public static void GigeEnable(IHotplugCallback cb) throws HRESULTException {
+        GigeEnable(cb, null);
+    }
+
+    /* opt: semicolon separated options:
+    *        "wifi": Enable WiFi adapter support
+    */
+    public static void GigeEnable(IHotplugCallback cb, String opt) throws HRESULTException {
         int id = _clsid++;
         _hash.put(id, cb);
         if (Platform.isWindows()) {
@@ -1393,7 +1451,10 @@ public class ogmacam implements AutoCloseable {
                 }
             };
             Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "hotplugCallback"));
-            errCheck(((WinLibrary)_lib).Ogmacam_GigeEnable(p, new Pointer(id)));
+            if ((opt == null) || (opt.isEmpty()))
+                errCheck(((WinLibrary)_lib).Ogmacam_GigeEnable(p, new Pointer(id)));
+            else
+                errCheck(((WinLibrary)_lib).Ogmacam_GigeEnableV2(p, new Pointer(id), opt));
         }
         else {
             CLibrary.HOTPLUG_CALLBACK p = new CLibrary.HOTPLUG_CALLBACK() {
@@ -1403,7 +1464,10 @@ public class ogmacam implements AutoCloseable {
                 }
             };
             Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "hotplugCallback"));
-            errCheck(((CLibrary)_lib).Ogmacam_GigeEnable(p, new Pointer(id)));
+            if ((opt == null) || (opt.isEmpty()))
+                errCheck(((CLibrary)_lib).Ogmacam_GigeEnable(p, new Pointer(id)));
+            else
+                errCheck(((CLibrary)_lib).Ogmacam_GigeEnableV2(p, new Pointer(id), opt));
         }
     }
     
@@ -1437,7 +1501,7 @@ public class ogmacam implements AutoCloseable {
     * (1) ctiPath = null means all *.cti in GENICAM_GENTL64_PATH/GENICAM_GENTL32_PATH
     * or
     * (2) ctiPath[] = {
-                "/full/path/to/file.cti"
+                "/full/path/to/file.cti",
                 ...
             }
     */
@@ -1445,7 +1509,7 @@ public class ogmacam implements AutoCloseable {
         int id = _clsid++;
         _hash.put(id, cb);
         if (Platform.isWindows()) {
-            WString[] newPath = new WString[ctiPath.length + 1];
+            WString[] newPath = new WString[ctiPath.length + 1]; /* Use NULL pointer to indicate the end of the array */
             for (int i = 0; i < ctiPath.length; ++i) {
                 newPath[i] = (ctiPath[i] != null) ? new WString(ctiPath[i]) : null;
             }
@@ -1470,7 +1534,7 @@ public class ogmacam implements AutoCloseable {
                 }
             };
             Native.setCallbackThreadInitializer(p, new CallbackThreadInitializer(false, false, "hotplugCallback"));
-            errCheck(((CLibrary)_lib).Ogmacam_CtiEnable(p, new Pointer(id), ctiPath));
+            errCheck(((CLibrary)_lib).Ogmacam_CtiEnable(p, new Pointer(id), newPath));
         }
     }
 
@@ -1478,13 +1542,12 @@ public class ogmacam implements AutoCloseable {
         the object of ogmacam must be obtained by static mothod Open or OpenByIndex, it cannot be obtained by obj = new ogmacam (The constructor is private on purpose)
     */
     // camId: enumerated by EnumV2, null means the first enumerated camera
-    // If it is a GigE camera, the camId can also be specified as (case sensitive):
-    // For USB, GigE or PCIe camera, the camId can the camId can also be specified as (case sensitive):
-    //    (a) "sn:xxxxxxxxxxxx" (such as sn:ZP250212241204105)
-    //    (b) "name:xxxxxx" (such as name: Camera1)
+    // For USB, GigE, CameraLink or CXP camera, the camId can also be specified as (case sensitive):
+    //    (a) "sn:xxxxxxxxxxxx" (Use SN, such as sn:ZP250212241204105), or
+    //    (b) "name:xxxxxx" (Use user-defined name, such as name:Camera1)
     //Moreover, for GigE camera, the camId can also be specified as (case sensitive):
-    //    (a) "ip:xxx.xxx.xxx.xxx" (such as ip:192.168.1.100) or
-    //    (b) "mac:xxxxxxxxxxxx" (such as mac:d05f64ffff23)
+    //    (a) "ip:xxx.xxx.xxx.xxx" (Use IP address, such as ip:192.168.1.100), or
+    //    (b) "mac:xxxxxxxxxxxx" (Use MAC address, such as mac:d05f64ffff23)
     public static ogmacam Open(String camId) {
         Pointer tmphandle = null;
         if (Platform.isWindows()) {
@@ -2000,7 +2063,7 @@ public class ogmacam implements AutoCloseable {
     */
     
     /*
-    * bAutoExposure:
+    * mode:
     *   0: disable auto exposure
     *   1: auto exposure continue mode
     *   2: auto exposure once mode
@@ -2011,8 +2074,8 @@ public class ogmacam implements AutoCloseable {
         return p.getValue();
     }
     
-    public void put_AutoExpoEnable(int bAutoExposure) throws HRESULTException {
-        errCheck(_lib.Ogmacam_put_AutoExpoEnable(_handle, bAutoExposure));
+    public void put_AutoExpoEnable(int mode) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_AutoExpoEnable(_handle, mode));
     }
     
     public short get_AutoExpoTarget() throws HRESULTException {
@@ -2023,8 +2086,7 @@ public class ogmacam implements AutoCloseable {
     
     public void put_AutoExpoTarget(short Target) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_AutoExpoTarget(_handle, Target));
-    }
-    
+    }    
     
     public void put_AutoExpoRange(int maxTime, int minTime, short maxGain, short minGain) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_AutoExpoRange(_handle, maxTime, minTime, maxGain, minGain));
@@ -2247,7 +2309,7 @@ public class ogmacam implements AutoCloseable {
         return p.getValue();
     }
     
-    /* power supply:
+    /* Light Frequency:
             0 => 60HZ AC
             1 => 50Hz AC
             2 => DC
@@ -2300,6 +2362,7 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_get_WhiteBalanceGain(_handle, aGain));
     }
     
+    /* Minimum width & height: 4 */
     public void put_AWBAuxRect(int X, int Y, int Width, int Height) throws HRESULTException {
         RECT rc = new RECT();
         rc.left = X;
@@ -2316,6 +2379,7 @@ public class ogmacam implements AutoCloseable {
         return new int[] { rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top };
     }
     
+    /* Minimum width & height: 4 */
     public void put_AEAuxRect(int X, int Y, int Width, int Height) throws HRESULTException {
         RECT rc = new RECT();
         rc.left = X;
@@ -2344,6 +2408,7 @@ public class ogmacam implements AutoCloseable {
         return p;
     }
     
+    /* Minimum width & height: 4 */
     public void put_ABBAuxRect(int X, int Y, int Width, int Height) throws HRESULTException {
         RECT rc = new RECT();
         rc.left = X;
@@ -2403,10 +2468,8 @@ public class ogmacam implements AutoCloseable {
         return errCheck(_lib.Ogmacam_read_EEPROMArray(_handle, addr, pBuffer, pBuffer.length));
     }
 
-    /* Flash:
-      action = FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+    /* action = (zone << 24) | OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
       addr = address
-      see democpp
     */
     public int rwc_Flash(int action, int addr, ByteBuffer pBuffer) throws HRESULTException {
         if (pBuffer.isDirect())
@@ -2486,6 +2549,16 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_get_Option(_handle, iOption, p));
         return p.getValue();
     }
+    public int[] getPixelFormatSupport() throws HRESULTException {
+        int num = get_PixelFormatSupport((byte)-1);
+        if (num > 0) {
+            int[] arr = new int[num];
+            for (byte i = 0; i < num; i++)
+                arr[i] = get_PixelFormatSupport(i);
+            return arr;
+        }
+        return null;
+    }
 
     /*
      * cmd:
@@ -2517,6 +2590,17 @@ public class ogmacam implements AutoCloseable {
         return arrString;
     }
 
+    public String[] getBinningValue() throws HRESULTException {
+        int num = get_BinningNumber();
+        if (num <= 0)
+            return null;
+
+        String[] arr = new String[num];
+        for (int i = 0; i < num; i++)
+            arr[i] = get_BinningValue(i);
+        return arr;
+    }
+
     int get_BinningNumber() throws HRESULTException {
         return _lib.Ogmacam_get_BinningNumber(_handle);
     }
@@ -2525,6 +2609,21 @@ public class ogmacam implements AutoCloseable {
         PointerByReference pValue = new PointerByReference();
         errCheck(_lib.Ogmacam_get_BinningValue(_handle, index, pValue));
         return pValue.getValue().getString(0);
+    }
+
+    public String[] get_BinningMethod() {
+        List<String> methods = new ArrayList<>();
+        int index = 0;
+        while (true) {
+            try {
+                String method = get_BinningMethod(index);
+                methods.add(method);
+                index++;
+            } catch (HRESULTException e) {
+                break;
+            }
+        }
+        return methods.toArray(new String[0]);
     }
 
     String get_BinningMethod(int index) throws HRESULTException {
@@ -2577,7 +2676,9 @@ public class ogmacam implements AutoCloseable {
         errCheck(_lib.Ogmacam_put_Temperature(_handle, nTemperature));
     }
     
-    /* xOffset, yOffset, xWidth, yHeight: must be even numbers */
+    /* xOffset, yOffset, xWidth, yHeight: must be even numbers
+        Minimum width & height: 8
+    */
     public void put_Roi(int xOffset, int yOffset, int xWidth, int yHeight) throws HRESULTException {
         errCheck(_lib.Ogmacam_put_Roi(_handle, xOffset, yOffset, xWidth, yHeight));
     }
@@ -2596,10 +2697,6 @@ public class ogmacam implements AutoCloseable {
         if (xOffset.length != yOffset.length || xOffset.length != xWidth.length || xOffset.length != yHeight.length)
             throw new HRESULTException(HRESULTException.E_INVALIDARG);
         errCheck(_lib.Ogmacam_put_RoiN(_handle, xOffset, yOffset, xWidth, yHeight, xOffset.length));
-    }
-    
-    public void put_XY(int x, int y) throws HRESULTException {
-        errCheck(_lib.Ogmacam_put_XY(_handle, x, y));
     }
     
     /*
@@ -2792,8 +2889,8 @@ public class ogmacam implements AutoCloseable {
         return pState;
     }
 
-    public void put_AFMode(int mode) throws HRESULTException {
-        errCheck(_lib.Ogmacam_put_AFMode(_handle, mode));
+    public void put_AFMode(int mode, int bFixedWD, int uiNear, int uiFar) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_AFMode(_handle, mode, bFixedWD, uiNear, uiFar));
     }
 
     public void put_AFRoi(int xOffset, int yOffset, int xWidth, int yHeight) throws HRESULTException {
@@ -2850,7 +2947,11 @@ public class ogmacam implements AutoCloseable {
             errCheck(((CLibrary)_lib).Ogmacam_GetHistogramV2(_handle, (CLibrary.HISTOGRAM_CALLBACK)_histogramcallback, new Pointer(_objid)));
         }
     }
-    
+
+    public void put_XY(int x, int y) throws HRESULTException {
+        errCheck(_lib.Ogmacam_put_XY(_handle, x, y));
+    }
+
     /*
         simulate replug:
         return > 0, the number of device has been replug

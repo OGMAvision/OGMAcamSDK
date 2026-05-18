@@ -8,22 +8,23 @@
 <h1 align="center">Ogmacam API 手册</h1>
 <p>&nbsp;</p>
 <hr/><h1><font color="#0000FF">1. 版本和平台</font></h1><hr/>
-<ul><li>版本:59.28926.20250709</li></ul>
+<ul><li>版本:59.30850.20260211</li></ul>
 <ul><li>平台<ul>
       <li>Win32:<ul>
           <li>x64: Win7及以上版本</li>
           <li>x86: XP SP3及以上版本; CPU至少需要支持SSE2指令集</li>
 		  <li>arm64: Win10及以上版本</li>
-		  <li>arm: Win10及以上版本</li>
       </ul></li>
-	  <li><a href="https://learn.microsoft.com/en-us/windows/uwp" target="_blank">WinRT/UWP</a>: x64, x86, arm64, arm；Windows 10及以上版本</li>
+	  <li><a href="https://learn.microsoft.com/en-us/windows/uwp" target="_blank">WinRT/UWP</a>: x64, x86, arm64；Windows 10及以上版本</li>
       <li>macOS: x64+arm64: macOS 11.0及以上版本, 支持x64和<a href="https://en.wikipedia.org/wiki/Apple_silicon" target="_blank">Apple silicon</a>(如M1, M2等)</li>
       <li>Linux: 内核2.6.27及以上<ul>
 			<li>x64: GLIBC 2.14及以上</li>
 			<li>x86: CPU至少需要支持SSE3指令集；GLIBC 2.8及以上</li>
-			<li>arm64: GLIBC 2.17及以上；由aarch64-linux-gnu(版本5.4.0)编译</li>
-			<li>armhf: GLIBC 2.8及以上；由arm-linux-gnueabihf(版本5.4.0)编译</li>
-			<li>armel: GLIBC 2.8及以上；由arm-linux-gnueabi(版本5.4.0)编译</li>
+			<li>arm64: GLIBC 2.17及以上</li>
+			<li>arm64: musl libc</li>
+			<li>armhf: GLIBC 2.8及以上</li>
+			<li>armel: GLIBC 2.8及以上</li>
+			<li>ostl: 意法半导体(STMicroelectronics) OpenSTLinux</li>
 		</ul></li>
       <li>Android: __ANDROID_API__ &gt;= 24 (Android 7.0); 由android-ndk-r18b编译; 请参阅<a href="https://developer.android.google.cn/ndk/guides/abis?hl=zh-cn" target="_blank">这里</a>
         <ul><li>arm64: arm64-v8a</li>
@@ -57,7 +58,7 @@
 		  建议使用DPInst.exe来自动安装驱动, 如使用NSIS制作安装文件, 可以使用类似如下语句:
 			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>ExecWait '"$INSTDIR\drivers\x64\DPInst.exe" /SA /SW /PATH "$INSTDIR\drivers\x64"'</pre></td></tr></table>
 		</blockquote></blockquote>
-		<blockquote>GigE: GigE Performance Driver(Win7及以上版本), 千兆相机可选安装, 万兆相机必须安装并启用. 请使用命令行(<b>管理员模式</b>), cd到.inf文件所在目录, 执行类似如下语句安装(install.cmd). 如果存在老版本, 需要先卸载老版本(uninstall.cmd), 再安装新版本:<blockquote>
+		<blockquote>GigE: GigE Performance Driver(Win7及以上版本), 千兆相机可选安装, 万兆相机建议安装并启用. 请使用命令行(<b>管理员模式</b>), cd到.inf文件所在目录, 执行类似如下语句安装(install.cmd). 如果存在老版本, 需要先卸载老版本(uninstall.cmd), 再安装新版本:<blockquote>
 			<table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>安装: netcfg.exe -v -l gigepdrv.inf -c s -i gigepdrv<br/>卸载: netcfg.exe -u gigepdrv</pre></td></tr></table>
 		另外:<br/>(a) 请开启网卡巨帧(<a href="https://en.wikipedia.org/wiki/Jumbo_frame">Jumbo Frame</a>), 选择&gt;=9000的值, 参阅<a href="#mtu">这里</a><br/>
 			(b) 保持网卡协议/驱动的简洁, 特别是生产环境下: 删除或禁用不相干的网卡协议和驱动(如Npcap Packet Driver等等). 最简洁的状态下, 只剩下Gige Performance Driver和TCP/IPv4两条.
@@ -71,7 +72,8 @@
      <li>x64: libogmacam.so, x64版本so文件</li>
 	 <li>armel: libogmacam.so, armel版本so文件, toolchain为arm-linux-gnueabi</li>
 	 <li>armhf: libogmacam.so, armhf版本so文件, toolchain为arm-linux-gnueabihf</li>
-	 <li>arm64: libogmacam.so, arm64版本so文件, toolchain为aarch64-linux-gnu</li>
+	 <li>arm64/glibc: libogmacam.so, arm64 glibc版本so文件, toolchain为aarch64-linux-gnu</li>
+	 <li>arm64/musl: libogmacam.so, arm64 musl libc版本so文件, toolchain为aarch64-linux-musleabi</li>
 	</ul><blockquote>***Linux区分平台的简便方法, 在目标平台执行file /bin/ls. 以下为某树莓派下的结果, 可以看出属于armhf:
     <table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>$ file /bin/ls
 /bin/ls: ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-<strong>armhf</strong>.so.3, for GNU/Linux 3.2.0, BuildID[sha1]=67a394390830ea3ab4e83b5811c66fea9784ee69, stripped</pre></td></tr></table>
@@ -261,7 +263,7 @@
 		在调用Ogmacam_Trigger函数之前, 相机必须已经处于触发模式.
 	</blockquote><p>9. 触发超时</p><blockquote>超时时间建议不少于(曝光时间 * 102% + 4秒).</blockquote>
 <h2><font color="#0000FF">g. 线程安全</font></h2>
-<p>采用一种中性自然策略(类似C++标准库), 意味着:</p>
+<p>采用一种中性自然的线程安全策略(类似C++标准库), 意味着:</p>
 <blockquote>
 <p>a) 从多个线程读取单个相机对象是线程安全的. 例如, 给定一个相机对象A, 同时从线程1和线程2读取A是安全的.</p>
 <p>b) 如果一个线程正在写入一个相机对象, 则同一线程或其他线程上对该对象的所有读取和写入都必须受到保护. 例如, 给定一个相机对象A, 如果线程1正在写A, 则必须阻止线程2读取或写入A.</p>
@@ -273,7 +275,7 @@
 <blockquote>
 <p>a) 日志文件名和库文件完全相同, 扩展名修改为*.log (如ogmacam.dll对应log文件为ogmacam.log; xyz.dll对应为xyz.log; libxyz.so对应libxyz.log)</p>
 <p>b) 日志文件的时间默认使用相对时间, 把SDK启动时刻记为[00:00:00.000]. 如果想使用本地时间 (如[0923 17:11:01.491]), 在*.log增加字母"l" (即*.llog)</p>
-<p>c) 默认每次开启程序自动清空log文件的内容, 从0开始写日志. *.log增加字母"a", 表示使用append模式, 重启程序时不清空log文件内容</p>
+<p>c) 默认每次开启程序自动清空log文件的内容, 从0开始写日志. *.log增加字母"a", 表示使用append模式, 重启程序时不清空log文件内容 (即*.alog)</p>
 <p>d) <strong>请确保程序对log文件有写权限</strong>(比如程序安装在Program Files目录下, 经常发生日志文件非管理员模式下不可写, 建议管理员模式运行程序或者修改日志文件的权限配置)</p>
 </blockquote>
 <hr/><h1><font color="#0000FF">4. 函数</font></h1><hr/>
@@ -290,12 +292,12 @@
       </tr><tr>
         <td>S_OK</td>
         <td>Success (成功)</td>
-		<td></td>
+		<td><strong>成功</strong></td>
 		<td>0x00000000</td>
 	  </tr><tr>
         <td>S_FALSE</td>
         <td>Yet another <strong>success</strong></td>
-		<td>成功, 但和S_OK有所区别, 比如内部值和用户设置的值已经一致, 相当于空操作</td>
+		<td><strong>成功, 但和S_OK有所区别.</strong> 比如内部值和用户设置的值已经一致, 相当于空操作</td>
 		<td>0x00000001</td>
 	  </tr><tr>
         <td>E_ACCESSDENIED</td>
@@ -330,7 +332,7 @@
 	  </tr><tr>
         <td>E_GEN_FAILURE</td>
         <td>Device not functioning (设备不响应)</td>
-		<td>一般由硬件错误引起, 如线缆问题, USB口问题, 接触不良, 相机硬件损坏等等</td>
+		<td>一般由硬件错误引起, 如线缆问题, USB口问题, 接触不良, 供电不足, 相机硬件损坏等等</td>
 		<td>0x8007001f</td>
 	  </tr><tr>
         <td>E_BUSY</td>
@@ -347,6 +349,16 @@
         <td>This operation returned because the timeout period expired (操作超时)</td>
 		<td></td>
 		<td>0x8001011f</td>
+	  </tr><tr>
+        <td>E_UNREACH</td>
+        <td>Network is unreachable (网络不可达)</td>
+		<td>请检查相机和电脑的IP设置, 或防火墙的设置</td>
+		<td>0x80072743</td>
+	  </tr><tr>
+        <td>E_CANCELLED</td>
+        <td>The operation was canceled by the user (操作被取消)</td>
+		<td></td>
+		<td>0x800704c7</td>
 	  </tr><tr>
         <td>E_FAIL</td>
         <td>Unspecified failure (未指定的错误)</td>
@@ -375,8 +387,8 @@
 	  (d)如果执行以上操作时和回调函数时试图获取同一把锁, 会导致永远等待回调结束, 死锁</strong>
 </li></ul>
 <ul><li><h2><a id="cord"><font color="#0000FF">坐标</font></a></h2>
-<p>类似Ogmacam_put_Roi, Ogmacam_put_AEAuxRect等等这类带有坐标参数的, 其坐标<strong>永远是相对原始分辨率而言</strong>的, 即使视频已经执行过旋转, Flip, ROI, 数字Binning或它们的任意组合.</p>
-<p>如果视频是倒置的(参考<a href="#upsidedown">这里</a>), 则矩形坐标也必须倒置.</p>
+<p>类似Ogmacam_put_Roi, Ogmacam_put_AEAuxRect等等这类带有坐标参数的, 其坐标<strong>永远是相对原始分辨率而言</strong>的, 即使图像已经执行过旋转, Flip, ROI, 数字Binning或它们的任意组合.</p>
+<p>例外:<blockquote>(a) 如果图像是倒置的(参考<a href="#upsidedown">这里</a>), 则坐标也必须倒置.</blockquote><blockquote>(b) 硬件Binning.</blockquote></p>
 </li></ul>
 <ul><li><h2><font color="#0000FF">Ogmacam_EnumV2<br/>Ogmacam_EnumWithName</font></h2>
   <p><strong>返回值：</strong>非负整数, 枚举到的相机数目</p>
@@ -392,7 +404,7 @@ for (unsigned i = 0; i &lt; cnt; ++i)
 <table width="100%" border="0" bgcolor="#B0D0B0"><tr><td><pre>
 typedef struct{
 #ifdef _WIN32
-    const wchar_t*     name;     /* model name */
+    const wchar_t*     name;     /* model name, 型号名称 */
 #else
     const char*        name;
 #endif
@@ -402,8 +414,8 @@ typedef struct{
     unsigned           still;    /* number of still resolution, Ogmacam_get_StillResolutionNumber */
     unsigned           maxfanspeed; /* maximum fan speed */
     unsigned           ioctrol;     /* number of input/output control */
-    float              xpixsz;      /* physical pixel size in micrometer */
-    float              ypixsz;      /* physical pixel size in micrometer */
+    float              xpixsz;      /* physical pixel size in micrometer, 像元尺寸 */
+    float              ypixsz;      /* physical pixel size in micrometer, 像元尺寸 */
     OgmacamResolution  res[OGMACAM_MAX];
 }OgmacamModelV2; /* device model v2 */
 
@@ -415,7 +427,7 @@ typedef struct {
     char     displayname[64];    /* 显示名称: 型号名称或用户指定的自定义名称(如果有并且使用Ogmacam_EnumWithName, 使用Ogmacam_EnumV2返回型号名称) */
     char     id[64];             /* camId */
 #endif
-    const OgmacamModelV2* model;
+    const OgmacamModelV2* model; /* Functionally equivalent to a global constant, remaining valid and unchanged throughout the lifetime of the process(等价于全局常量, 在进程生命周期中一直有效且保持不变) */
 } OgmacamDeviceV2; /* device instance for enumerating */
 </pre></td></tr></table><br/>
 <div align="center">
@@ -423,7 +435,7 @@ typedef struct {
    <td width="8%">name</td>
    <td colspan="2">型号名称</td>
    </tr><tr>
-   <td width="8%" rowspan="59">flag</td>
+   <td width="8%" rowspan="62">flag</td>
    <td colspan="2">位标记 (Bitwise flag)</td>
    </tr><tr>
    <td width="29%">OGMACAM_FLAG_CMOS</td>
@@ -445,13 +457,13 @@ typedef struct {
    <td>支持bin/skip模式, 请参考<a href="#binskip">Ogmacam_put_Mode和Ogmacam_get_Mode</a></td>
  </tr><tr>
    <td>OGMACAM_FLAG_USB32</td>
-   <td>USB3.2</td>
+   <td>USB 3.2 Gen 2</td>
  </tr><tr>
    <td>OGMACAM_FLAG_USB30</td>
    <td>USB3.0</td>
  </tr><tr>
    <td>OGMACAM_FLAG_USB32_OVER_USB30</td>
-   <td>usb3.2相机被插入usb3.0端口</td>
+   <td>USB 3.2 Gen 2相机被插入usb3.0端口</td>
  </tr><tr>
    <td>OGMACAM_FLAG_USB30_OVER_USB20</td>
    <td>usb3.0相机被插入usb2.0端口</td>
@@ -485,6 +497,9 @@ typedef struct {
  </tr><tr>
    <td>OGMACAM_FLAG_RAW14</td>
    <td>OGMACAM_PIXELFORMAT_RAW14 Pixel format, RAW 14 bits</td>
+ </tr><tr>
+   <td>OGMACAM_FLAG_RAW14PACK</td>
+   <td>OGMACAM_PIXELFORMAT_RAW14PACK Pixel format, RAW 14 bits, packed</td>
  </tr><tr>
    <td>OGMACAM_FLAG_RAW16</td>
    <td>OGMACAM_PIXELFORMAT_RAW16 Pixel format, RAW 16 bits</td>
@@ -572,20 +587,26 @@ typedef struct {
     <td>OGMACAM_FLAG_GIGE</td>
     <td>1 Gigabit GigE</td>
   </tr><tr>
-    <td>OGMACAM_FLAG_10GIGE</td>
-    <td>10 Gigabit GigE</td>
+    <td>OGMACAM_FLAG_25GIGE</td>
+    <td>2.5 Gigabit GigE</td>
   </tr><tr>
     <td>OGMACAM_FLAG_5GIGE</td>
     <td>5 Gigabit GigE</td>
   </tr><tr>
-    <td>OGMACAM_FLAG_25GIGE</td>
-    <td>2.5 Gigabit GigE</td>
+    <td>OGMACAM_FLAG_10GIGE</td>
+    <td>10 Gigabit GigE</td>
+  </tr><tr>
+    <td>OGMACAM_FLAG_40GIGE</td>
+    <td>40 Gigabit GigE</td>
   </tr><tr>
     <td>OGMACAM_FLAG_CAMERALINK</td>
     <td>camera link</td>
   </tr><tr>
     <td>OGMACAM_FLAG_CXP</td>
     <td>CXP: CoaXPress</td>
+  </tr><tr>
+    <td>OGMACAM_FLAG_LINESCAN</td>
+    <td>线阵相机</td>
   </tr><tr>
     <td>OGMACAM_FLAG_FILTERWHEEL</td>
     <td>天文滤镜轮</td>
@@ -647,12 +668,12 @@ typedef struct {
     <p><strong>参数：</strong></p>
 		<blockquote>
 	<p><a href="#camidsn">camId</a>: Ogmacam相机ID, 由Ogmacam_EnumV2枚举得到. <strong>如果</strong><strong>camId</strong><strong>是NULL</strong><strong>则自动打开第一个相机, 所以, 如果不关心多个相机实例同时连入电脑的情况, Ogmacam_EnumV2</strong><strong>不是必须的, 直接传入参数NULL</strong><strong>打开唯一的相机实例.</strong></p>
-      	<p>对于<strong>USB, GigE或PCIe</strong>相机, camId也可以直接指定为(区分大小写):<br/>
-			(a) "sn:xxxxxxxxxxxx" (例如sn:d05f64ffff23)<br/>
-			(b) "name:xxxxxxxxxxxx" (例如name:Camera1)</p>
+      	<p>对于<strong>USB, GigE, CameraLink或CXP</strong>相机, camId也可以直接指定为(区分大小写):<br/>
+			(a) "sn:xxxxxxxxxxxx" (使用SN, 例如sn:d05f64ffff23)<br/>
+			(b) "name:xxxxxxxxxxxx" (使用用户设置的名称, 例如name:Camera1)</p>
 		<p>另外, 对于<strong>GigE</strong>相机, camId也可以直接指定为(区分大小写):<br/>
-			(a) "ip:xxx.xxx.xxx.xxx" (例如ip:192.168.1.100)<br/>
-			(b) "mac:xxxxxxxxxxxx" (例如mac:d05f64ffff23)</p>
+			(a) "ip:xxx.xxx.xxx.xxx" (使用IP地址, 例如ip:192.168.1.100)<br/>
+			(b) "mac:xxxxxxxxxxxx" (使用MAC地址, 例如mac:d05f64ffff23)</p>
 	</blockquote>
 	<p><strong>说明：</strong>打开相机实例.</p>
     <p>(1) 在camId后面支持附着一些额外参数(<strong>用分号;分割, 区分大小写</strong>), 如: </p>
@@ -966,8 +987,8 @@ typedef struct {
       <p>HOgmacam h: 相机句柄</p>
       <p>unsigned xOffset: x偏移, 必须是偶数, 否则返回E_INVALIDARG</p>
       <p>unsigned yOffset: y偏移, 必须是偶数, 否则返回E_INVALIDARG</p>
-      <p>unsigned xWidth: 宽度. 最小值16, 必须是偶数, 否则返回E_INVALIDARG</p>
-      <p>unsigned yHeight: 高度. 最小值16, 必须是偶数, 否则返回E_INVALIDARG</p>
+      <p>unsigned xWidth: 宽度. 最小值8, 必须是偶数, 否则返回E_INVALIDARG</p>
+      <p>unsigned yHeight: 高度. 最小值8, 必须是偶数, 否则返回E_INVALIDARG</p>
     </blockquote>
   <p><strong>说明: </strong>设置/获取ROI. Ogmacam_put_Roi(h, 0, 0, 0, 0)表示清除ROI恢复至原始尺寸.</p>
   <blockquote>
@@ -1301,7 +1322,7 @@ OGMACAM_PIXELFORMAT_RAW10PACK
         <td>OGMACAM_OPTION_CALLBACK_THREAD</td><td>RW</td>
         <td>单独的专门线程用于回调, 只在拉(Pull)模式下Callback可用, 不能用于推(Push)模式:<br/>
 		0 =&gt; 禁用, 1 =&gt; 启用</td>
-		<td>0</td><td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
+		<td>启用(GigE)<br/>禁用(其它)</td><td><b>否</b><br/>(在相机处于运行状态时, 设置本选项, 函数返回E_UNEXPECTED)</td>
       </tr><tr>
         <td><a id="frontend">OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH</a><br/>或<br/>OGMACAM_OPTION_FRAME_DEQUE_LENGTH</td><td>RW</td>
         <td>前端(裸数据)帧队列长度, 范围[2~1024]<br/>内存将在相机start的时候全部预分配, 请关注内存占用</td>
@@ -1484,7 +1505,7 @@ OGMACAM_PIXELFORMAT_RAW10PACK
 			n&lt;0: 每隔-n帧</blockquote>
 		</td><td>0(禁用)</td><td>是</td>
       </tr><tr>
-		<td>TOUPCAP_OPTION_TIMED_TRIGGER_NUM</td><td>RW</td>
+		<td>OGMACAM_OPTION_TIMED_TRIGGER_NUM</td><td>RW</td>
 		<td>定时触发: 数量</td><td>0(禁用)</td><td>是</td>
       </tr><tr>
 		<td>OGMACAM_OPTION_TIMED_TRIGGER_LOW</td><td>RW</td>
@@ -1498,8 +1519,8 @@ OGMACAM_PIXELFORMAT_RAW10PACK
           Win:<blockquote>
 		  0 = THREAD_PRIORITY_NORMAL;<br/>1 = THREAD_PRIORITY_ABOVE_NORMAL;<br/>2 = THREAD_PRIORITY_HIGHEST;<br/>3 = THREAD_PRIORITY_TIME_CRITICAL;<br/>请参阅: <a href="https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority" target="_blank">SetThreadPriority</a>
 		  </blockquote>
-		  Linux &amp; macOS: <blockquote>高16位为调度策略, 低16位为优先级.<br/>请参阅: <a href="https://linux.die.net/man/3/pthread_setschedparam" target="_blank">pthread_setschedparam</a></blockquote></td>
-		<td>Win: 1<br/>Linux / macOS: NA</td><td>是</td>
+		  Linux &amp; macOS: 和Win类似</td>
+		<td>1</td><td>是</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_LINEAR</td><td>RW</td>
       	<td>内部linear tone mapping:<br/>0 = 关闭<br/>1 = 开启</td>
@@ -1635,16 +1656,16 @@ OGMACAM_PIXELFORMAT_RAW10PACK
       	<td>NA</td><td>NA</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_GVCP_TIMEOUT</td><td>RW</td>
-      	<td>GVCP Timeout, 毫秒, 范围: [3, 75]<br/>除非非常特殊情况, 一般而言不需要修改, 保持默认值即可</td>
-      	<td>15</td><td>是</td>
+      	<td>GVCP Timeout, 毫秒, 范围: [5, 150]<br/>除非非常特殊情况, 一般而言不需要修改, 保持默认值即可</td>
+      	<td>15(有线)<br/>30(无线)</td><td>是</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_GVCP_RETRY</td><td>RW</td>
-      	<td>GVCP Retry, 次数, 范围: [2, 8]<br/>除非非常特殊情况, 一般而言不需要修改, 保持默认值即可</td>
-      	<td>4</td><td>是</td>
+      	<td>GVCP Retry, 次数, 范围: [2, 16]<br/>除非非常特殊情况, 一般而言不需要修改, 保持默认值即可</td>
+      	<td>4(有线)<br/>8(无线)</td><td>是</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_GVSP_WAIT_PERCENT</td><td>RW</td>
       	<td>GVSP wait 百分比: 范围: [0, 100]</td>
-      	<td>触发模式: 100, 实时: 0, 其它: 1</td><td>是</td>
+      	<td>触发模式: 100<br/>实时: 0<br/>其它: 1</td><td>是</td>
       </tr><tr>
       	<td>OGMACAM_OPTION_GIGETIMEOUT</td><td>RW</td>
       	<td>For GigE cameras, the application periodically sends heartbeat signals to the camera to keep the connection to the camera alive. If the camera doesn't receive heartbeat signals within the time period specified by the heartbeat timeout counter, the camera resets the connection. When the application is stopped by the debugger, the application cannot create the heartbeat signals.<br/>
@@ -1677,12 +1698,29 @@ OGMACAM_PIXELFORMAT_RAW10PACK
 		0: 开<br/>
 		1: 关</td>
       	<td>0</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_CDS</td><td>RW</td>
+      	<td>相关双采样: 0~100</td><td>0</td><td>是</td></tr><tr>
       	<td>OGMACAM_OPTION_SCAN_DIRECTION</td><td>RW</td>
       	<td>扫描方向:<br/>
 		0: 正<br/>
 		1: 反<br/>
 		2: 交替</td>
       	<td>0</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_LANE</td><td>RW</td>
+      	<td>Lane</td>
+      	<td>型号特定</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_ANTI_BLOOMING</td><td>RW</td>
+      	<td>高光溢出保护（anti-blooming)</td>
+      	<td>型号特定</td><td>是</td></tr><tr>
+      	<td>OGMACAM_OPTION_ANTI_BLOOMING_MAX</td><td>RW</td>
+      	<td>高光溢出保护（anti-blooming)</td>
+      	<td>NA</td><td>NA</td></tr><tr>
+      	<td>OGMACAM_OPTION_BLACKLEVEL_AUTOADJUST</td><td>RW</td>
+      	<td>黑电平自动调整功能设置:<br/>
+		0: 关闭<br/>
+		1: 开启<br/>
+		该选项通过OB(Optical Black)电平检测机制控制黑电平自动调整功能的开关. 在长曝光等场景下, 因暗电流泄漏等因素可能导致OB电平发生偏移. 此功能即为解决该类异常偏移问题而设置的其中一种解决方案.</td>
+      	<td>型号特定</td><td>是</td></tr><tr>
       	<td>OGMACAM_OPTION_LINE_LENGTH</td><td>RW</td>
       	<td>传感器行长(pixel clock)</td>
       	<td>NA</td><td>是</td></tr><tr>
@@ -1722,7 +1760,7 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
     <p><strong>参数：</strong></p>
   <blockquote><p>HOgmacam h：相机句柄</p>
-    <p><a id="aexpo">int bAutoExposure:</a></p>
+    <p><a id="aexpo">int mode:</a></p>
 	<blockquote>0: 不启用自动曝光<br/>
 	1: 自动曝光连续模式<br/>
 	2: 自动曝光“单次”模式</blockquote>
@@ -1847,7 +1885,10 @@ Ogmacam_put_MaxAutoExpoTimeAGain<br/>Ogmacam_get_MaxAutoExpoTimeAGain<br/>Ogmaca
   <p><strong>说明：</strong>设置/获取黑平衡的RGB偏移值</p>
 </li></ul><ul><li><h2><font color="#0000FF">Ogmacam_put_AWBAuxRect<br/>Ogmacam_get_AWBAuxRect<br/>Ogmacam_put_AEAuxRect<br/>Ogmacam_get_AEAuxRect<br/>Ogmacam_put_ABBAuxRect<br/>Ogmacam_get_ABBAuxRect</font></h2>
     <p><strong>返回值：</strong><a href="#hresult">HRESULT</a>类型表示成功或失败</p>
-    <p><strong>参数：</strong>HOgmacam h：相机句柄</p>
+    <p><strong>参数：</strong></p>
+	<blockquote><p>HOgmacam h：相机句柄</p>
+	<p>RECT: 矩形, 最小宽度高度: 4</p>
+	</blockquote>
     <p><strong>说明：</strong>设置/获取自动白平衡和自动曝光和黑平衡的参考矩形. 默认矩形位于图像正中央, 宽度等于20%图像宽度, 高度等于20%图像高度.</p>
 	<p><strong>注意：坐标永远是相对原始分辨率而言的</strong>, 请参阅<a href="#cord">这里</a>.</p>
 	<p>对于黑白相机, 白平衡和黑平衡始终返回E_NOTIMPL.</p>
@@ -2233,7 +2274,7 @@ public bool Snap(uint nResolutionIndex)
       </tr><tr>
 		<td colspan="2">demosimplest</td>
 		<td rowspan="12">Win32<br/>Linux<br/>macOS<br/>Android</td>
-		<td rowspan="23">C++</td>
+		<td rowspan="24">C++</td>
 		<td rowspan="12">&nbsp;</td>
 		<td rowspan="12">console</td>
 		<td>最简单的示例, 大约70行代码. <a href="./images/demosimplest.png">截图</a>.</td>
@@ -2272,13 +2313,16 @@ public bool Snap(uint nResolutionIndex)
 		<td>静态RAW抓拍并保存到*.raw文件, 大约140行代码.</td>
 	  </tr><tr>
 		<td colspan="2">demoqt</td>
-		<td rowspan="2">Win32<br/>Linux<br/>macOS</td>
-		<td rowspan="2">Qt</td>
-		<td rowspan="18">GUI</td>
+		<td rowspan="3">Win32<br/>Linux<br/>macOS</td>
+		<td rowspan="3">Qt</td>
+		<td rowspan="19">GUI</td>
 		<td>Qt示例, <a href="./images/demoqt.png">截图</a>.<br/>枚举设备, 打开设备, 预览视频, 抓拍(静态)图像, 设置分辨率, 保存图像到文件, 设置自动曝光和白平衡, 帧率(fps)计算, 等等. 这个示例使用Pull Mode机制, StartPullModeWithCallback</td>
 	  </tr><tr>
 		<td colspan="2">demotwoqt</td>
 		<td>Qt示例, <a href="./images/demotwoqt.png">截图</a>.<br/>同时打开2台相机</td>
+	  </tr><tr>
+		<td colspan="2">demolinecam</td>
+		<td>Qt示例.<br/>线扫相机</td>
 	  </tr><tr>
 		<td colspan="2">democpp</td>
 		<td rowspan="9">Win32</td>
@@ -2339,7 +2383,7 @@ public bool Snap(uint nResolutionIndex)
 	  </tr><tr>
 		<td rowspan="3"><a id="demojava">demojava</a></td>
 		<td>simplest</td>
-		<td rowspan="5">Win32<br/>Linux<br/>macOS</td>
+		<td rowspan="6">Win32<br/>Linux<br/>macOS</td>
 		<td rowspan="3">Java</td>
 		<td rowspan="3"><a href="https://github.com/java-native-access/jna" target="_blank">jna</a></td>
 		<td>console</td>
@@ -2352,10 +2396,12 @@ public bool Snap(uint nResolutionIndex)
 		<td>swing</td>
 		<td>swing示例. IntelliJ工程</td>
 	  </tr><tr>
-		<td rowspan="2"><a id="demopython">demopython</a></td>
-		<td>simplest</td><td rowspan="2">Python</td>
-		<td></td><td>console</td>
+		<td rowspan="3"><a id="demopython">demopython</a></td>
+		<td>simplest</td><td rowspan="3">Python</td>
+		<td rowspan="2"></td><td rowspan="2">console</td>
 		<td>最简单python示例</td>
+	  </tr><tr>
+		<td>gigesimplest</td><td>支持GigE相机最简单python示例</td>
 	  </tr><tr>
 		<td>qt5<br/>qt6</td><td>PyQt</td><td rowspan="12">GUI</td>
 		<td>PyQt示例, <a href="./images/pyqt.png">截图</a>.</td>

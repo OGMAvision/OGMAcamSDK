@@ -185,6 +185,8 @@ namespace demowpf
             cam_ = Ogmacam.Open(camId);
             if (cam_ != null)
             {
+                cam_.put_RealTime(1);
+
                 auto_exposure_.IsEnabled = true;
                 combo_.IsEnabled = true;
                 snap_.IsEnabled = true;

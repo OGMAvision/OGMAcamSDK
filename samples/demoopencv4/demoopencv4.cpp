@@ -18,7 +18,7 @@ bool Convert2Mat(unsigned char* pData, cv::Mat& srcImage, unsigned nWidth, unsig
 {
     if (NULL == pData)
     {
-        printf("NULL info or data.\n");
+        printf("NULL data.\n");
         return false;
     }
     srcImage = cv::Mat(nHeight, nWidth, CV_8UC3, pData);
@@ -64,10 +64,10 @@ static void __stdcall EventCallback(unsigned nEvent, void* pCallbackCtx)
                 if (g_total == 1)
                 {
                     int def = 2;
-                    cv::namedWindow("demoOpenCV4", cv::WINDOW_NORMAL);
-                    cv::createTrackbar("Expotime", "demoOpenCV4", &def, 350, on_Expotime);
+                    cv::namedWindow("demoopencv4", cv::WINDOW_NORMAL);
+                    cv::createTrackbar("Expotime", "demoopencv4", &def, 350, on_Expotime);
                 }
-                cv::imshow("demoOpenCV4", g_image);
+                cv::imshow("demoopencv4", g_image);
                 cv::waitKey(1);
             }
             if (g_bSave)

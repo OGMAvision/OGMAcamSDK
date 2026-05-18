@@ -225,6 +225,8 @@ namespace demowinformcs
             cam_ = Ogmacam.Open(camId);
             if (cam_ != null)
             {
+                cam_.put_RealTime(1);
+
                 checkBox1.Enabled = true;
                 comboBox1.Enabled = true;
                 comboBox2.Enabled = true;
@@ -313,7 +315,6 @@ namespace demowinformcs
                         comboBox2.Items.Add(Ogmacam.PixelFormatName((ePIXELFORMAT)pixelFormatval));
                     }
                     comboBox2.SelectedIndex = 0;
-
 
                     int width = 0, height = 0;
                     if (cam_.get_Size(out width, out height))

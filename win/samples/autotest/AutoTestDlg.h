@@ -29,7 +29,7 @@ protected:
 	afx_msg void OnBnClickedButton1();
 	afx_msg void OnBnClickedOptions();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	afx_msg LRESULT OnMsgGigehotplug(WPARAM, LPARAM);
+	afx_msg LRESULT OnMsgHotplug(WPARAM, LPARAM);
 	DECLARE_MESSAGE_MAP()
 private:
 	void EnumCamera();

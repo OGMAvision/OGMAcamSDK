@@ -102,6 +102,8 @@ namespace demotwocs
             cam_[idx] = Ogmacam.Open(camId);
             if (cam_[idx] != null)
             {
+                cam_[idx].put_RealTime(1);
+
                 int width = 0, height = 0;
                 if (cam_[idx].get_Size(out width, out height))
                 {

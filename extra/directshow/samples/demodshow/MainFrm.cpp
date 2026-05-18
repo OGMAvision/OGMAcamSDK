@@ -333,7 +333,7 @@ void CMainFrame::OnExampleFlipvertical()
 void CMainFrame::OnPreviewSnapshot()
 {
 	if (m_pDshowContext)
-		m_pDshowContext->preview_snapshot(L"start.bmp");
+		m_pDshowContext->preview_snapshot(L"preview.bmp");
 }
 
 void CMainFrame::OnStillimageSnapshot()

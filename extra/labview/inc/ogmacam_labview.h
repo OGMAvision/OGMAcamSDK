@@ -15,6 +15,8 @@ extern "C" {
 #endif
 
 OGMACAM_LABVIEW_API(HRESULT) Start(HOgmacam h, LVUserEventRef* rwer);
+OGMACAM_LABVIEW_API(HOgmacam) OpenAndStart(const wchar_t* camId, int bits, int* pnWidth, int* pnHeight, int* pPixelformat);
+OGMACAM_LABVIEW_API(HRESULT) WaitImage(HOgmacam h, unsigned nWaitMS, void* pImageData, int bStill, int bits, unsigned* pnWidth, unsigned* pnHeight);
 
 #ifdef __cplusplus
 }

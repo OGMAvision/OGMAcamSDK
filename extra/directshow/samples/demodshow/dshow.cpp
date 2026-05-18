@@ -902,7 +902,7 @@ BOOL TDshowContext::BuildCaptureGraph()
     // file format
     //
 	CComPtr<IFileSinkFilter> pSink;
-	HRESULT hr = m_pBuilder->SetOutputFileName(&MEDIASUBTYPE_Avi, m_strFullPath.c_str(), &m_pRender, &pSink);
+	HRESULT hr = m_pBuilder->SetOutputFileName(&MEDIASUBTYPE_Avi, m_aviPath.c_str(), &m_pRender, &pSink);
 	if ((hr != NOERROR) || (NULL == m_pRender))
         goto SetupCaptureFail;
 
@@ -1129,9 +1129,9 @@ HRESULT TDshowContext::start(HMENU hMenuSub1, UINT pos, UINT times, UINT cmdID)
 	return S_OK;
 }
 
-HRESULT TDshowContext::startcapture(const wchar_t* szFullPath)
+HRESULT TDshowContext::startcapture(const wchar_t* aviPath)
 {
-	m_strFullPath = szFullPath;
+	m_aviPath = aviPath;
 
 	if (m_fPreviewing)
 	{

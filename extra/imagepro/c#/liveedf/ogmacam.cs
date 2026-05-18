@@ -7,9 +7,11 @@ using System.Runtime.ConstrainedExecution;
 #endif
 using System.Collections.Generic;
 using System.Threading;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 /*
-    Version: 59.28926.20250709
+    Version: 59.30850.20260211
 
     For .NET Framework & .NET Core
 
@@ -24,6 +26,14 @@ using System.Threading;
     Please distinguish between camera ID (camId) and camera SN:
         (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
         (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
+*/
+
+/*
+    Coordinate:
+        (a) Functions with coordinate parameters, such as Ogmacam_put_Roi, Ogmacam_put_AEAuxRect, etc., the coordinate is always relative to the original resolution,
+            even that the image has been flipped, rotated, digital binning, ROI, or combination of the previous operations.
+        (b) Exception: if the image is upside down (see here), the coordinate must be also upsize down.
+        (c) Exception: hardware binning.
 */
 
 internal class Ogmacam : IDisposable
@@ -139,8 +149,8 @@ internal class Ogmacam : IDisposable
         FLAG_10GIGE = 0x0000400000000000,
         /* 5 Gigabit GigE */
         FLAG_5GIGE = 0x0000800000000000,
-        /* 2.5 Gigabit GigE */
-        FLAG_25GIGE = 0x0001000000000000,
+        /* 40 Gigabit GigE */
+        FLAG_40GIGE = 0x0001000000000000,
         /* astro auto focuser */
         FLAG_AUTOFOCUSER = 0x0002000000000000,
         /* stand alone light source */
@@ -159,10 +169,16 @@ internal class Ogmacam : IDisposable
         FLAG_GHOPTO = 0x0100000000000000,
         /* pixel format, RAW 10bits packed */
         FLAG_RAW10PACK = 0x0200000000000000,
-        /* usb3.2 */
+        /* USB 3.2 Gen 2 */
         FLAG_USB32 = 0x0400000000000000,
-        /* usb3.2 camera connected to usb3.0 port */
-        FLAG_USB32_OVER_USB30 = 0x0800000000000000
+        /* USB 3.2 Gen 2 camera connected to usb3.0 port */
+        FLAG_USB32_OVER_USB30 = 0x0800000000000000,
+        /* line scan camera */
+        FLAG_LINESCAN = 0x1000000000000000,
+        /* 2.5 Gigabit GigE */
+        FLAG_25GIGE = 0x2000000000000000,
+        /* pixel format, RAW 14bits packed */
+        FLAG_RAW14PACK = 0x4000000000000000
     };
 
     public enum eEVENT : uint
@@ -228,7 +244,7 @@ internal class Ogmacam : IDisposable
         OPTION_NOFRAME_TIMEOUT = 0x01,
         /* [RW] set the priority of the internal thread which grab data from the usb device.
             Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
-            Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
+            Linux & macOS: similar to Win
         */
         OPTION_THREAD_PRIORITY = 0x02,
         /* [RW]
@@ -283,7 +299,7 @@ internal class Ogmacam : IDisposable
         OPTION_BLACKLEVEL = 0x15,
         /* [RW] multithread image processing */
         OPTION_MULTITHREAD = 0x16,
-        /* [RW] binning
+        /* [RW] digital binning
                 0x01: (no binning)
                 n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
                 0x40 | n: (unsaturated add, n*n, works only in RAW mode), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
@@ -382,7 +398,9 @@ internal class Ogmacam : IDisposable
         OPTION_BANDWIDTH = 0x2e,
         /* [RW] reload the last frame in trigger mode */
         OPTION_RELOAD = 0x2f,
-        /* [RW] dedicated thread for callback: 0 => disable, 1 => enable, default: 0 */
+        /* [RW] dedicated thread for callback: 0 => disable, 1 => enable
+                default: 1(GigE), 0(others)
+        */
         OPTION_CALLBACK_THREAD = 0x30,
         /* [RW] frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
             All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
@@ -537,9 +555,9 @@ internal class Ogmacam : IDisposable
         OPTION_RESET_SENSOR = 0x5e,
         /* [RW] Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0 */
         OPTION_ISP = 0x5f,
-        /* [RW] Auto exposure damp: time (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes */
+        /* [RW] Auto exposure damping: time (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes */
         OPTION_AUTOEXP_EXPOTIME_DAMP = 0x60,
-        /* [RW] Auto exposure damp: gain (thousandths). The larger the damping coefficient, the smoother and slower the gain changes */
+        /* [RW] Auto exposure damping: gain (thousandths). The larger the damping coefficient, the smoother and slower the gain changes */
         OPTION_AUTOEXP_GAIN_DAMP = 0x61,
         /* [RW] range: [1, 20] */
         OPTION_MOTOR_NUMBER = 0x62,
@@ -594,10 +612,10 @@ internal class Ogmacam : IDisposable
                     ((val & 0xff0000) >> 16): average number
         */
         OPTION_FPNC = 0x67,
-        /* [RW] Auto exposure over exposure policy: when overexposed,
+        /* [RW] Auto exposure overexposure policy: when overexposed,
                 0 => directly reduce the exposure time/gain to the minimum value; or
-                1 => reduce exposure time/gain in proportion to current and target brightness.
-                n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
+                1 => reduce exposure time/gain according to the ratio between current and target brightness; or
+                n(n>1) => first, adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
             The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
             Policy 1 avoids the black screen, but the convergence speed is slower.
             Default: 0
@@ -619,17 +637,17 @@ internal class Ogmacam : IDisposable
         OPTION_AWB_CONTINUOUS = 0x6c,
         /* [RO] TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff) */
         OPTION_TECTARGET_RANGE = 0x6d,
-        /* [RW] Correlated Double Sampling */
+        /* [RW] Correlated Double Sampling: 0~max (OPTION_CDS_MAX) */
         OPTION_CDS = 0x6e,
         /* [RW] Low Power Consumption: Enable if exposure time is greater than the set value */
         OPTION_LOW_POWER_EXPOTIME = 0x6f,
         /* [RW] Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0 */
         OPTION_ZERO_OFFSET = 0x70,
-        /* [RW] GVCP Timeout: millisecond, range = [3, 75], default: 15
+        /* [RW] GVCP Timeout: millisecond, range = [5, 150], default: 15(wire), 30(wireless)
              Unless in very special circumstances, generally no modification is required, just use the default value
         */
         OPTION_GVCP_TIMEOUT = 0x71,
-        /* [RW] GVCP Retry: range = [2, 8], default: 4
+        /* [RW] GVCP Retry: range = [2, 16], default: 4(wire), 8(wireless)
              Unless in very special circumstances, generally no modification is required, just use the default value
         */
         OPTION_GVCP_RETRY = 0x72,
@@ -659,7 +677,7 @@ internal class Ogmacam : IDisposable
         OPTION_TIMED_TRIGGER_HIGH = 0x40000000,
         /* [RW] trigger threshold of auto exposure */
         OPTION_AUTOEXP_THLD_TRIGGER = 0x7d,
-        /* [RW] */
+        /* [RW] Lane */
         OPTION_LANE = 0x7e,
         /* [RW] Voltage bias */
         OPTION_VOLTAGEBIAS = 0x7f,
@@ -678,9 +696,25 @@ internal class Ogmacam : IDisposable
         /* [RO] gps status: 0 => not supported; -1 => gps device offline; 1 => gps device online */
         OPTION_GPS = 0x86,
         /* [RW] Line length in pixel clock */
-        OPTION_LINE_LENGTH = 0x87
-        /* [RW] Scan direction: 0 (forward), 1(reverse), 2(alternate) */
-        OPTION_SCAN_DIRECTION = 0x88
+        OPTION_LINE_LENGTH = 0x87,
+        /* [RW] Scan direction: 0(forward), 1(reverse), 2(alternate) */
+        OPTION_SCAN_DIRECTION = 0x88,
+        /* [RW] Black level automatic adjustment function: 0: off, 1: on
+            This setting turn on/off black level auto adjust function by OB(Optical Black) level.
+            In case of long exposure and so on, OB level is offset by leak or any other reason.
+            Because of it, if the adjustment becomes a problem, this setting is introduced for one of the solution.
+        */
+        OPTION_BLACKLEVEL_AUTOADJUST = 0x89,
+        /* [RW] user set */
+        OPTION_USER_SET = 0x8a,
+        /* [RW] digital gain */
+        OPTION_DIGITAL_GAIN = 0x1001,
+        /* [RW] Anti Blooming */
+        OPTION_ANTI_BLOOMING = 0x8b,
+        /* [RO} Anti Blooming */
+        OPTION_ANTI_BLOOMING_MAX = 0x8c,
+        /* [RO} Correlated Double Sampling */
+        OPTION_CDS_MAX = 0x8d
     };
 
     /* HRESULT: error code */
@@ -705,7 +739,7 @@ internal class Ogmacam : IDisposable
     public const int E_FAIL = unchecked((int)0x80004005);
     /* Call function in the wrong thread */
     public const int E_WRONG_THREAD = unchecked((int)0x8001010e);
-    /* Device not functioning */ /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc */
+    /* Device not functioning */ /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc */
     public const int E_GEN_FAILURE = unchecked((int)0x8007001f);
     /* The requested resource is in use */ /* Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc */
     public const int E_BUSY = unchecked((int)0x800700aa);
@@ -713,8 +747,10 @@ internal class Ogmacam : IDisposable
     public const int E_PENDING = unchecked((int)0x8000000a);
     /* This operation returned because the timeout period expired */
     public const int E_TIMEOUT = unchecked((int)0x8001011f);
-    /* Network is unreachable */
+    /* Network is unreachable */ /* Remark: Please check the IP settings of the camera and the computer, or the firewall settings */
     public const int E_UNREACH = unchecked((int)0x80072743);
+    /* The operation was canceled by the user */
+    public const int E_CANCELLED = unchecked((int)0x800704c7);
 
     public const int EXPOGAIN_DEF = 100;      /* exposure gain, default value */
     public const int EXPOGAIN_MIN = 100;      /* exposure gain, minimum value */
@@ -795,8 +831,23 @@ internal class Ogmacam : IDisposable
     public const int HDR_B_MAX = 65535;
     public const int HDR_THRESHOLD_MIN = 0;
     public const int HDR_THRESHOLD_MAX = 4094;
-    public const int CDS_MIN = 0;        /* Correlated Double Sampling */
-    public const int CDS_MAX = 100;
+    public const int CDS_MIN = 0;          /* Correlated Double Sampling */
+    public const int ANTIBLOOMING_MIN = 0; /* Anti Blooming */
+    public const int GVCP_RETRY_DEF = 4;         /* GVCP Retry */
+    public const int GVCP_RETRY_MIN = 2;
+    public const int GVCP_RETRY_MAX = 20;
+    public const int GVCP_TIMEOUT_DEF = 40;      /* GVCP Timeout */
+    public const int GVCP_TIMEOUT_MIN = 20;
+    public const int GVCP_TIMEOUT_MAX = 200;
+    public const int GVSP_WAIT_PERCENT_DEF = 1;  /* GVSP wait percent */
+    public const int GVSP_WAIT_PERCENT_MIN = 0;
+    public const int GVSP_WAIT_PERCENT_MAX = 100;
+    public const int FRONTEND_MAX = 1024;    /* frontend frame buffer deque length */
+    public const int FRONTEND_DEF = 4;
+    public const int FRONTEND_MIN = 2;
+    public const int BACKEND_MAX = 1024;     /* backend frame buffer deque length */
+    public const int BACKEND_DEF = 3;
+    public const int BACKEND_MIN = 2;
 
     public enum ePIXELFORMAT : uint
     {
@@ -826,7 +877,8 @@ internal class Ogmacam : IDisposable
         PIXELFORMAT_HDR12HL = 0x11,
         /* HDR, Bitdepth: 14, Conversion Gain: High + Low */
         PIXELFORMAT_HDR14HL = 0x12,
-        PIXELFORMAT_RAW10PACK = 0x13
+        PIXELFORMAT_RAW10PACK = 0x13,
+        PIXELFORMAT_RAW14PACK = 0x14
     };
 
     [Flags]
@@ -1116,7 +1168,7 @@ internal class Ogmacam : IDisposable
     {
         public ushort lensID;
         public byte lensType;
-        public byte statusAfmf;      /* LENS_AF = 0x00,  LENS_MF = 0x80 */
+        public byte statusAfmf;      /* LENS_AF = 0x00, LENS_MF = 0x80 */
 
         public ushort maxFocalLength;
         public ushort curFocalLength;
@@ -1202,14 +1254,24 @@ internal class Ogmacam : IDisposable
     [DllImport("ntdll.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
     public static extern void memcpy(IntPtr dest, IntPtr src, IntPtr count);
 #endif
-    static public uint MAKEFOURCC(uint a, uint b, uint c, uint d)
+    public static uint MAKEFOURCC(uint a, uint b, uint c, uint d)
     {
         return ((uint)(byte)(a) | ((uint)(byte)(b) << 8) | ((uint)(byte)(c) << 16) | ((uint)(byte)(d) << 24));
     }
 
-    static public int TDIBWIDTHBYTES(int bits)
+    public static int TDIBWIDTHBYTES(int bits)
     {
         return ((bits + 31) & (~31)) / 8;
+    }
+
+    public static void InitBitmap8bppIndexedPalette(Bitmap bmp)
+    {
+        if (bmp.PixelFormat == PixelFormat.Format8bppIndexed) {
+            ColorPalette palette = bmp.Palette;
+            for (int i = 0; i < 256; i++)
+                palette.Entries[i] = Color.FromArgb(i, i, i);
+            bmp.Palette = palette;
+        }
     }
 
     /* only for compatibility with .Net 4.0 and below */
@@ -1230,10 +1292,13 @@ internal class Ogmacam : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /* get the version of this dll/so, which is: 59.28926.20250709 */
+    /* get the version of this dll/so, which is: 59.30850.20260211 */
     public static string Version()
     {
-        return Ogmacam_Version();
+        if (IsWindows())
+            return Marshal.PtrToStringUni(Ogmacam_Version());
+        else
+            return Marshal.PtrToStringAnsi(Ogmacam_Version());
     }
 
     private static DeviceV2[] Ptr2Device(IntPtr p, uint cnt)
@@ -1242,7 +1307,7 @@ internal class Ogmacam : IDisposable
         DeviceV2[] arr = new DeviceV2[cnt];
         if (cnt > 0) {
             for (uint i = 0; i < cnt; ++i) {
-                if (IsUnicode()) {
+                if (IsWindows()) {
                     arr[i].displayname = Marshal.PtrToStringUni(p);
                     p = IncIntPtr(p, sizeof(char) * 64);
                     arr[i].id = Marshal.PtrToStringUni(p);
@@ -1280,6 +1345,14 @@ internal class Ogmacam : IDisposable
     /* Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to null */
     public static int GigeEnable(DelegateHotplug funHotplug)
     {
+        return GigeEnable(funHotplug, null);
+    }
+
+    /* opt: semicolon separated options:
+    *        "wifi": Enable WiFi adapter support
+    */
+    public static int GigeEnable(DelegateHotplug funHotplug, string opt)
+    {
         HOTPLUG_CALLBACK pHotplug = delegate (IntPtr ctxHotplug)
         {
             Object obj = null;
@@ -1291,7 +1364,10 @@ internal class Ogmacam : IDisposable
         };
         IntPtr id = new IntPtr(Interlocked.Increment(ref sid_));
         map_.Add(id.ToInt32(), funHotplug);
-        return Ogmacam_GigeEnable(pHotplug, id);
+        if (string.IsNullOrEmpty(opt))
+            return Ogmacam_GigeEnable(pHotplug, id);
+        else
+            return Ogmacam_GigeEnableV2(pHotplug, id, opt);
     }
     
     /* Initialize support for PCIe cameras. If online/offline notifications are not required, the callback function can be set to null */
@@ -1315,17 +1391,21 @@ internal class Ogmacam : IDisposable
     * (1) ctiPath = null means all *.cti in GENICAM_GENTL64_PATH/GENICAM_GENTL32_PATH
     * or
     * (2) string[] ctiPath = {
-                "/full/path/to/file.cti"
+                "/full/path/to/file.cti",
                 ...
             }
     */
-    public static int CtiEnable(DelegateHotplug funHotplug, in string[] ctiPath)
+    public static int CtiEnable(DelegateHotplug funHotplug, string[] ctiPath)
     {
-        string[] newPath = null;
-        if (ctiPath != null && ctiPath.Length > 0 && ctiPath[ctiPath.Length - 1] != null) {
-            newPath = new string[ctiPath.Length + 1];
+        StringHandle[] HandleArray = null;
+        IntPtr[] PtrArray = null;
+        if (ctiPath != null && ctiPath.Length > 0) {
+            HandleArray = new StringHandle[ctiPath.Length];
             for (int i = 0; i < ctiPath.Length; ++i)
-                newPath[i] = ctiPath[i];
+                HandleArray[i] = new StringHandle(ctiPath[i]);
+            PtrArray = new IntPtr[ctiPath.Length + 1];
+            for (int i = 0; i < ctiPath.Length; ++i)
+                PtrArray[i] = HandleArray[i].Get();
         }
         HOTPLUG_CALLBACK pHotplug = delegate (IntPtr ctxHotplug)
         {
@@ -1338,7 +1418,17 @@ internal class Ogmacam : IDisposable
         };
         IntPtr id = new IntPtr(Interlocked.Increment(ref sid_));
         map_.Add(id.ToInt32(), funHotplug);
-        return Ogmacam_CtiEnable(pHotplug, id, newPath);
+        if (PtrArray == null)
+            return Ogmacam_CtiEnable(pHotplug, id, IntPtr.Zero);
+        else {
+            GCHandle gch = GCHandle.Alloc(PtrArray, GCHandleType.Pinned);
+            try {
+                return Ogmacam_CtiEnable(pHotplug, id, gch.AddrOfPinnedObject());
+            }
+            finally {
+                gch.Free();
+            }
+        }
     }
 
     [Obsolete("Use EnumV2")]
@@ -1350,7 +1440,7 @@ internal class Ogmacam : IDisposable
         Device[] arr = new Device[cnt];
         if (cnt > 0) {
             for (uint i = 0; i < cnt; ++i) {
-                if (IsUnicode()) {
+                if (IsWindows()) {
                     arr[i].displayname = Marshal.PtrToStringUni(p);
                     p = IncIntPtr(p, sizeof(char) * 64);
                     arr[i].id = Marshal.PtrToStringUni(p);
@@ -1367,7 +1457,10 @@ internal class Ogmacam : IDisposable
                 p = IncIntPtr(p, IntPtr.Size);
 
                 {
-                    arr[i].model.name = Marshal.PtrToStringUni(Marshal.ReadIntPtr(q));
+                    if (IsWindows())
+                        arr[i].model.name = Marshal.PtrToStringUni(Marshal.ReadIntPtr(q));
+                    else
+                        arr[i].model.name = Marshal.PtrToStringAnsi(Marshal.ReadIntPtr(q));
                     q = IncIntPtr(q, IntPtr.Size);
                     arr[i].model.flag = (uint)Marshal.ReadInt32(q);
                     q = IncIntPtr(q, sizeof(int));
@@ -1396,16 +1489,16 @@ internal class Ogmacam : IDisposable
         the object of Ogmacam must be obtained by static mothod Open or OpenByIndex, it cannot be obtained by obj = new Ogmacam (The constructor is private on purpose)
     */
     // camId: enumerated by EnumV2, null means the first enumerated camera
-    // If it is a GigE camera, the camId can also be specified as (case sensitive):
-    // For USB, GigE or PCIe camera, the camId can the camId can also be specified as (case sensitive):
-    //    (a) "sn:xxxxxxxxxxxx" (such as sn:ZP250212241204105)
-    //    (b) "name:xxxxxx" (such as name: Camera1)
+    // For USB, GigE, CameraLink or CXP camera, the camId can also be specified as (case sensitive):
+    //    (a) "sn:xxxxxxxxxxxx" (Use SN, such as sn:ZP250212241204105), or
+    //    (b) "name:xxxxxx" (Use user-defined name, such as name:Camera1)
     // Moreover, for GigE camera, the camId can also be specified as (case sensitive):
-    //    (a) "ip:xxx.xxx.xxx.xxx" (such as ip:192.168.1.100) or
-    //    (b) "mac:xxxxxxxxxxxx" (such as mac:d05f64ffff23)
+    //    (a) "ip:xxx.xxx.xxx.xxx" (Use IP address, such as ip:192.168.1.100), or
+    //    (b) "mac:xxxxxxxxxxxx" (Use MAC address, such as mac:d05f64ffff23)
     public static Ogmacam Open(string camId)
     {
-        SafeCamHandle tmphandle = Ogmacam_Open(camId);
+        StringHandle camIdHandle = new StringHandle(camId);
+        SafeCamHandle tmphandle = Ogmacam_Open(camIdHandle.Get());
         if (tmphandle == null || tmphandle.IsInvalid || tmphandle.IsClosed)
             return null;
         return new Ogmacam(tmphandle);
@@ -1552,10 +1645,10 @@ internal class Ogmacam : IDisposable
     {
         get
         {
-            string str = "";
+            string str = string.Empty;
             if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
                 return str;
-            IntPtr ptr = Marshal.AllocHGlobal(64);
+            IntPtr ptr = Marshal.AllocHGlobal(32);
             if (Ogmacam_get_SerialNumber(handle_, ptr) >= 0)
                 str = Marshal.PtrToStringAnsi(ptr);
             Marshal.FreeHGlobal(ptr);
@@ -1568,7 +1661,7 @@ internal class Ogmacam : IDisposable
     {
         get
         {
-            string str = "";
+            string str = string.Empty;
             if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
                 return str;
             IntPtr ptr = Marshal.AllocHGlobal(32);
@@ -1584,7 +1677,7 @@ internal class Ogmacam : IDisposable
     {
         get
         {
-            string str = "";
+            string str = string.Empty;
             if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
                 return str;
             IntPtr ptr = Marshal.AllocHGlobal(32);
@@ -1600,7 +1693,7 @@ internal class Ogmacam : IDisposable
     {
         get
         {
-            string str = "";
+            string str = string.Empty;
             if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
                 return str;
             IntPtr ptr = Marshal.AllocHGlobal(32);
@@ -1616,7 +1709,7 @@ internal class Ogmacam : IDisposable
     {
         get
         {
-            string str = "";
+            string str = string.Empty;
             if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
                 return str;
             IntPtr ptr = Marshal.AllocHGlobal(32);
@@ -1624,6 +1717,27 @@ internal class Ogmacam : IDisposable
                 str = Marshal.PtrToStringAnsi(ptr);
             Marshal.FreeHGlobal(ptr);
             return str;
+        }
+    }
+    
+    public string Name
+    {
+        get
+        {
+            string str = string.Empty;
+            if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+                return str;
+            IntPtr ptr = Marshal.AllocHGlobal(64);
+            if (Ogmacam_query_Name(handle_, ptr) >= 0)
+                str = Marshal.PtrToStringAnsi(ptr);
+            Marshal.FreeHGlobal(ptr);
+            return str;
+        }
+        set
+        {
+            if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+                return;
+            Ogmacam_set_Name(handle_, value);
         }
     }
 
@@ -1635,6 +1749,11 @@ internal class Ogmacam : IDisposable
                 return 0;
             return (uint)Ogmacam_get_Field(handle_);
         }
+    }
+
+    public ModelV2 queryModel()
+    {
+        return toModelV2(Ogmacam_query_Model(handle_));
     }
 
 #if !(WINDOWS_UWP)
@@ -2364,26 +2483,26 @@ internal class Ogmacam : IDisposable
     }
 
     /*
-    * bAutoExposure:
+    * mode:
     *   0: disable auto exposure
     *   1: auto exposure continue mode
     *   2: auto exposure once mode
     */
-    public bool get_AutoExpoEnable(out int bAutoExposure)
+    public bool get_AutoExpoEnable(out int mode)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed) {
-            bAutoExposure = 0;
+            mode = 0;
             return false;
         }
 
-        return CheckHResult(Ogmacam_get_AutoExpoEnable(handle_, out bAutoExposure));
+        return CheckHResult(Ogmacam_get_AutoExpoEnable(handle_, out mode));
     }
 
-    public bool put_AutoExpoEnable(int bAutoExposure)
+    public bool put_AutoExpoEnable(int mode)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_put_AutoExpoEnable(handle_, bAutoExposure));
+        return CheckHResult(Ogmacam_put_AutoExpoEnable(handle_, mode));
     }
 
     public bool get_AutoExpoEnable(out bool bAutoExposure)
@@ -2766,7 +2885,7 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_Speed(handle_, out pSpeed));
     }
 
-    /* power supply:
+    /* Light Frequency:
             0 => 60HZ AC
             1 => 50Hz AC
             2 => DC
@@ -2847,6 +2966,7 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_WhiteBalanceGain(handle_, aGain));
     }
 
+    /* Minimum width & height: 4 */
     public bool put_AWBAuxRect(int X, int Y, int Width, int Height)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -2877,6 +2997,7 @@ internal class Ogmacam : IDisposable
         return true;
     }
 
+    /* Minimum width & height: 4 */
     public bool put_AEAuxRect(int X, int Y, int Width, int Height)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -2925,6 +3046,7 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_BlackBalance(handle_, aSub));
     }
 
+    /* Minimum width & height: 4 */
     public bool put_ABBAuxRect(int X, int Y, int Width, int Height)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -3056,17 +3178,20 @@ internal class Ogmacam : IDisposable
         return Ogmacam_read_EEPROM(handle_, addr, pBuffer, pBuffer.Length);
     }
 
+    /* flash action */
     public const uint FLASH_SIZE = 0x00;    /* query total size */
-    public const uint FLASH_EBLOCK = 0x01;    /* query erase block size */
-    public const uint FLASH_RWBLOCK = 0x02;    /* query read/write block size */
-    public const uint FLASH_STATUS = 0x03;    /* query status */
+    public const uint FLASH_EBLOCK = 0x01;  /* query erase block size */
+    public const uint FLASH_RWBLOCK = 0x02; /* query read/write block size */
+    public const uint FLASH_STATUS = 0x03;  /* query status */
     public const uint FLASH_READ = 0x04;    /* read */
-    public const uint FLASH_WRITE = 0x05;    /* write */
-    public const uint FLASH_ERASE = 0x06;    /* erase */
-    /* Flash:
-       action = FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+    public const uint FLASH_WRITE = 0x05;   /* write */
+    public const uint FLASH_ERASE = 0x06;   /* erase */
+    /* flash zone */
+    public const uint FLASH_SENSOR = 0x00;  /* sensor */
+    public const uint FLASH_USER = 0x02;    /* user */
+
+    /* action = (zone << 24) | OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
        addr = address
-       see democpp
     */
     public int rwc_Flash(uint action, uint addr, uint len, IntPtr pData)
     {
@@ -3133,6 +3258,18 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_Option(handle_, iOption, out iValue));
     }
 
+    public int[] get_PixelFormatSupport()
+    {
+        int num = 0;
+        if (get_PixelFormatSupport(-1, out num) && (num > 0)) {
+            int[] arr = new int[num];
+            for (int i = 0; i < num; ++i)
+                get_PixelFormatSupport((sbyte)i, out arr[i]);
+            return arr;
+        }
+        return null;
+    }
+
     /*
     * cmd: input
     *    -1:       query the number
@@ -3181,6 +3318,20 @@ internal class Ogmacam : IDisposable
         return Ogmacam_get_BinningNumber(handle_);
     }
 
+    public string[] get_BinningValue()
+    {
+        int num = get_BinningNumber();
+        if (num <= 0)
+            return null;
+
+        string[] arr = new string[num];
+        for (int i = 0; i < num; ++i) {
+            arr[i] = string.Empty;
+            get_BinningValue((uint)i, out arr[i]);
+        }
+        return arr;
+    }
+
     public bool get_BinningValue(uint index, out string Value)
     {
         Value = null;
@@ -3191,6 +3342,20 @@ internal class Ogmacam : IDisposable
         if (ret)
             Value = Marshal.PtrToStringAnsi(valuePtr);
         return ret;
+    }
+
+    public string[] get_BinningMethod()
+    {
+        List<string> list = new List<string>();
+        uint index = 0;
+        do {
+            string strMethod;
+            if (!get_BinningMethod(index, out strMethod))
+                break;
+            list.Add(strMethod);
+            ++index;
+        } while (true);
+        return list.ToArray();
     }
 
     public bool get_BinningMethod(uint index, out string Method)
@@ -3271,7 +3436,9 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_put_Temperature(handle_, nTemperature));
     }
 
-    /* xOffset, yOffset, xWidth, yHeight: must be even numbers */
+    /* xOffset, yOffset, xWidth, yHeight: must be even numbers
+        Minimum width & height: 8
+    */
     public bool put_Roi(uint xOffset, uint yOffset, uint xWidth, uint yHeight)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
@@ -3295,13 +3462,6 @@ internal class Ogmacam : IDisposable
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
         return CheckHResult(Ogmacam_put_RoiN(handle_, xOffset, yOffset, xWidth, yHeight, (uint)(xOffset.Length)));
-    }
-
-    public bool put_XY(int x, int y)
-    {
-        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
-            return false;
-        return CheckHResult(Ogmacam_put_XY(handle_, x, y));
     }
 
     /*
@@ -3396,42 +3556,48 @@ internal class Ogmacam : IDisposable
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_FfcExport(handle_, filePath));
+        StringHandle filePathHandle = new StringHandle(filePath);
+        return CheckHResult(Ogmacam_FfcExport(handle_, filePathHandle.Get()));
     }
 
     public bool FfcImport(string filePath)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_FfcImport(handle_, filePath));
+        StringHandle filePathHandle = new StringHandle(filePath);
+        return CheckHResult(Ogmacam_FfcImport(handle_, filePathHandle.Get()));
     }
 
     public bool DfcExport(string filePath)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_DfcExport(handle_, filePath));
+        StringHandle filePathHandle = new StringHandle(filePath);
+        return CheckHResult(Ogmacam_DfcExport(handle_, filePathHandle.Get()));
     }
 
     public bool DfcImport(string filePath)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_DfcImport(handle_, filePath));
+        StringHandle filePathHandle = new StringHandle(filePath);
+        return CheckHResult(Ogmacam_DfcImport(handle_, filePathHandle.Get()));
     }
 
     public bool FpncExport(string filePath)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_FpncExport(handle_, filePath));
+        StringHandle filePathHandle = new StringHandle(filePath);
+        return CheckHResult(Ogmacam_FpncExport(handle_, filePathHandle.Get()));
     }
 
     public bool FpncImport(string filePath)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_FpncImport(handle_, filePath));
+        StringHandle filePathHandle = new StringHandle(filePath);
+        return CheckHResult(Ogmacam_FpncImport(handle_, filePathHandle.Get()));
     }
 
     public bool IoControl(uint ioLine, eIoControType eType, int outVal, out int inVal)
@@ -3547,11 +3713,11 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_get_AFState(handle_, ref pState));
     }
 
-    public bool put_AFMode(eAFMode mode)
+    public bool put_AFMode(eAFMode mode, int bFixedWD, uint uiNear, uint uiFar)
     {
         if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
             return false;
-        return CheckHResult(Ogmacam_put_AFMode(handle_, mode));
+        return CheckHResult(Ogmacam_put_AFMode(handle_, mode, bFixedWD, uiNear, uiFar));
     }
 
     public bool put_AFRoi(uint xOffset, uint yOffset, uint xWidth, uint yHeight)
@@ -3637,6 +3803,41 @@ internal class Ogmacam : IDisposable
         return CheckHResult(Ogmacam_GetHistogramV2(handle_, pHistogramV2_, id_));
     }
 
+    public bool put_XY(int x, int y)
+    {
+        if (handle_ == null || handle_.IsInvalid || handle_.IsClosed)
+            return false;
+        return CheckHResult(Ogmacam_put_XY(handle_, x, y));
+    }
+    
+    public static string query_Name(string camId)
+    {
+        StringHandle camIdHandle = new StringHandle(camId);
+        IntPtr ptr = Marshal.AllocHGlobal(64);
+        string str = string.Empty;
+        if (Ogmacam_get_Name(camIdHandle.Get(), ptr) >= 0)
+            str = Marshal.PtrToStringAnsi(ptr);
+        Marshal.FreeHGlobal(ptr);
+        return str;
+    }
+
+    public static int put_Name(string camId, string name)
+    {
+        StringHandle camIdHandle = new StringHandle(camId);
+        return Ogmacam_put_Name(camIdHandle.Get(), name);
+    }
+    
+    public static string query_SerialNumber(string camId)
+    {
+        StringHandle camIdHandle = new StringHandle(camId);
+        IntPtr ptr = Marshal.AllocHGlobal(32);
+        string str = string.Empty;
+        if (Ogmacam_query_SerialNumber(camIdHandle.Get(), ptr) >= 0)
+            str = Marshal.PtrToStringAnsi(ptr);
+        Marshal.FreeHGlobal(ptr);
+        return str;
+    }
+
     /*
         calculate the clarity factor:
         pImageData: pointer to the image data
@@ -3679,7 +3880,8 @@ internal class Ogmacam : IDisposable
     */
     public static int Replug(string camId)
     {
-        return Ogmacam_Replug(camId);
+        StringHandle camIdHandle = new StringHandle(camId);
+        return Ogmacam_Replug(camIdHandle.Get());
     }
 
     /* firmware update:
@@ -3702,7 +3904,9 @@ internal class Ogmacam : IDisposable
         };
         IntPtr id = new IntPtr(Interlocked.Increment(ref sid_));
         map_.Add(id.ToInt32(), funProgress);
-        int ret = Ogmacam_Update(camId, filePath, pProgress, id);
+        StringHandle camIdHandle = new StringHandle(camId);
+        StringHandle filePathHandle = new StringHandle(filePath);
+        int ret = Ogmacam_Update(camIdHandle.Get(), filePathHandle.Get(), pProgress, id);
         map_.Remove(id.ToInt32());
         return ret;
     }
@@ -3711,9 +3915,12 @@ internal class Ogmacam : IDisposable
     {
         ModelV2 model = new ModelV2();
         if (q != IntPtr.Zero) {
-            model.name = Marshal.PtrToStringUni(Marshal.ReadIntPtr(q));
+            if (IsWindows())
+                model.name = Marshal.PtrToStringUni(Marshal.ReadIntPtr(q));
+            else
+                model.name = Marshal.PtrToStringAnsi(Marshal.ReadIntPtr(q));
             q = IncIntPtr(q, IntPtr.Size);
-            if ((4 == IntPtr.Size) && IsUnicode())   /* 32bits windows */
+            if ((4 == IntPtr.Size) && IsWindows())   /* 32bits windows */
                 q = IncIntPtr(q, 4); //skip 4 bytes, different from the linux version
             model.flag = (ulong)Marshal.ReadInt64(q);
             q = IncIntPtr(q, sizeof(long));
@@ -3814,7 +4021,7 @@ internal class Ogmacam : IDisposable
                 return "Out of memory";
             case E_WRONG_THREAD:
                 return "Call function in the wrong thread";
-            case E_GEN_FAILURE: /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc */
+            case E_GEN_FAILURE: /* Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc */
                 return "Device not functioning";
             case E_BUSY: /* Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc */
                 return "The requested resource is in use";
@@ -3824,6 +4031,8 @@ internal class Ogmacam : IDisposable
                 return "This operation returned because the timeout period expired";
             case E_UNREACH:
                 return "Network is unreachable";
+            case E_CANCELLED:
+                return "The operation was canceled by the user";
             default:
                 return "Unspecified failure";
         }
@@ -3938,7 +4147,7 @@ internal class Ogmacam : IDisposable
         }
     }
 
-    private static bool IsUnicode()
+    private static bool IsWindows()
     {
 #if (WINDOWS_UWP)
         return true;
@@ -3947,7 +4156,7 @@ internal class Ogmacam : IDisposable
 #endif
     }
 
-#if !(WINDOWS_UWP)
+#if !(NETFX_CORE || NETCOREAPP || WINDOWS_UWP)
     public class SafeCamHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -3990,12 +4199,51 @@ internal class Ogmacam : IDisposable
     };
 #endif
 
-#if LINUX
+    public sealed class StringHandle : IDisposable
+    {
+        public IntPtr ptr_;
+
+        public StringHandle(string s)
+        {
+            if (s != null) {
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    ptr_ = Marshal.StringToHGlobalUni(s);
+                else {
+                    byte[] bytes = System.Text.Encoding.UTF8.GetBytes(s + "\0");
+                    ptr_ = Marshal.AllocHGlobal(bytes.Length);
+                    Marshal.Copy(bytes, 0, ptr_, bytes.Length);
+                }
+            }
+        }
+
+        public IntPtr Get() { return ptr_; }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (ptr_ != IntPtr.Zero) {
+                Marshal.FreeHGlobal(ptr_);
+                ptr_ = IntPtr.Zero;
+            }
+        }
+
+        ~StringHandle()
+        {
+            Dispose(false);
+        }
+    }
+
+#if NETCOREAPP
+    private const string dll = "ogmacam";
+#elif LINUX
     private const string dll = "libogmacam.so";
-    private const UnmanagedType ut = UnmanagedType.LPStr;
 #else
     private const string dll = "ogmacam.dll";
-    private const UnmanagedType ut = UnmanagedType.LPWStr;
 #endif
 
     public delegate void DelegateEventCallback(eEVENT nEvent);
@@ -4029,8 +4277,7 @@ internal class Ogmacam : IDisposable
     };
 
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    [return: MarshalAs(ut)]
-    private static extern string Ogmacam_Version();
+    private static extern IntPtr Ogmacam_Version();
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi), Obsolete]
     private static extern uint Ogmacam_Enum(IntPtr ptr);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -4038,7 +4285,7 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern uint Ogmacam_EnumWithName(IntPtr ptr);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern SafeCamHandle Ogmacam_Open([MarshalAs(ut)] string camId);
+    private static extern SafeCamHandle Ogmacam_Open(IntPtr camId);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern SafeCamHandle Ogmacam_OpenByIndex(uint index);
 #if !(WINDOWS_UWP)
@@ -4212,9 +4459,9 @@ internal class Ogmacam : IDisposable
         ------------------------------------------------------------------|
     */
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_get_AutoExpoEnable(SafeCamHandle h, out int bAutoExposure);
+    private static extern int Ogmacam_get_AutoExpoEnable(SafeCamHandle h, out int mode);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_put_AutoExpoEnable(SafeCamHandle h, int bAutoExposure);
+    private static extern int Ogmacam_put_AutoExpoEnable(SafeCamHandle h, int mode);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_get_AutoExpoTarget(SafeCamHandle h, out ushort Target);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -4371,6 +4618,10 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_get_ProductionDate(SafeCamHandle h, IntPtr pdate);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_query_Name(SafeCamHandle h, IntPtr name);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_set_Name(SafeCamHandle h, [MarshalAs(UnmanagedType.LPStr)] string name);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_get_PixelSize(SafeCamHandle h, uint nResolutionIndex, out float x, out float y);
 
     /*
@@ -4484,17 +4735,17 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_FpncOnce(SafeCamHandle h);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_FfcExport(SafeCamHandle h, [MarshalAs(ut)] string filePath);
+    private static extern int Ogmacam_FfcExport(SafeCamHandle h, IntPtr filePath);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_FfcImport(SafeCamHandle h, [MarshalAs(ut)] string filePath);
+    private static extern int Ogmacam_FfcImport(SafeCamHandle h, IntPtr filePath);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_DfcExport(SafeCamHandle h, [MarshalAs(ut)] string filePath);
+    private static extern int Ogmacam_DfcExport(SafeCamHandle h, IntPtr filePath);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_DfcImport(SafeCamHandle h, [MarshalAs(ut)] string filePath);
+    private static extern int Ogmacam_DfcImport(SafeCamHandle h, IntPtr filePath);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_FpncExport(SafeCamHandle h, [MarshalAs(ut)] string filePath);
+    private static extern int Ogmacam_FpncExport(SafeCamHandle h, IntPtr filePath);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_FpncImport(SafeCamHandle h, [MarshalAs(ut)] string filePath);
+    private static extern int Ogmacam_FpncImport(SafeCamHandle h, IntPtr filePath);
     
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_FfcFile(IntPtr[] data, uint num, uint width, uint height, uint fourcc, uint bits, [MarshalAs(UnmanagedType.LPStr)] string outfile);
@@ -4509,7 +4760,7 @@ internal class Ogmacam : IDisposable
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_get_AFState(SafeCamHandle h, ref AFState pState);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_put_AFMode(SafeCamHandle h, eAFMode mode);
+    private static extern int Ogmacam_put_AFMode(SafeCamHandle h, eAFMode mode, int bFixedWD, uint uiNear, uint uiFar);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_put_AFRoi(SafeCamHandle h, uint xOffset, uint yOffset, uint xWidth, uint yHeight);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
@@ -4529,20 +4780,31 @@ internal class Ogmacam : IDisposable
     private static extern void Ogmacam_deBayerV2(uint nBayer, int nW, int nH, IntPtr input, IntPtr output, byte nBitDepth, byte nBitCount);
 
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_Replug([MarshalAs(ut)] string camId);
+    private static extern int Ogmacam_Replug(IntPtr camId);
 
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_Update([MarshalAs(ut)] string camId, [MarshalAs(ut)] string filePath, PROGRESS_CALLBACK funProgress, IntPtr ctxProgress);
+    private static extern int Ogmacam_Update(IntPtr camId, IntPtr filePath, PROGRESS_CALLBACK funProgress, IntPtr ctxProgress);
 
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_GigeEnable(HOTPLUG_CALLBACK funHotplug, IntPtr ctxHotplug);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_GigeEnableV2(HOTPLUG_CALLBACK funHotplug, IntPtr ctxHotplug, [MarshalAs(UnmanagedType.LPStr)] string opt);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern int Ogmacam_PciEnable(HOTPLUG_CALLBACK funHotplug, IntPtr ctxHotplug);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
-    private static extern int Ogmacam_CtiEnable(HOTPLUG_CALLBACK funHotplug, IntPtr ctxHotplug, [MarshalAs(ut)] string[] ctiPath);
+    private static extern int Ogmacam_CtiEnable(HOTPLUG_CALLBACK funHotplug, IntPtr ctxHotplug, IntPtr ctiPath);
+
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_put_Name(IntPtr camId, [MarshalAs(UnmanagedType.LPStr)] string name);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_get_Name(IntPtr camId, IntPtr name);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern int Ogmacam_query_SerialNumber(IntPtr camId, IntPtr sn);
 
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern IntPtr Ogmacam_get_Model(ushort idVendor, ushort idProduct);
+    [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+    private static extern IntPtr Ogmacam_query_Model(SafeCamHandle h);
     [DllImport(dll, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern IntPtr Ogmacam_all_Model();
 

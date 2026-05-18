@@ -11,9 +11,6 @@
 #include <vector>
 
 CAutoTestDlg* g_pMainDlg = nullptr;
-bool g_work = false;
-std::vector<HANDLE> g_thrd;
-
 
 static BOOL SaveImageByWIC(const wchar_t* strFilename, const void* pData, const BITMAPINFOHEADER* pHeader)
 {
@@ -123,17 +120,17 @@ BEGIN_MESSAGE_MAP(CAutoTestDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON1, &CAutoTestDlg::OnBnClickedButton1)
 	ON_BN_CLICKED(IDC_BUTTON_OPTIONS, &CAutoTestDlg::OnBnClickedOptions)
 	ON_WM_TIMER()
-	ON_MESSAGE(MSG_GIGEHOTPLUG, &CAutoTestDlg::OnMsgGigehotplug)
+	ON_MESSAGE(MSG_EHOTPLUG, &CAutoTestDlg::OnMsgHotplug)
 END_MESSAGE_MAP()
 
-static void __stdcall GigeHotPlug(void* ctxHotPlug)
+static void __stdcall HotPlug(void* ctxHotPlug)
 {
 	HWND hWnd = (HWND)ctxHotPlug;
 	if (IsWindow(hWnd))
-		PostMessage(hWnd, MSG_GIGEHOTPLUG, 0, 0);
+		PostMessage(hWnd, MSG_EHOTPLUG, 0, 0);
 }
 
-LRESULT CAutoTestDlg::OnMsgGigehotplug(WPARAM, LPARAM)
+LRESULT CAutoTestDlg::OnMsgHotplug(WPARAM, LPARAM)
 {
 	EnumCamera();
 	return 0;
@@ -143,7 +140,8 @@ BOOL CAutoTestDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	Ogmacam_GigeEnable(GigeHotPlug, GetSafeHwnd());
+	Ogmacam_GigeEnable(HotPlug, GetSafeHwnd());
+	Ogmacam_CtiEnable(HotPlug, GetSafeHwnd(), NULL);
 
 	EnumCamera();
 
@@ -662,7 +660,6 @@ void COptionsDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(COptionsDlg, CDialog)
 	//{{AFX_MSG_MAP(COptionsDlg)
 	//}}AFX_MSG_MAP
-	ON_WM_HSCROLL()
 END_MESSAGE_MAP()
 
 BOOL COptionsDlg::OnInitDialog()
@@ -675,37 +672,8 @@ BOOL COptionsDlg::OnInitDialog()
 	SetDlgItemInt(IDC_EDIT1, g_NopacketTimeout);
 	SetDlgItemInt(IDC_EDIT3, g_NoframeTimeout);
 	SetDlgItemInt(IDC_EDIT2, g_HeartbeatTimeout);
-	CString str;
-	str.Format(L"CPU usage: %d\n", g_thrd.size());
-	SetDlgItemText(IDC_STATIC_USAGE, str);
-	
-	SYSTEM_INFO sysInfo;
-	GetSystemInfo(&sysInfo);
-	((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->SetRange(0, sysInfo.dwNumberOfProcessors);
-	SetDlgItemInt(IDC_STATIC_MAX_CPU, sysInfo.dwNumberOfProcessors);
-	((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->SetPos(g_thrd.size());
-	SetDlgItemInt(IDC_STATIC_CPU, g_thrd.size());
 
 	return TRUE;
-}
-
-void COptionsDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
-{
-	if (pScrollBar == GetDlgItem(IDC_SLIDER1))
-	{
-		int nCpu = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();
-		SetDlgItemInt(IDC_STATIC_CPU, nCpu);
-	}
-}
-
-unsigned __stdcall Thread(void* pArg)
-{
-	while (g_work)
-	{
-		volatile long long dummy = 1234567890123456789LL;
-		dummy = dummy * dummy;
-	}
-	return 0;
 }
 
 void COptionsDlg::OnOK()
@@ -729,28 +697,6 @@ void COptionsDlg::OnOK()
 	g_bReplug = IsDlgButtonChecked(IDC_CHECK1) ? true : false;
 	g_bEnableCheckBlack = IsDlgButtonChecked(IDC_CHECK2) ? true : false;
 	g_bRealtime = IsDlgButtonChecked(IDC_CHECK3) ? true : false;
-
-	int nCpu = ((CSliderCtrl*)GetDlgItem(IDC_SLIDER1))->GetPos();
-	if (nCpu != g_thrd.size())
-	{
-		g_work = false;
-		for (int i = 0; i < g_thrd.size(); ++i)
-		{
-			if (g_thrd[i])
-			{
-				WaitForSingleObject(g_thrd[i], INFINITE);
-				CloseHandle(g_thrd[i]);
-			}
-		}
-		g_thrd.clear();
-
-		g_work = true;
-		for (int i = 0; i < nCpu; ++i)
-		{
-			HANDLE thread = (HANDLE)_beginthreadex(nullptr, 0, Thread, this, 0, nullptr);
-			g_thrd.push_back(thread);
-		}
-	}
 
 	CDialog::OnOK();
 }

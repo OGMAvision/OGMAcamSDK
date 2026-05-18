@@ -74,12 +74,12 @@ void COpenCloseTestPropertyPage::OnTimer(UINT_PTR nIDEvent)
 		{
 			m_initFlag = true;
 			m_resNum = Ogmacam_get_ResolutionNumber(g_hcam);
-		}		
+		}
 		else
 		{
 			if (++m_resCount >= m_resNum)
 				m_resCount = 0;
-			g_pMainDlg->SendMessage(WM_USER_OPEN_CLOSE, m_resCount);	
+			g_pMainDlg->SendMessage(WM_USER_OPEN_CLOSE, m_resCount);
 		}
 		SetTimer(1, m_interval, nullptr);
 		g_bImageSnap = true;
@@ -118,5 +118,3 @@ void COpenCloseTestPropertyPage::OnBnClickedButtonOpenCloseTestStart()
 		SetTimer(1, m_interval, nullptr);
 	}
 }
-
-

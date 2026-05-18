@@ -7,7 +7,7 @@ Imports System.Runtime.ConstrainedExecution
 Imports System.Collections.Generic
 Imports System.Threading
 
-'    Version: 59.28926.20250709
+'    Version: 59.30850.20260211
 '
 '    For Microsoft dotNET Framework & dotNet Core
 '
@@ -22,6 +22,12 @@ Imports System.Threading
 '       (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
 '       (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
 '
+
+'   Coordinate:
+'      (a) Functions with coordinate parameters, such as Ogmacam_put_Roi, Ogmacam_put_AEAuxRect, etc., the coordinate is always relative to the original resolution,
+'          even that the image has been flipped, rotated, digital binning, ROI, or combination of the previous operations.
+'      (b) Exception: if the image is upside down (see here), the coordinate must be also upsize down.
+'      (c) Exception: hardware binning.
 
 Friend Class Ogmacam
     Implements IDisposable
@@ -76,7 +82,7 @@ Friend Class Ogmacam
         FLAG_GIGE = &H200000000000                ' 1 Gigabit GigE
         FLAG_10GIGE = &H400000000000              ' 10 Gigabit GigE
         FLAG_5GIGE = &H800000000000               ' 5 Gigabit GigE
-        FLAG_25GIGE = &H1000000000000             ' 2.5 Gigabit GigE
+        FLAG_40GIGE = &H1000000000000             ' 40 Gigabit GigE
         FLAG_AUTOFOCUSER = &H2000000000000        ' astro auto focuser
         FLAG_LIGHT_SOURCE = &H4000000000000       ' stand alone light source
         FLAG_CAMERALINK = &H8000000000000         ' camera link
@@ -86,8 +92,11 @@ Friend Class Ogmacam
         FLAG_RAW11 = &H80000000000000             ' pixel format, RAW 11bits
         FLAG_GHOPTO = &H100000000000000           ' ghopto sensor
         FLAG_RAW10PACK = &H200000000000000        ' pixel format, RAW 10bits packed
-        FLAG_USB32 = &H400000000000000            ' usb3.2
-        FLAG_USB32_OVER_USB30 = &H800000000000000 ' usb3.2 camera connected to usb3.0 port
+        FLAG_USB32 = &H400000000000000            ' USB 3.2 Gen 2
+        FLAG_USB32_OVER_USB30 = &H800000000000000 ' USB 3.2 Gen 2 camera connected to usb3.0 port
+        FLAG_LINESCAN  = &H1000000000000000       ' line scan camera
+        FLAG_25GIGE = &H2000000000000000          ' 2.5 Gigabit GigE
+        FLAG_RAW14PACK = &H4000000000000000       ' pixel format, RAW 14bits packed
     End Enum
 
     Public Enum eEVENT As UInteger
@@ -124,7 +133,7 @@ Friend Class Ogmacam
         OPTION_NOFRAME_TIMEOUT = &H1               ' [RW] no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable
         ' [RW] set the priority of the internal thread which grab data from the usb device.
         '   Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
-        '   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
+        '   Linux & macOS: similar to Win
         OPTION_THREAD_PRIORITY = &H2
         ' [RW]
         '  0: RGB mode
@@ -159,7 +168,7 @@ Friend Class Ogmacam
         OPTION_DEMOSAIC_STILL = &H14               ' [RW] demosaic method for still image
         OPTION_BLACKLEVEL = &H15                   ' [RW] black level
         OPTION_MULTITHREAD = &H16                  ' [RW] multithread image processing
-        ' [RW] binning
+        ' [RW] digital binning
         '     0x01: (no binning)
         '     n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
         '     0x40 | n: (unsaturated add, n*n, works only in RAW moden), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
@@ -236,7 +245,9 @@ Friend Class Ogmacam
         OPTION_PRECISE_FRAMERATE = &H2D            ' [RW] precise frame rate current value in 0.1 fps, precise frame rate current value in 0.1 fps. use OPTION_MAX_PRECISE_FRAMERATE, OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned
         OPTION_BANDWIDTH = &H2E                    ' [RW] bandwidth, [1-100]%
         OPTION_RELOAD = &H2F                       ' [RW] reload the last frame in trigger mode
-        OPTION_CALLBACK_THREAD = &H30              ' [RW] dedicated thread for callback: 0 => disable, 1 => enable, default: 0
+        ' [RW] dedicated thread for callback: 0 => disable, 1 => enable
+        '      default: 1(GigE), 0(others)
+        OPTION_CALLBACK_THREAD = &H30
         ' [RW] frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
         ' All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
         OPTION_FRONTEND_DEQUE_LENGTH = &H31
@@ -388,10 +399,10 @@ Friend Class Ogmacam
         '            ((val & 0xff00) >> 8): sequence
         '            ((val & 0xff0000) >> 16): average number
         OPTION_FPNC = &H67
-        ' [RW] Auto exposure over exposure policy: when overexposed,
+        ' [RW] Auto exposure overexposure policy: when overexposed,
         '       0 => directly reduce the exposure time/gain to the minimum value; or
-        '       1 => reduce exposure time/gain in proportion to current and target brightness.
-        '       n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
+        '       1 => reduce exposure time/gain according to the ratio between current and target brightness; or
+        '       n(n>1) => first, adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
         ' The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
         ' Policy 1 avoids the black screen, but the convergence speed is slower.
         ' Default: 0
@@ -407,20 +418,19 @@ Friend Class Ogmacam
         '       0:  disable (default)
         '       n>0: every n millisecond(s)
         '       n<0: every -n frame
-        '
         OPTION_AWB_CONTINUOUS = &H6C
         ' [RO] TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff)
         OPTION_TECTARGET_RANGE = &H6D
-        ' [RW] Correlated Double Sampling
+        ' [RW] Correlated Double Sampling: 0~max (OPTION_CDS_MAX)
         OPTION_CDS = &H6E
         ' [RW] Low Power Consumption: Enable if exposure time is greater than the set value
         OPTION_LOW_POWER_EXPOTIME = &H6F
         ' [RW] Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0
         OPTION_ZERO_OFFSET = &H70
-        ' [RW] GVCP Timeout: millisecond, range = [3, 75], default: 15
+        ' [RW] GVCP Timeout: millisecond, range = [5, 150], default: 15(wire), 30(wireless)
         '   Unless in very special circumstances, generally no modification is required, just use the default value
         OPTION_GVCP_TIMEOUT = &H71
-        ' [RW] GVCP Retry: range = [2, 8], default: 4
+        ' [RW] GVCP Retry: range = [2, 16], default: 4(wire), 8(wireless)
         '   Unless in very special circumstances, generally no modification is required, just use the default value
         OPTION_GVCP_RETRY = &H72
         ' [RW] GVSP wait percent: range = [0, 100], default = (trigger mode: 100, realtime: 0, other: 1)
@@ -449,7 +459,7 @@ Friend Class Ogmacam
         OPTION_TIMED_TRIGGER_HIGH = &H40000000
         ' [RW] trigger threshold of auto exposure
         OPTION_AUTOEXP_THLD_TRIGGER = &H7D
-        OPTION_LANE = &H7E              ' [RW]
+        OPTION_LANE = &H7E              ' [RW] Lane
         ' [RW] Voltage bias
         OPTION_VOLTAGEBIAS = &H7f
         ' [RO] Voltage bias range: min (low 16bits), max (high 16bits)
@@ -465,8 +475,23 @@ Friend Class Ogmacam
         OGMACAM_OPTION_GPS = &H86
         ' [RW] Line length in pixel clock
         OPTION_LINE_LENGTH = &H87
-        ' [RW] Scan direction: 0 (forward), 1(reverse), 2(alternate)
+        ' [RW] Scan direction: 0(forward), 1(reverse), 2(alternate)
         OPTION_SCAN_DIRECTION = &H88
+        ' [RW] Black level automatic adjustment function: 0: off, 1: on
+        '  This setting turn on/off black level auto adjust function by OB(Optical Black) level.
+        '  In case of long exposure and so on, OB level is offset by leak or any other reason.
+        '  Because of it, if the adjustment becomes a problem, this setting is introduced for one of the solution.
+        OPTION_BLACKLEVEL_AUTOADJUST = &H89
+        ' [RW] user set
+        OPTION_USER_SET = &H8A
+        ' [RW] digital gain
+        OPTION_DIGITAL_GAIN = &H1001
+        ' [RW] Anti Blooming
+        OPTION_ANTI_BLOOMING = &H8B
+        ' [RO} Anti Blooming
+        OPTION_ANTI_BLOOMING_MAX = &H8C
+        ' [RO} Correlated Double Sampling
+        OPTION_CDS_MAX = &H8D
     End Enum
 
     ' HRESULT: Error code
@@ -481,11 +506,12 @@ Friend Class Ogmacam
     Public Const E_POINTER = CType(&H80004003, Integer)         ' Pointer that is not valid ' Remark: Pointer is NULL
     Public Const E_FAIL = CType(&H80004005, Integer)            ' Generic failure
     Public Const E_WRONG_THREAD = CType(&H8001010E, Integer)    ' Call function in the wrong thread
-    Public Const E_GEN_FAILURE = CType(&H8007001F, Integer)     ' Device not functioning ' Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc
+    Public Const E_GEN_FAILURE = CType(&H8007001F, Integer)     ' Device not functioning ' Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc
     Public Const E_BUSY = CType(&H800700AA, Integer)            ' The requested resource is in use ' Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc
     Public Const E_PENDING = CType(&H8000000A, Integer)         ' The data necessary to complete this operation is not yet available ' Remark: No data is available at this time
     Public Const E_TIMEOUT = CType(&H8001011F, Integer)         ' This operation returned because the timeout period expired
-    Public Const E_UNREACH = CType(&H80072743, Integer)         ' Network is unreachable
+    Public Const E_UNREACH = CType(&H80072743, Integer)         ' Network is unreachable ' Remark: Please check the IP settings of the camera and the computer, or the firewall settings
+    Public Const E_CANCELLED = CType(&H800704C7, Integer)       ' The operation was canceled by the user
 
     Public Const EXPOGAIN_DEF = 100      ' exposure gain, default value
     Public Const EXPOGAIN_MIN = 100      ' exposure gain, minimum value
@@ -560,14 +586,29 @@ Friend Class Ogmacam
     Public Const DYNAMIC_DEFECT_T2_MIN = 0       ' dynamic defect pixel correction, hot pixel ratio: the smaller the hot ratio is, the more stringent the conditions for processing hot pixels are, and fewer pixels will be processed
     Public Const DYNAMIC_DEFECT_T2_MAX = 100     '
     Public Const DYNAMIC_DEFECT_T2_DEF = 90
-    Public Const HDR_K_MIN = 1        ' HDR synthesize
+    Public Const HDR_K_MIN = 1           ' HDR synthesize
     Public Const HDR_K_MAX = 25500
     Public Const HDR_B_MIN = 0
     Public Const HDR_B_MAX = 65535
     Public Const HDR_THRESHOLD_MIN = 0
     Public Const HDR_THRESHOLD_MAX = 4094
-    Public Const CDS_MIN = 0 'Correlated Double Sampling
-    Public Const CDS_MAX = 100
+    Public Const CDS_MIN = 0            ' Correlated Double Sampling
+    Public Const ANTIBLOOMING_MIN = 0   ' Anti Blooming
+    Public Const GVCP_RETRY_DEF = 4           ' GVCP Retry
+    Public Const GVCP_RETRY_MIN = 2
+    Public Const GVCP_RETRY_MAX = 20
+    Public Const GVCP_TIMEOUT_DEF = 40        ' GVCP Timeout
+    Public Const GVCP_TIMEOUT_MIN = 20
+    Public Const GVCP_TIMEOUT_MAX = 200
+    Public Const GVSP_WAIT_PERCENT_DEF = 1    ' GVSP wait percent
+    Public Const GVSP_WAIT_PERCENT_MIN = 0
+    Public Const GVSP_WAIT_PERCENT_MAX = 100
+    Public Const FRONTEND_MAX = 1024    ' frontend frame buffer deque length
+    Public Const FRONTEND_DEF = 4
+    Public Const FRONTEND_MIN = 2
+    Public Const BACKEND_MAX = 1024     ' backend frame buffer deque length
+    Public Const BACKEND_DEF = 3
+    Public Const BACKEND_MIN = 2
 
     Public Enum ePIXELFORMAT As Integer
         PIXELFORMAT_RAW8 = &H0
@@ -590,6 +631,7 @@ Friend Class Ogmacam
         PIXELFORMAT_HDR12HL = &H11   ' HDR, Bitdepth: 12, Conversion Gain: High + Low
         PIXELFORMAT_HDR14HL = &H12   ' HDR, Bitdepth: 14, Conversion Gain: High + Low
         PIXELFORMAT_RAW10PACK = &H13
+        PIXELFORMAT_RAW14PACK = &H14
     End Enum
 
     <Flags>
@@ -913,7 +955,7 @@ Friend Class Ogmacam
         GC.SuppressFinalize(Me)
     End Sub
 
-    ' get the version of this dll, which is: 59.28926.20250709
+    ' get the version of this dll, which is: 59.30850.20260211
     Public Shared Function Version() As String
         Return Marshal.PtrToStringUni(Ogmacam_Version())
     End Function
@@ -955,18 +997,28 @@ Friend Class Ogmacam
 
     ' Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to null
     Public Shared Function GigeEnable(funHotplug As DelegateHotplugCallback) As Integer
-        Dim pHotplug As HOTPLUG_CALLBACK = New HOTPLUG_CALLBACK(AddressOf HotplugCallback)
-        Dim id As IntPtr = New IntPtr(Interlocked.Increment(sid_))
-        map_.Add(id.ToInt32, funHotplug)
-        Return Ogmacam_GigeEnable(pHotplug, id)
+        Return GigeEnable(funHotplug, Nothing)
     End Function
     
-    ' Initialize support for PCIe cameras. If online/offline notifications are not required, the callback function can be set to null
-    Public Shared Function PciEnable(funHotplug As DelegateHotplugCallback) As Integer
+    ' opt: semicolon separated options:
+    '   "wifi": Enable WiFi adapter support
+    '
+    Public Shared Function GigeEnable(funHotplug As DelegateHotplugCallback, opt As String) As Integer
         Dim pHotplug As HOTPLUG_CALLBACK = New HOTPLUG_CALLBACK(AddressOf HotplugCallback)
         Dim id As IntPtr = New IntPtr(Interlocked.Increment(sid_))
         map_.Add(id.ToInt32, funHotplug)
-        Return Ogmacam_PciEnable(pHotplug, id)
+        If String.IsNullOrEmpty(opt) Then
+            Return Ogmacam_GigeEnable(pHotplug, id)
+        Else
+            Return Ogmacam_GigeEnableV2(pHotplug, id, opt)
+        End If
+    End Function
+
+    ' Initialize support for PCIe cameras. If online/offline notifications are not required, the callback function can be set to null
+    Public Shared Function PciEnable(funHotplug As DelegateHotplugCallback) As Integer
+        Dim id As IntPtr = New IntPtr(Interlocked.Increment(sid_))
+        map_.Add(id.ToInt32, funHotplug)
+        Return Ogmacam_PciEnable(New HOTPLUG_CALLBACK(AddressOf HotplugCallback), id)
     End Function
 
     ' Initialize support for *.cti cameras. If online/offline notifications are not required, the callback function can be set to NULL
@@ -975,34 +1027,31 @@ Friend Class Ogmacam
     ' (2) Dim ctiPath() As String = {
     '       "/full/path/to/file.cti"
     '       ...
-    '       Nothing
     '    }
     '
-    Public Shared Function CtlEnable(funHotplug As DelegateHotplugCallback, ctiPath() As String) As Integer
+    Public Shared Function CtiEnable(funHotplug As DelegateHotplugCallback, ctiPath() As String) As Integer
         Dim newPath() As String = Nothing
-        If ctiPath IsNot Nothing AndAlso ctiPath.Length > 0 AndAlso ctiPath(ctiPath.Length - 1) IsNot Nothing Then
-            newPath = New String(ctiPath.Length) {}
+        If ctiPath IsNot Nothing AndAlso ctiPath.Length > 0 Then
+            newPath = New String(ctiPath.Length) {}   ' Use NULL pointer to indicate the end of the array
             For i As Integer = 0 To ctiPath.Length - 1
                 newPath(i) = ctiPath(i)
             Next
         End If
-        Dim pHotplug As HOTPLUG_CALLBACK = New HOTPLUG_CALLBACK(AddressOf HotplugCallback)
         Dim id As IntPtr = New IntPtr(Interlocked.Increment(sid_))
         map_.Add(id.ToInt32, funHotplug)
-        Return Ogmacam_CtiEnable(pHotplug, id, ctiPath)
+        Return Ogmacam_CtiEnable(New HOTPLUG_CALLBACK(AddressOf HotplugCallback), id, newPath)
     End Function
 
     '
     ' the object of Ogmacam must be obtained by static mothod Open or OpenByIndex, it cannot be obtained by obj = New Ogmacam (The constructor is private on purpose)
     '
     ' camId: enumerated by EnumV2, Nothing means the first enumerated camera
-    ' If it is a GigE camera, the camId can also be specified as (case sensitive):
-    ' For USB, GigE or PCIe camera, the camId can the camId can also be specified as (case sensitive):
-    '    (a) "sn:xxxxxxxxxxxx" (such as sn:ZP250212241204105)
-    '    (b) "name:xxxxxx" (such as name: Camera1)
+    ' For USB, GigE, CameraLink or CXP camera, the camId can also be specified as (case sensitive):
+    '    (a) "sn:xxxxxxxxxxxx" (Use SN, such as sn:ZP250212241204105), or
+    '    (b) "name:xxxxxx" (Use user-defined name, such as name:Camera1)
     ' Moreover, for GigE camera, the camId can also be specified as (case sensitive):
-    '    (a) "ip:xxx.xxx.xxx.xxx" (such as ip:192.168.1.100) or
-    '    (b) "mac:xxxxxxxxxxxx" (such as mac:d05f64ffff23)
+    '    (a) "ip:xxx.xxx.xxx.xxx" (Use IP address, such as ip:192.168.1.100), or
+    '    (b) "mac:xxxxxxxxxxxx" (Use MAC address, such as mac:d05f64ffff23)
     Public Shared Function Open(camId As String) As Ogmacam
         Dim tmphandle As SafeCamHandle = Ogmacam_Open(camId)
         If tmphandle Is Nothing OrElse tmphandle.IsInvalid OrElse tmphandle.IsClosed Then
@@ -1135,7 +1184,7 @@ Friend Class Ogmacam
             If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
                 Return str
             End If
-            Dim ptr As IntPtr = Marshal.AllocHGlobal(64)
+            Dim ptr As IntPtr = Marshal.AllocHGlobal(32)
             If Ogmacam_get_SerialNumber(handle_, ptr) >= 0 Then
                 str = Marshal.PtrToStringAnsi(ptr)
             End If
@@ -1198,6 +1247,29 @@ Friend Class Ogmacam
         End Get
     End Property
 
+    Public Property Name As String
+        Get
+            Dim str As String = String.Empty
+            If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+                Return str
+            End If
+
+            Dim ptr As IntPtr = Marshal.AllocHGlobal(64)
+            If Ogmacam_query_Name(handle_, ptr) >= 0 Then
+                str = Marshal.PtrToStringAnsi(ptr)
+            End If
+            Marshal.FreeHGlobal(ptr)
+            Return str
+        End Get
+
+        Set(value As String)
+            If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+                Return
+            End If
+            Ogmacam_set_Name(handle_, value)
+        End Set
+    End Property
+
     ' such as: 20150327
     Public ReadOnly Property ProductionDate() As String
         Get
@@ -1224,6 +1296,10 @@ Friend Class Ogmacam
             Return Ogmacam_get_Field(handle_)
         End Get
     End Property
+
+    Public Function queryModel() As ModelV2
+        Return toModelV2(Ogmacam_query_Model(handle_))
+    End Function
 
 #If Not (NETFX_CORE OrElse NETCOREAPP OrElse WINDOWS_UWP) Then
     Public Function StartPullModeWithWndMsg(hWnd As IntPtr, nMsg As UInteger) As Boolean
@@ -1871,23 +1947,23 @@ Friend Class Ogmacam
     End Function
 
     '
-    ' bAutoExposure:
+    ' mode:
     '   0: disable auto exposure
     '   1: auto exposure continue mode
     '   2: auto exposure once mode
     '
-    Public Function get_AutoExpoEnable(ByRef bAutoExposure As Integer) As Boolean
+    Public Function get_AutoExpoEnable(ByRef mode As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_get_AutoExpoEnable(handle_, bAutoExposure))
+        Return CheckHResult(Ogmacam_get_AutoExpoEnable(handle_, mode))
     End Function
 
-    Public Function put_AutoExpoEnable(bAutoExposure As Integer) As Boolean
+    Public Function put_AutoExpoEnable(mode As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_put_AutoExpoEnable(handle_, bAutoExposure))
+        Return CheckHResult(Ogmacam_put_AutoExpoEnable(handle_, mode))
     End Function
 
     Public Function get_AutoExpoEnable(ByRef bAutoExposure As Boolean) As Boolean
@@ -2250,6 +2326,10 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_Speed(handle_, pSpeed))
     End Function
 
+    ' Light Frequency:
+    '    0 => 60HZ AC
+    '    1 => 50Hz AC
+    '    2 => DC
     Public Function put_HZ(nHZ As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -2324,6 +2404,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_WhiteBalanceGain(handle_, aGain))
     End Function
 
+    ' Minimum width & height: 4
     Public Function put_AWBAuxRect(X As Integer, Y As Integer, Width As Integer, Height As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -2374,6 +2455,7 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_BlackBalance(handle_, aSub))
     End Function
 
+    ' Minimum width & height: 4
     Public Function put_ABBAuxRect(X As Integer, Y As Integer, Width As Integer, Height As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -2404,6 +2486,7 @@ Friend Class Ogmacam
         Return True
     End Function
 
+    ' Minimum width & height: 4
     Public Function put_AEAuxRect(X As Integer, Y As Integer, Width As Integer, Height As Integer) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
@@ -2536,6 +2619,7 @@ Friend Class Ogmacam
         Return Ogmacam_read_EEPROM(handle_, addr, pBuffer, pBuffer.Length)
     End Function
 
+    ' flash action
     Public Const FLASH_SIZE As UInteger = &H0    ' query total size
     Public Const FLASH_EBLOCK As UInteger = &H1  ' query Erase block size
     Public Const FLASH_RWBLOCK As UInteger = &H2 ' query read/write block size
@@ -2543,10 +2627,12 @@ Friend Class Ogmacam
     Public Const FLASH_READ As UInteger = &H4    ' read
     Public Const FLASH_WRITE As UInteger = &H5   ' write
     Public Const FLASH_ERASE As UInteger = &H6   ' erase
-    ' Flash:
-    ' action = FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+    ' flash zone
+    Public Const FLASH_SENSOR As UInteger = &H0  ' sensor
+    Public Const FLASH_USER As UInteger = &H2    ' user
+
+    ' action = (zone << 24) | OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
     ' addr = address
-    ' see democpp
     Public Function rwc_Flash(action As UInteger, addr As UInteger, len As UInteger, pData As IntPtr) As Integer
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return E_UNEXPECTED
@@ -2611,6 +2697,18 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_Option(handle_, iOption, iValue))
     End Function
 
+    Public Function get_PixelFormatSupport() As Integer()
+        Dim num As Integer = 0
+        If get_PixelFormatSupport(-1, num) AndAlso (num > 0) Then
+            Dim arr(num - 1) As Integer
+            For i As Integer = 0 To num - 1
+                get_PixelFormatSupport(CSByte(i), arr(i))
+            Next
+            Return arr
+        End If
+        Return Nothing
+    End Function
+
     '
     ' cmd: input
     '    -1:       query the number
@@ -2658,6 +2756,21 @@ Friend Class Ogmacam
         Return Ogmacam_get_BinningNumber(handle_)
     End Function
 
+    Public Function get_BinningValue() As String()
+        Dim num As Integer = get_BinningNumber()
+        If num <= 0 Then
+            Return Nothing
+        End If
+
+        Dim arr(num - 1) As String
+        For i As Integer = 0 To num - 1
+            arr(i) = String.Empty
+            get_BinningValue(CUInt(i), arr(i))
+        Next
+
+        Return arr
+    End Function
+
     Public Function get_BinningValue(index As UInteger, ByRef Value As String) As Boolean
         Value = Nothing
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
@@ -2669,6 +2782,20 @@ Friend Class Ogmacam
             Value = Marshal.PtrToStringAnsi(valuePtr)
         End If
         Return ret
+    End Function
+
+    Public Function get_BinningMethod() As String()
+        Dim list As New List(Of String)()
+        Dim index As UInteger = 0
+        Do
+            Dim strMethod As String = Nothing
+            If Not get_BinningMethod(index, strMethod) Then
+                Exit Do
+            End If
+            list.Add(strMethod)
+            index += 1
+        Loop
+        Return list.ToArray()
     End Function
 
     Public Function get_BinningMethod(index As UInteger, ByRef Method As String) As Boolean
@@ -2759,6 +2886,7 @@ Friend Class Ogmacam
 
     '
     ' xOffset, yOffset, xWidth, yHeight: must be even numbers
+    ' Minimum width & height: 8
     '
     Public Function put_Roi(xOffset As UInteger, yOffset As UInteger, xWidth As UInteger, yHeight As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
@@ -2778,13 +2906,6 @@ Friend Class Ogmacam
             Return False
         End If
         Return CheckHResult(Ogmacam_put_RoiN(handle_, xOffset, yOffset, xWidth, yHeight, xOffset.Length))
-    End Function
-
-    Public Function put_XY(x As Integer, y As Integer) As Boolean
-        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
-            Return False
-        End If
-        Return CheckHResult(Ogmacam_put_XY(handle_, x, y))
     End Function
 
     ' get the actual frame rate of the camera at the most recent time (about a few seconds):
@@ -2977,11 +3098,11 @@ Friend Class Ogmacam
         Return CheckHResult(Ogmacam_get_AFState(handle_, pState))
     End Function
 
-    Public Function put_AFMode(mode As eAFMode) As Boolean
+    Public Function put_AFMode(mode As eAFMode, bFixedWD As Integer, uiNear As UInteger, uiFar As UInteger) As Boolean
         If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
             Return False
         End If
-        Return CheckHResult(Ogmacam_put_AFMode(handle_, mode))
+        Return CheckHResult(Ogmacam_put_AFMode(handle_, mode, bFixedWD, uiNear, uiFar))
     End Function
 
     Public Function put_AFRoi(xOffset As UInteger, yOffset As UInteger, xWidth As UInteger, yHeight As UInteger) As Boolean
@@ -3028,6 +3149,37 @@ Friend Class Ogmacam
         funHistogramV2_ = funHistogramV2
         pHistogramV2_ = New HISTOGRAM_CALLBACKV2(AddressOf HistogramCallbackV2)
         Return CheckHResult(Ogmacam_GetHistogramV2(handle_, pHistogramV2_, id_))
+    End Function
+
+    Public Function put_XY(x As Integer, y As Integer) As Boolean
+        If handle_ Is Nothing OrElse handle_.IsInvalid OrElse handle_.IsClosed Then
+            Return False
+        End If
+        Return CheckHResult(Ogmacam_put_XY(handle_, x, y))
+    End Function
+
+    Public Shared Function query_Name(camId As String) As String
+        Dim ptr As IntPtr = Marshal.AllocHGlobal(64)
+        Dim str As String = String.Empty
+        If Ogmacam_get_Name(camId, ptr) >= 0 Then
+            str = Marshal.PtrToStringAnsi(ptr)
+        End If
+        Marshal.FreeHGlobal(ptr)
+        Return str
+    End Function
+
+    Public Shared Function put_Name(camId As String, name As String) As Integer
+        Return Ogmacam_put_Name(camId, name)
+    End Function
+
+    Public Shared Function query_SerialNumber(camId As String) As String
+        Dim ptr As IntPtr = Marshal.AllocHGlobal(32)
+        Dim str As String = String.Empty
+        If Ogmacam_query_SerialNumber(camId, ptr) >= 0 Then
+            str = Marshal.PtrToStringAnsi(ptr)
+        End If
+        Marshal.FreeHGlobal(ptr)
+        Return str
     End Function
 
     '
@@ -3149,7 +3301,7 @@ Friend Class Ogmacam
         End If
         Return Marshal.PtrToStringAnsi(ptr)
     End Function
-    
+
     Public Shared Function FfcFile(data() As IntPtr, num As UInteger, width As UInteger, height As UInteger, fourcc As UInteger, bits As UInteger, outfile As String) As Integer
         Return Ogmacam_FfcFile(data, num, width, height, fourcc, bits, outfile)
     End Function
@@ -3174,7 +3326,7 @@ Friend Class Ogmacam
                 Return "Out of memory"
             Case E_WRONG_THREAD
                 Return "Call function in the wrong thread"
-            Case E_GEN_FAILURE ' Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc
+            Case E_GEN_FAILURE ' Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc
                 Return "Device not functioning"
             Case E_PENDING ' Remark: No data is available at this time
                 Return "The data necessary to complete this operation is not yet available"
@@ -3182,8 +3334,10 @@ Friend Class Ogmacam
                 Return "The requested resource is in use"
             Case E_TIMEOUT
                 Return "This operation returned because the timeout period expired"
-            case E_UNREACH
+            Case E_UNREACH
                 Return "Network is unreachable"
+            Case E_CANCELLED
+                Return "The operation was canceled by the user"
             Case Else
                 Return "Unspecified failure"
         End Select
@@ -3681,10 +3835,10 @@ Friend Class Ogmacam
     '  ------------------------------------------------------------------|
     '
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_get_AutoExpoEnable(h As SafeCamHandle, ByRef bAutoExposure As Integer) As Integer
+    Private Shared Function Ogmacam_get_AutoExpoEnable(h As SafeCamHandle, ByRef mode As Integer) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_put_AutoExpoEnable(h As SafeCamHandle, bAutoExposure As Integer) As Integer
+    Private Shared Function Ogmacam_put_AutoExpoEnable(h As SafeCamHandle, mode As Integer) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_AutoExpoTarget(h As SafeCamHandle, ByRef Target As UShort) As Integer
@@ -3900,6 +4054,12 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_get_ProductionDate(h As SafeCamHandle, pdate As IntPtr) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_query_Name(h As SafeCamHandle, name As IntPtr) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_set_Name(h As SafeCamHandle, <MarshalAs(UnmanagedType.LPStr)> name As String) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_PixelSize(h As SafeCamHandle, nResolutionIndex As UInteger, ByRef x As Single, ByRef y As Single) As Integer
     End Function
 
@@ -4094,7 +4254,7 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_get_AFState(h As SafeCamHandle, ByRef pState As AFState) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
-    Private Shared Function Ogmacam_put_AFMode(h As SafeCamHandle, mode As eAFMode) As Integer
+    Private Shared Function Ogmacam_put_AFMode(h As SafeCamHandle, mode As eAFMode, bFixedWD As Integer, uiNear As UInteger, uiFar As UInteger) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_put_AFRoi(h As SafeCamHandle, xOffset As UInteger, yOffset As UInteger, xWidth As UInteger, yHeight As UInteger) As Integer
@@ -4131,6 +4291,9 @@ Friend Class Ogmacam
     Private Shared Function Ogmacam_GigeEnable(funHotplug As HOTPLUG_CALLBACK, ctxHotplug As IntPtr) As Integer
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_GigeEnableV2(funHotplug As HOTPLUG_CALLBACK, ctxHotplug As IntPtr, <MarshalAs(UnmanagedType.LPStr)> opt As String) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_PciEnable(funHotplug As HOTPLUG_CALLBACK, ctxHotplug As IntPtr) As Integer
     End Function
     <DllImport("ogmacam.dll", CallingConvention:=CallingConvention.Winapi)>
@@ -4138,7 +4301,20 @@ Friend Class Ogmacam
     End Function
 
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_put_Name(<MarshalAs(UnmanagedType.LPWStr)> camId As String, <MarshalAs(UnmanagedType.LPStr)> name As String) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_get_Name(<MarshalAs(UnmanagedType.LPWStr)> camId As String, name As IntPtr) As Integer
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_query_SerialNumber(<MarshalAs(UnmanagedType.LPWStr)> camId As String, sn As IntPtr) As Integer
+    End Function
+
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_get_Model(idVendor As UShort, idProduct As UShort) As IntPtr
+    End Function
+    <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
+    Private Shared Function Ogmacam_query_Model(h As SafeCamHandle) As IntPtr
     End Function
     <DllImport("ogmacam.dll", ExactSpelling:=True, CallingConvention:=CallingConvention.Winapi)>
     Private Shared Function Ogmacam_all_Model() As IntPtr

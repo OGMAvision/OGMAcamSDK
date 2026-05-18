@@ -16,7 +16,7 @@ do {					\
 		(x)->Release();	\
 		(x) = NULL;		\
 	}					\
-} while(0)
+} while (0)
 
 interface ISampleGrabberCB : public IUnknown
 {
@@ -123,7 +123,7 @@ class TDshowContext
 	const HWND				m_hOwner;
 	const UINT				m_NotifyMsg;
 	
-	std::wstring			m_strFullPath;
+	std::wstring			m_aviPath;
 
 	IMoniker*				m_pVideoMoniker;
 	
@@ -161,7 +161,7 @@ public:
 public:
 	HRESULT start(HMENU hMenuSub1, UINT pos, UINT times, UINT cmdID);
 	void stop();
-	HRESULT startcapture(const wchar_t* szFullPath);
+	HRESULT startcapture(const wchar_t* aviPath);
 	void stopcapture();
 
 	void on_notify();
@@ -179,7 +179,7 @@ public:
 	BOOL stillimage_supported();
 	BOOL stillimage_snapshot(const wchar_t* filename);
 
-	HRESULT queryinterface(const IID& riid,  void** ppvObj);
+	HRESULT queryinterface(const IID& riid, void** ppvObj);
 private:
 	BOOL MakeBuilder();
 	BOOL MakeGraph();

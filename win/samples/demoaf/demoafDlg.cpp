@@ -176,8 +176,8 @@ void CdemoafDlg::OnBnClickedButton1()
 		Ogmacam_get_eSize(m_hcam, &nCur);
 		pCombox->SetCurSel(nCur);
 	}
-	StartAFLensControll();
 	StartDevice();
+	StartAFLensControll();
 	SetTimer(1, 100, nullptr);
 }
 
@@ -243,7 +243,6 @@ void CdemoafDlg::OnCbnSelchangeCombo1()
 
 	if (nResolutionIndex != nSel)
 	{
-		Ogmacam_put_AFMode(m_hcam, OgmacamAFMode_NONE, 0, 0, 0);
 		hr = Ogmacam_Stop(m_hcam);
 		if (FAILED(hr))
 			return;

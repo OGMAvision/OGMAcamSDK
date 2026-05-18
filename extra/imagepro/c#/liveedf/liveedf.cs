@@ -151,7 +151,7 @@ internal class Liveedf : IDisposable
 #if !(NETFX_CORE || NETCOREAPP || WINDOWS_UWP)
     public class SafeLiveedfHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
-        [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+        [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
         private static extern void imagepro_edf_delete(IntPtr h);
         
         public SafeLiveedfHandle()
@@ -170,7 +170,7 @@ internal class Liveedf : IDisposable
 #else
     public class SafeLiveedfHandle : SafeHandle
     {
-        [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+        [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
         private static extern void imagepro_edf_delete(IntPtr h);
         
         public SafeLiveedfHandle()
@@ -201,20 +201,20 @@ internal class Liveedf : IDisposable
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate IntPtr IMAGEPRO_MALLOC(IntPtr size);
 
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_init(IMAGEPRO_MALLOC pfun);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern SafeLiveedfHandle imagepro_edf_newV2(eFormat format, eMethod method, LIVEEDF_CALLBACK pEdfFun, LIVEEDF_ECALLBACK pEventFun, IntPtr ctx);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_edf_start(SafeLiveedfHandle handle);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_edf_stop(SafeLiveedfHandle handle);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_edf_readdata(SafeLiveedfHandle handle, IntPtr data, int stride);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
     private static extern int imagepro_edf_pull(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV2 pInfo);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
     private static extern int imagepro_edf_pullV3(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV3 pInfo);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern int imagepro_edf_pullV4(SafeLiveedfHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV4 pInfo);
 }

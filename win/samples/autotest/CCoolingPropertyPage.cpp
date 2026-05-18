@@ -12,8 +12,6 @@ CCoolingPropertyPage::CCoolingPropertyPage()
 BEGIN_MESSAGE_MAP(CCoolingPropertyPage, CPropertyPage)
 END_MESSAGE_MAP()
 
-
-
 BOOL CCoolingPropertyPage::OnInitDialog()
 {
 	CPropertyPage::OnInitDialog();
@@ -32,7 +30,7 @@ BOOL CCoolingPropertyPage::OnInitDialog()
 			str.Format(L"%.1f", Target / 10.0);
 			SetDlgItemText(IDC_EDIT_TEC, str);
 			GetDlgItem(IDC_BUTTON_APPLY)->EnableWindow(FALSE);
-		}	
+		}
 	}
 	else
 	{

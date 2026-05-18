@@ -35,6 +35,7 @@ class MainWidget(QWidget):
         self.temp = ogmacam.OGMACAM_TEMP_DEF
         self.tint = ogmacam.OGMACAM_TINT_DEF
         self.count = 0
+        self.isSupportGain = True
 
         gboxres = QGroupBox("Resolution")
         self.cmb_res = QComboBox()
@@ -125,6 +126,7 @@ class MainWidget(QWidget):
             self.hcam.Close()
         self.hcam = None
         self.pData = None
+        self.isSupportGain = True
 
         self.btn_open.setText("Open")
         self.timer.stop()
@@ -158,7 +160,8 @@ class MainWidget(QWidget):
         if self.hcam:
             self.hcam.put_AutoExpoEnable(1 if state else 0)
             self.slider_expoTime.setEnabled(not state)
-            self.slider_expoGain.setEnabled(not state)
+            if self.isSupportGain:
+                self.slider_expoGain.setEnabled(not state)
 
     def onExpoTime(self, value):
         if self.hcam:
@@ -170,7 +173,11 @@ class MainWidget(QWidget):
         if self.hcam:
             self.lbl_expoGain.setText(str(value))
             if not self.cbox_auto.isChecked():
-                self.hcam.put_ExpoAGain(value)
+                try:
+                    self.hcam.put_ExpoAGain(value)
+                except ogmacam.HRESULTException as ex:
+                    self.isSupportGain = False
+                    self.slider_expoGain.setEnabled(self.isSupportGain)
 
     def onAutoWB(self):
         if self.hcam:
@@ -308,13 +315,15 @@ class MainWidget(QWidget):
 
     def handleExpoEvent(self):
         time = self.hcam.get_ExpoTime()
-        gain = self.hcam.get_ExpoAGain()
         with QSignalBlocker(self.slider_expoTime):
             self.slider_expoTime.setValue(time)
-        with QSignalBlocker(self.slider_expoGain):
-            self.slider_expoGain.setValue(gain)
         self.lbl_expoTime.setText(str(time))
-        self.lbl_expoGain.setText(str(gain))
+
+        if self.isSupportGain:
+            gain = self.hcam.get_ExpoAGain()
+            with QSignalBlocker(self.slider_expoGain):
+                self.slider_expoGain.setValue(gain)
+            self.lbl_expoGain.setText(str(gain))
 
     def handleTempTintEvent(self):
         nTemp, nTint = self.hcam.get_TempTint()

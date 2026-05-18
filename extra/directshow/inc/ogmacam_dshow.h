@@ -1,7 +1,7 @@
 #ifndef __ogmacam_dshow_h__
 #define __ogmacam_dshow_h__
 
-/* Version: 59.28926.20250709 */
+/* Version: 59.30850.20260211 */
 /*
 // {EA6387A5-60C7-41D3-B058-8D90580A7BE1}
 DEFINE_GUID(CLSID_CameraMicro, 0xea6387a5, 0x60c7, 0x41d3, 0xb0, 0x58, 0x8d, 0x90, 0x58, 0xa, 0x7b, 0xe1);
@@ -95,13 +95,13 @@ DECLARE_INTERFACE_(IOgmacam, IUnknown)
     STDMETHOD(put_ExpoCallback) (THIS_ PIOGMACAM_EXPOSURE_CALLBACK funExpo, void* ctxExpo) PURE;
         
     /*
-    * bAutoExposure:
+    * mode:
     *   0: disable auto exposure
     *   1: auto exposure continue mode
     *   2: auto exposure once mode
     */
-    STDMETHOD(get_AutoExpoEnable) (THIS_ int* bAutoExposure) PURE;
-    STDMETHOD(put_AutoExpoEnable) (THIS_ int bAutoExposure) PURE;
+    STDMETHOD(get_AutoExpoEnable) (THIS_ int* mode) PURE;
+    STDMETHOD(put_AutoExpoEnable) (THIS_ int mode) PURE;
         
     STDMETHOD(get_AutoExpoTarget) (THIS_ unsigned short* Target) PURE;
     STDMETHOD(put_AutoExpoTarget) (THIS_ unsigned short Target) PURE;
@@ -243,7 +243,6 @@ DECLARE_INTERFACE_(IOgmacam, IUnknown)
     */
     STDMETHOD(put_TEC) (THIS_ int bTEC) PURE;
     STDMETHOD(get_ResolutionRatio) (THIS_ unsigned nResolutionIndex, int* pNumerator, int* pDenominator) PURE;
-        
         
     STDMETHOD(get_TECTarget) (THIS_ int* nTECTarget) PURE; /* get the target temperature of the thermoelectric cooler, in 0.1 degree Celsius. For example, 125 means 12.5 degree Celsius, -35 means -3.5 degree Celsius */
     STDMETHOD(put_TECTarget) (THIS_ int nTECTarget) PURE; /* set the target temperature of the thermoelectric cooler, in 0.1 degree Celsius */

@@ -307,7 +307,7 @@ internal class Livestitch : IDisposable
 #else
     public class SafeLivestitchHandle : SafeHandle
     {
-        [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
+        [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
         private static extern void imagepro_stitch_delete(IntPtr h);
 
         public SafeLivestitchHandle()
@@ -340,25 +340,25 @@ internal class Livestitch : IDisposable
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate IntPtr IMAGEPRO_MALLOC(IntPtr size);
 
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_init(IMAGEPRO_MALLOC pfun);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern SafeLivestitchHandle imagepro_stitch_newV2(eFormat format, int bGlobalShutter, int videoW, int videoH, int background, LIVESTITCH_CALLBACK pEdfFun, LIVESTITCH_ECALLBACK pEventFun, IntPtr ctx);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern SafeLivestitchHandle imagepro_stitch_newV3(eFormat format, int bGlobalShutter, int videoW, int videoH, int background, ePrecision precision, eThreshold threshold, LIVESTITCH_CALLBACK pEdfFun, LIVESTITCH_ECALLBACK pEventFun, IntPtr ctx);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_stitch_delete(SafeLivestitchHandle handle);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_stitch_start(SafeLivestitchHandle handle);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr imagepro_stitch_stop(SafeLivestitchHandle handle, int normal, int crop);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void imagepro_stitch_readdata(SafeLivestitchHandle handle, IntPtr data, int w, int h, int roix = 0, int roiy = 0, int roiw = 0, int roih = 0);
 
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
     private static extern int imagepro_stitch_pull(SafeLivestitchHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV2 pInfo);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl), Obsolete]
     private static extern int imagepro_stitch_pullV3(SafeLivestitchHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV3 pInfo);
-    [DllImport("imagepro.dll", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("imagepro", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern int imagepro_stitch_pullV4(SafeLivestitchHandle handle, Ogmacam.SafeCamHandle hOgmacam, int bFeed, IntPtr pImageData, int bits, int rowPitch, out Ogmacam.FrameInfoV4 pInfo);
 }

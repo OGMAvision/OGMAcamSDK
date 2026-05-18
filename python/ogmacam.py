@@ -1,4 +1,4 @@
-"""Version: 59.28926.20250709
+"""Version: 59.30850.20260211
 We use ctypes to call into the ogmacam.dll/libogmacam.so/libogmacam.dylib API,
 the python class Ogmacam is a thin wrapper class to the native api of ogmacam.dll/libogmacam.so/libogmacam.dylib.
 So the manual en.html(English) and hans.html(Simplified Chinese) are also applicable for programming with ogmacam.py.
@@ -11,6 +11,14 @@ See them in the 'doc' directory:
 Please distinguish between camera ID (camId) and camera SN:
     (a) SN is unique and persistent, fixed inside the camera and remains unchanged, and does not change with connection or system restart.
     (b) Camera ID (camId) may change due to connection or system restart. Enumerate the cameras to get the camera ID, and then call the Open function to pass in the camId parameter to open the camera.
+"""
+
+"""
+Coordinate:
+    (a) Functions with coordinate parameters, such as Ogmacam_put_Roi, Ogmacam_put_AEAuxRect, etc., the coordinate is always relative to the original resolution,
+        even that the image has been flipped, rotated, digital binning, ROI, or combination of the previous operations.
+    (b) Exception: if the image is upside down (see here), the coordinate must be also upsize down.
+    (c) Exception: hardware binning.
 """
 
 import sys, ctypes, os.path
@@ -65,7 +73,7 @@ OGMACAM_FLAG_FILTERWHEEL         = 0x0000100000000000  # astro filter wheel
 OGMACAM_FLAG_GIGE                = 0x0000200000000000  # 1 Gigabit GigE
 OGMACAM_FLAG_10GIGE              = 0x0000400000000000  # 10 Gigabit GigE
 OGMACAM_FLAG_5GIGE               = 0x0000800000000000  # 5 Gigabit GigE
-OGMACAM_FLAG_25GIGE              = 0x0001000000000000  # 2.5 Gigabit GigE
+OGMACAM_FLAG_40GIGE              = 0x0001000000000000  # 40 Gigabit GigE
 OGMACAM_FLAG_AUTOFOCUSER         = 0x0002000000000000  # astro auto focuser
 OGMACAM_FLAG_LIGHT_SOURCE        = 0x0004000000000000  # stand alone light source
 OGMACAM_FLAG_CAMERALINK          = 0x0008000000000000  # camera link
@@ -75,8 +83,11 @@ OGMACAM_FLAG_SELFTRIGGER         = 0x0040000000000000  # self trigger
 OGMACAM_FLAG_RAW11               = 0x0080000000000000  # pixel format, RAW 11bits
 OGMACAM_FLAG_GHOPTO              = 0x0100000000000000  # ghopto sensor
 OGMACAM_FLAG_RAW10PACK           = 0x0200000000000000  # pixel format, RAW 10bits packed
-OGMACAM_FLAG_USB32               = 0x0400000000000000  # usb3.2
-OGMACAM_FLAG_USB32_OVER_USB30    = 0x0800000000000000  # usb3.2 camera connected to usb3.0 port
+OGMACAM_FLAG_USB32               = 0x0400000000000000  # USB 3.2 Gen 2
+OGMACAM_FLAG_USB32_OVER_USB30    = 0x0800000000000000  # USB 3.2 Gen 2 camera connected to usb3.0 port
+OGMACAM_FLAG_LINESCAN            = 0x1000000000000000  # line scan camera
+OGMACAM_FLAG_25GIGE              = 0x2000000000000000  # 2.5 Gigabit GigE
+OGMACAM_FLAG_RAW14PACK           = 0x4000000000000000  # pixel format, RAW 14bits packed
 
 OGMACAM_EVENT_EXPOSURE           = 0x0001          # exposure time or gain changed
 OGMACAM_EVENT_TEMPTINT           = 0x0002          # white balance changed, Temp/Tint mode
@@ -109,7 +120,7 @@ OGMACAM_EVENT_FACTORY            = 0x8001          # restore factory settings
 OGMACAM_OPTION_NOFRAME_TIMEOUT        = 0x01       # [RW] no frame timeout: 0 => disable, positive value (>= NOFRAME_TIMEOUT_MIN) => timeout milliseconds. default: disable
 OGMACAM_OPTION_THREAD_PRIORITY        = 0x02       # [RW] set the priority of the internal thread which grab data from the usb device.
                                                    #   Win: iValue: 0 => THREAD_PRIORITY_NORMAL; 1 => THREAD_PRIORITY_ABOVE_NORMAL; 2 => THREAD_PRIORITY_HIGHEST; 3 => THREAD_PRIORITY_TIME_CRITICAL; default: 1; see: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority
-                                                   #   Linux & macOS: The high 16 bits for the scheduling policy, and the low 16 bits for the priority; see: https://linux.die.net/man/3/pthread_setschedparam
+                                                   #   Linux & macOS: similar to Win
                                                    #
 OGMACAM_OPTION_RAW                    = 0x04       # [RW]
                                                    #  0: RGB mode
@@ -142,7 +153,7 @@ OGMACAM_OPTION_DEMOSAIC_VIDEO         = 0x13       # [RW] demosaic method for vi
 OGMACAM_OPTION_DEMOSAIC_STILL         = 0x14       # [RW] demosaic method for still image
 OGMACAM_OPTION_BLACKLEVEL             = 0x15       # [RW] black level
 OGMACAM_OPTION_MULTITHREAD            = 0x16       # [RW] multithread image processing
-OGMACAM_OPTION_BINNING                = 0x17       # [RW] binning
+OGMACAM_OPTION_BINNING                = 0x17       # [RW] digital binning
                                                    #     0x01: (no binning)
                                                    #     n: (saturating add, n*n), 0x02(2*2), 0x03(3*3), 0x04(4*4), 0x05(5*5), 0x06(6*6), 0x07(7*7), 0x08(8*8). The Bitdepth of the data remains unchanged.
                                                    #     0x40 | n: (unsaturated add, n*n, works only in RAW mode), 0x42(2*2), 0x43(3*3), 0x44(4*4), 0x45(5*5), 0x46(6*6), 0x47(7*7), 0x48(8*8). The Bitdepth of the data is increased. For example, the original data with bitdepth of 12 will increase the bitdepth by 2 bits and become 14 after 2*2 binning.
@@ -217,7 +228,9 @@ OGMACAM_OPTION_MAX_PRECISE_FRAMERATE  = 0x2c       # [RO] get the precise frame 
 OGMACAM_OPTION_PRECISE_FRAMERATE      = 0x2d       # [RW] precise frame rate current value in 0.1 fps. use OGMACAM_OPTION_MAX_PRECISE_FRAMERATE, OGMACAM_OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned
 OGMACAM_OPTION_BANDWIDTH              = 0x2e       # [RW] bandwidth, [1-100]%
 OGMACAM_OPTION_RELOAD                 = 0x2f       # [RW] reload the last frame in trigger mode
-OGMACAM_OPTION_CALLBACK_THREAD        = 0x30       # [RW] dedicated thread for callback: 0 => disable, 1 => enable, default: 0
+OGMACAM_OPTION_CALLBACK_THREAD        = 0x30       # [RW] dedicated thread for callback: 0 => disable, 1 => enable
+                                                   #      default: 1(GigE), 0(others)
+                                                   #
 OGMACAM_OPTION_FRONTEND_DEQUE_LENGTH  = 0x31       # [RW] frontend (raw) frame buffer deque length, range: [2, 1024], default: 4
                                                    # All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
                                                    #
@@ -317,8 +330,8 @@ OGMACAM_OPTION_OVERCLOCK_MAX          = 0x5c       # [RO] get overclock range: [
 OGMACAM_OPTION_OVERCLOCK              = 0x5d       # [RW] overclock, default: 0
 OGMACAM_OPTION_RESET_SENSOR           = 0x5e       # [WO] reset sensor
 OGMACAM_OPTION_ISP                    = 0x5f       # [RW] Enable hardware ISP: 0 => auto (disable in RAW mode, otherwise enable), 1 => enable, -1 => disable; default: 0
-OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  = 0x60       # [RW] Auto exposure damp: damping coefficient (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes
-OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      = 0x61       # [RW] Auto exposure damp: damping coefficient (thousandths). The larger the damping coefficient, the smoother and slower the gain changes
+OGMACAM_OPTION_AUTOEXP_EXPOTIME_DAMP  = 0x60       # [RW] Auto exposure damping: damping coefficient (thousandths). The larger the damping coefficient, the smoother and slower the exposure time changes
+OGMACAM_OPTION_AUTOEXP_GAIN_DAMP      = 0x61       # [RW] Auto exposure damping: damping coefficient (thousandths). The larger the damping coefficient, the smoother and slower the gain changes
 OGMACAM_OPTION_MOTOR_NUMBER           = 0x62       # [RW] range: [1, 20]
 OGMACAM_OPTION_MOTOR_POS              = 0x10000000 # [RW] range: [1, 702]
 OGMACAM_OPTION_PSEUDO_COLOR_START     = 0x63       # [RW] Pseudo: start color, BGR format
@@ -364,10 +377,10 @@ OGMACAM_OPTION_FPNC                   = 0x67       # [RW] Fix Pattern Noise Corr
                                                    #         ((val & 0xff00) >> 8): sequence
                                                    #         ((val & 0xff0000) >> 16): average number
                                                    #
-OGMACAM_OPTION_OVEREXP_POLICY         = 0x68       # [RW] Auto exposure over exposure policy: when overexposed,
+OGMACAM_OPTION_OVEREXP_POLICY         = 0x68       # [RW] Auto exposure overexposure policy: when overexposed,
                                                    #     0 => directly reduce the exposure time/gain to the minimum value; or
-                                                   #     1 => reduce exposure time/gain in proportion to current and target brightness.
-                                                   #     n(n>1) => first adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
+                                                   #     1 => reduce exposure time/gain according to the ratio between current and target brightness; or
+                                                   #     n(n>1) => first, adjust the exposure time to (maximum automatic exposure time * maximum automatic exposure gain) * n / 1000, and then adjust according to the strategy of 1
                                                    # The advantage of policy 0 is that the convergence speed is faster, but there is black screen.
                                                    # Policy 1 avoids the black screen, but the convergence speed is slower.
                                                    # Default: 0
@@ -380,12 +393,12 @@ OGMACAM_OPTION_AWB_CONTINUOUS         = 0x6c       # [RW] Auto White Balance: co
                                                    #     n>0: every n millisecond(s)
                                                    #     n<0: every -n frame
 OGMACAM_OPTION_TECTARGET_RANGE        = 0x6d       # [RO] TEC target range: min(low 16 bits) = (short)(val & 0xffff), max(high 16 bits) = (short)((val >> 16) & 0xffff)
-OGMACAM_OPTION_CDS                    = 0x6e       # [RW] Correlated Double Sampling
+OGMACAM_OPTION_CDS                    = 0x6e       # [RW] Correlated Double Sampling: 0~max (OGMACAM_OPTION_CDS_MAX)
 OGMACAM_OPTION_LOW_POWER_EXPOTIME     = 0x6f       # [RW] Low Power Consumption: Enable if exposure time is greater than the set value
 OGMACAM_OPTION_ZERO_OFFSET            = 0x70       # [RW] Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0
-OGMACAM_OPTION_GVCP_TIMEOUT           = 0x71       # [RW] GVCP Timeout: millisecond, range = [3, 75], default: 15
+OGMACAM_OPTION_GVCP_TIMEOUT           = 0x71       # [RW] GVCP Timeout: millisecond, range = [5, 150], default: 15(wire), 30(wireless)
                                                    #   Unless in very special circumstances, generally no modification is required, just use the default value
-OGMACAM_OPTION_GVCP_RETRY             = 0x72       # [RW] GVCP Retry: range = [2, 8], default: 4
+OGMACAM_OPTION_GVCP_RETRY             = 0x72       # [RW] GVCP Retry: range = [2, 16], default: 4(wire), 8(wireless)
                                                    #   Unless in very special circumstances, generally no modification is required, just use the default value
 OGMACAM_OPTION_GVSP_WAIT_PERCENT      = 0x73       # [RW] GVSP wait percent: range = [0, 100], default = (trigger mode: 100, realtime: 0, other: 1)
 OGMACAM_OPTION_RESET_SEQ_TIMESTAMP    = 0x74       # [WO] Reset to 0: 1 => seq; 2 => timestamp; 3 => both
@@ -396,11 +409,11 @@ OGMACAM_OPTION_ZERO_PADDING           = 0x78       # [RW] Zero padding: 0 => hig
 OGMACAM_OPTION_UPTIME                 = 0x79       # [RO] device uptime in millisecond
 OGMACAM_OPTION_BITRANGE               = 0x7a       # [RW] Bit range: [0, 8]
 OGMACAM_OPTION_MODE_SEQ_TIMESTAMP     = 0x7b       # [RW] Mode of seq & timestamp: 0 => reset to 0 automatically; 1 => never reset automatically; default: 0
-TOUPCAP_OPTION_TIMED_TRIGGER_NUM      = 0x7c       # [RW] Timed trigger number
+OGMACAM_OPTION_TIMED_TRIGGER_NUM      = 0x7c       # [RW] Timed trigger number
 OGMACAM_OPTION_TIMED_TRIGGER_LOW      = 0x20000000 # [RW] Timed trigger: lower 32 bits of 64-bit integer, nanosecond since epoch (00:00:00 UTC on Thursday, 1 January 1970, see https://en.wikipedia.org/wiki/Unix_time)
 OGMACAM_OPTION_TIMED_TRIGGER_HIGH     = 0x40000000 # [RW] Timed trigger: high 32 bits. The lower 32 bits must be set first, followed by the higher 32 bits
 OGMACAM_OPTION_AUTOEXP_THLD_TRIGGER   = 0x7d       # [RW] trigger threshold of auto exposure
-OGMACAM_OPTION_LANE                   = 0x7e       # [RW]
+OGMACAM_OPTION_LANE                   = 0x7e       # [RW] Lane
 OGMACAM_OPTION_VOLTAGEBIAS            = 0x7f       # [RW] Voltage bias
 OGMACAM_OPTION_VOLTAGEBIAS_RANGE      = 0x80       # [RO] Voltage bias range: min (low 16bits), max (high 16bits)
 OGMACAM_OPTION_READ_TIME              = 0x81       # [RO]
@@ -410,7 +423,16 @@ OGMACAM_OPTION_FRONTEND_FULL          = 0x84       # [RO] get the number of fron
 OGMACAM_OPTION_BACKEND_FULL           = 0x85       # [RO] get the number of backend deque full
 OGMACAM_OPTION_GPS                    = 0x86       # [RO] gps status: 0 => not supported; -1 => gps device offline; 1 => gps device online
 OGMACAM_OPTION_LINE_LENGTH            = 0x87       # [RW] Line length in pixel clock
-OGMACAM_OPTION_SCAN_DIRECTION         = 0x88       # [RW] Scan direction: 0 (forward), 1(reverse), 2(alternate)
+OGMACAM_OPTION_SCAN_DIRECTION         = 0x88       # [RW] Scan direction: 0(forward), 1(reverse), 2(alternate)
+OGMACAM_OPTION_BLACKLEVEL_AUTOADJUST  = 0x89       # [RW] Black level automatic adjustment function: 0: off, 1: on
+                                                   #    This setting turn on/off black level auto adjust function by OB(Optical Black) level.
+                                                   #    In case of long exposure and so on, OB level is offset by leak or any other reason.
+                                                   #    Because of it, if the adjustment becomes a problem, this setting is introduced for one of the solution.
+OGMACAM_OPTION_USER_SET               = 0x8a       # [RW] user set
+OGMACAM_OPTION_DIGITAL_GAIN           = 0x1001     # [RW] digital gain
+OGMACAM_OPTION_ANTI_BLOOMING          = 0x8b       # [RW] Anti Blooming
+OGMACAM_OPTION_ANTI_BLOOMING_MAX      = 0x8c       # [RO} Anti Blooming
+OGMACAM_OPTION_CDS_MAX                = 0x8d       # [RO} Correlated Double Sampling
 
 OGMACAM_PIXELFORMAT_RAW8              = 0x00
 OGMACAM_PIXELFORMAT_RAW10             = 0x01
@@ -432,6 +454,7 @@ OGMACAM_PIXELFORMAT_HDR11HL           = 0x10   # HDR, Bitdepth: 11, Conversion G
 OGMACAM_PIXELFORMAT_HDR12HL           = 0x11   # HDR, Bitdepth: 12, Conversion Gain: High + Low
 OGMACAM_PIXELFORMAT_HDR14HL           = 0x12   # HDR, Bitdepth: 14, Conversion Gain: High + Low
 OGMACAM_PIXELFORMAT_RAW10PACK         = 0x13
+OGMACAM_PIXELFORMAT_RAW14PACK         = 0x14
 
 OGMACAM_FRAMEINFO_FLAG_SEQ                = 0x00000001   # frame sequence number
 OGMACAM_FRAMEINFO_FLAG_TIMESTAMP          = 0x00000002   # timestamp
@@ -583,6 +606,7 @@ OGMACAM_LEVELRANGE_CONTINUE = 0x0002 # continue
 OGMACAM_LEVELRANGE_ROI      = 0xffff # update roi rect only
 
 # see rwc_Flash
+# flash action
 OGMACAM_FLASH_SIZE      = 0x00    # query total size
 OGMACAM_FLASH_EBLOCK    = 0x01    # query erase block size
 OGMACAM_FLASH_RWBLOCK   = 0x02    # query read/write block size
@@ -590,6 +614,10 @@ OGMACAM_FLASH_STATUS    = 0x03    # query status
 OGMACAM_FLASH_READ      = 0x04    # read
 OGMACAM_FLASH_WRITE     = 0x05    # write
 OGMACAM_FLASH_ERASE     = 0x06    # erase
+
+# flash zone
+OGMACAM_FLASH_SENSOR    = 0x00    # sensor
+OGMACAM_FLASH_USER      = 0x02    # user
 
 # HRESULT: error code
 S_OK            = 0x00000000 # Success
@@ -602,11 +630,12 @@ E_INVALIDARG    = 0x80070057 # One or more arguments are not valid
 E_POINTER       = 0x80004003 # Pointer that is not valid # Remark: Pointer is NULL
 E_FAIL          = 0x80004005 # Generic failure
 E_WRONG_THREAD  = 0x8001010e # Call function in the wrong thread
-E_GEN_FAILURE   = 0x8007001f # Device not functioning # Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, camera hardware damage, etc
+E_GEN_FAILURE   = 0x8007001f # Device not functioning # Remark: It is generally caused by hardware errors, such as cable problems, USB port problems, poor contact, insufficient power supply, camera hardware damage, etc
 E_BUSY          = 0x800700aa # The requested resource is in use # Remark: The camera is already in use, such as duplicated opening/starting the camera, or being used by other application, etc
 E_PENDING       = 0x8000000a # The data necessary to complete this operation is not yet available # Remark: No data is available at this time
 E_TIMEOUT       = 0x8001011f # This operation returned because the timeout period expired
-E_UNREACH       = 0x80072743 # Network is unreachable
+E_UNREACH       = 0x80072743 # Network is unreachable # Remark: Please check the IP settings of the camera and the computer, or the firewall settings
+E_CANCELLED     = 0x800704c7 # The operation was canceled by the user
 
 OGMACAM_EXPOGAIN_DEF              = 100      # exposure gain, default value
 OGMACAM_EXPOGAIN_MIN              = 100      # exposure gain, minimum value
@@ -687,8 +716,23 @@ OGMACAM_HDR_B_MIN                 = 0
 OGMACAM_HDR_B_MAX                 = 65535
 OGMACAM_HDR_THRESHOLD_MIN         = 0
 OGMACAM_HDR_THRESHOLD_MAX         = 4094
-OGMACAM_CDS_MIN                   = 0
-OGMACAM_CDS_MAX                   = 4094
+OGMACAM_CDS_MIN                   = 0        # Correlated Double Sampling
+OGMACAM_ANTIBLOOMING_MIN          = 0        # Anti Blooming
+OGMACAM_GVCP_RETRY_DEF            = 4        # GVCP Retry
+OGMACAM_GVCP_RETRY_MIN            = 2
+OGMACAM_GVCP_RETRY_MAX            = 20
+OGMACAM_GVCP_TIMEOUT_DEF          = 40       # GVCP Timeout
+OGMACAM_GVCP_TIMEOUT_MIN          = 20
+OGMACAM_GVCP_TIMEOUT_MAX          = 200
+OGMACAM_GVSP_WAIT_PERCENT_DEF     = 1        # GVSP wait percent
+OGMACAM_GVSP_WAIT_PERCENT_MIN     = 0
+OGMACAM_GVSP_WAIT_PERCENT_MAX     = 100
+OGMACAM_FRONTEND_MAX              = 1024     # frontend frame buffer deque length
+OGMACAM_FRONTEND_DEF              = 4
+OGMACAM_FRONTEND_MIN              = 2
+OGMACAM_BACKEND_MAX               = 1024     # backend frame buffer deque length
+OGMACAM_BACKEND_DEF               = 3
+OGMACAM_BACKEND_MIN               = 2
 
 def TDIBWIDTHBYTES(bits):
     return ((bits + 31) // 32 * 4)
@@ -938,7 +982,7 @@ class Ogmacam:
 
     @classmethod
     def Version(cls):
-        """get the version of this dll, which is: 59.28926.20250709"""
+        """get the version of this dll, which is: 59.30850.20260211"""
         cls.__initlib()
         return cls.__lib.Ogmacam_Version()
 
@@ -966,14 +1010,28 @@ class Ogmacam:
     @classmethod
     def GigeEnable(cls, fun, ctx):
         """Initialize support for GigE cameras. If online/offline notifications are not required, the callback function can be set to None"""
+        cls.GigeEnableV2(fun, ctx, None)
+
+    @classmethod
+    def GigeEnableV2(cls, fun, ctx, opt):
+        """
+        opt: semicolon separated options:
+            "wifi": Enable WiFi adapter support
+        """
         cls.__initlib()
         cls.__gigeenable_fun = fun
         cls.__gigeenable_ctx = ctx
         if cls.__gigeenable_fun is None:
-            cls.__lib.Ogmacam_GigeEnable(cls.__HOTPLUG_CALLBACK(0), None)
+            if opt is None or len(opt) == 0:
+                cls.__lib.Ogmacam_GigeEnable(cls.__HOTPLUG_CALLBACK(0), None)
+            else:
+                cls.__lib.Ogmacam_GigeEnableV2(cls.__HOTPLUG_CALLBACK(0), None, opt)
         else:
             cls.__gigeenable_cb = cls.__HOTPLUG_CALLBACK(cls.__gigeEnableCallbackFun)
-            cls.__lib.Ogmacam_GigeEnable(cls.__gigeenable_cb, None)
+            if opt is None or len(opt) == 0:
+                cls.__lib.Ogmacam_GigeEnable(cls.__gigeenable_cb, None)
+            else:
+                cls.__lib.Ogmacam_GigeEnableV2(cls.__gigeenable_cb, None, opt)
 
     @staticmethod
     def __pciEnableCallbackFun(ctx):
@@ -1105,13 +1163,12 @@ class Ogmacam:
         """
         the object of Ogmacam must be obtained by classmethod Open or OpenByIndex, it cannot be obtained by obj = ogmacam.Ogmacam()
         Open(None) means try to Open the first enumerated camera
-        If it is a GigE camera, the camId can also be specified as (case sensitive):
-        For USB, GigE or PCIe camera, the camId can the camId can also be specified as (case sensitive):
-            (a) "sn:xxxxxxxxxxxx" (such as sn:ZP250212241204105)
-            (b) "name:xxxxxx" (such as name: Camera1)
+        For USB, GigE, CameraLink or CXP camera, the camId can also be specified as (case sensitive):
+            (a) "sn:xxxxxxxxxxxx" (Use SN, such as sn:ZP250212241204105), or
+            (b) "name:xxxxxx" (Use user-defined name, such as name: Camera1)
         Moreover, for GigE camera, the camId can also be specified as (case sensitive):
-            (a) "ip:xxx.xxx.xxx.xxx" (such as ip:192.168.1.100) or
-            (b) "mac:xxxxxxxxxxxx" (such as mac:d05f64ffff23)
+            (a) "ip:xxx.xxx.xxx.xxx" (Use IP address, such as ip:192.168.1.100), or
+            (b) "mac:xxxxxxxxxxxx" (Use MAC address, such as mac:d05f64ffff23)
         """
         cls.__initlib()
         if camId is None:
@@ -1522,7 +1579,7 @@ class Ogmacam:
 
     def get_AutoExpoEnable(self):
         """
-        bAutoExposure:
+        mode:
            0: disable auto exposure
            1: auto exposure continue mode
            2: auto exposure once mode
@@ -1531,14 +1588,14 @@ class Ogmacam:
         self.__lib.Ogmacam_get_AutoExpoEnable(self.__h, b)
         return b.value
 
-    def put_AutoExpoEnable(self, bAutoExposure):
+    def put_AutoExpoEnable(self, mode):
         """
-        bAutoExposure:
+        mode:
            0: disable auto exposure
            1: auto exposure continue mode
            2: auto exposure once mode
         """
-        self.__lib.Ogmacam_put_AutoExpoEnable(self.__h, ctypes.c_int(bAutoExposure))
+        self.__lib.Ogmacam_put_AutoExpoEnable(self.__h, ctypes.c_int(mode))
 
     def get_AutoExpoTarget(self):
         x = ctypes.c_ushort(OGMACAM_AETARGET_DEF)
@@ -1745,7 +1802,7 @@ class Ogmacam:
 
     def put_HZ(self, nHZ):
         """
-        power supply:
+        Light Frequency:
             0 => 60HZ AC
             1 => 50Hz AC
             2 => DC
@@ -1792,6 +1849,7 @@ class Ogmacam:
         return (x[0], x[1], x[2])
 
     def put_AWBAuxRect(self, X, Y, Width, Height):
+        """Minimum width & height: 4"""
         rc = self.__RECT()
         rc.left = X
         rc.right = X + Width
@@ -1806,6 +1864,7 @@ class Ogmacam:
         return (rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top)
 
     def put_AEAuxRect(self, X, Y, Width, Height):
+        """Minimum width & height: 4"""
         rc = self.__RECT()
         rc.left = X
         rc.right = X + Width
@@ -1832,6 +1891,7 @@ class Ogmacam:
         return (x[0], x[1], x[2])
 
     def put_ABBAuxRect(self, X, Y, Width, Height):
+        """Minimum width & height: 4"""
         rc = self.__RECT()
         rc.left = X
         rc.right = X + Width
@@ -1868,10 +1928,8 @@ class Ogmacam:
 
     def rwc_Flash(self, action, addr, pData):
         """
-        Flash:
-        action = OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
+        action = (zone << 24) | OGMACAM_FLASH_XXXX: read, write, erase, query total size, query read/write block size, query erase block size
         addr = address
-        see democpp
         """
         self.__lib.Ogmacam_rwc_Flash(self.__h, action, addr, ctypes.c_uint(len(pData)), pData)
 
@@ -1898,8 +1956,14 @@ class Ogmacam:
         self.__lib.Ogmacam_get_Option(self.__h, ctypes.c_uint(iOption), ctypes.byref(x))
         return x.value
 
+    def get_all_PixelFormatSupport(self):
+        num = self.get_PixelFormatSupport(0xff)
+        if num <= 0:
+            return []
+        return [self.get_PixelFormatSupport(i) for i in range(num)]
+
     def get_PixelFormatSupport(self, cmd):
-        """"
+        """
         cmd:
            0xff:     query the number
            0~number: query the nth pixel format
@@ -1909,30 +1973,50 @@ class Ogmacam:
         self.__lib.Ogmacam_get_PixelFormatSupport(self.__h, cmd, ctypes.byref(x))
         return x.value
 
-    # Hardware Binning
-    # Value: 1x1, 2x2, etc
-    # Method: Average, Add, Skip
     def put_Binning(self, Value, Method):
+        """
+        Hardware Binning
+        Value: 1x1, 2x2, etc
+        Method: Average, Add, Skip
+        """
         self.__lib.Ogmacam_put_Binning(self.__h, Value, Method)
 
     def get_Binning(self):
         pValue = ctypes.c_char_p(0)
         pMethod = ctypes.c_char_p(0)
-        self.__lib.Ogmacam_get_Binning(self.__h, ctypes.ref(pValue), ctypes.ref(pMethod))
-        return (pValue.value, pMethod.value)
-        
+        self.__lib.Ogmacam_get_Binning(self.__h, ctypes.byref(pValue), ctypes.byref(pMethod))
+        return (pValue.value.decode('ascii'), pMethod.value.decode('ascii'))
+
+    def get_BinningValue(self):
+        num = self.get_BinningNumber()
+        if num <= 0:
+            return []
+        return [self.get_BinningValue(i) for i in range(num)]
+
     def get_BinningNumber(self):
         return self.__lib.Ogmacam_get_BinningNumber(self.__h)
 
-    def get_BinningValue(self):
+    def get_BinningValue(self, index):
         p = ctypes.c_char_p(0)
-        self.__lib.Ogmacam_get_BinningValue(self.__h, ctypes.ref(p))
-        return p.value
+        self.__lib.Ogmacam_get_BinningValue(self.__h, index, ctypes.byref(p))
+        return p.value.decode('ascii')
 
-    def get_BinningMethod(self):
+    def get_all_BinningMethod(self):
+        methods = []
+        index = 0
+        while True:
+            try:
+                m = self.get_BinningMethod(index)
+                methods.append(m)
+                index += 1
+            except Exception:
+                break
+        return methods
+
+    def get_BinningMethod(self, index):
         p = ctypes.c_char_p(0)
-        self.__lib.Ogmacam_get_BinningMethod(self.__h, ctypes.ref(p))
-        return p.value
+        self.__lib.Ogmacam_get_BinningMethod(self.__h, index, ctypes.byref(p))
+        return p.value.decode('ascii')
 
     def put_Linear(self, v8, v16):
         self.__lib.Ogmacam_put_Linear(self.__h, v8, v16)
@@ -1979,7 +2063,10 @@ class Ogmacam:
         self.__lib.Ogmacam_put_Temperature(self.__h, ctypes.c_short(nTemperature))
 
     def put_Roi(self, xOffset, yOffset, xWidth, yHeight):
-        """xOffset, yOffset, xWidth, yHeight: must be even numbers"""
+        """
+        xOffset, yOffset, xWidth, yHeight: must be even numbers
+        Minimum width & height: 8
+        """
         self.__lib.Ogmacam_put_Roi(self.__h, ctypes.c_uint(xOffset), ctypes.c_uint(yOffset), ctypes.c_uint(xWidth), ctypes.c_uint(yHeight))
 
     def get_Roi(self):
@@ -2030,8 +2117,8 @@ class Ogmacam:
         self.__lib.Ogmacam_get_AFState(self.__h, ctypes.byref(x))
         return x.value
 
-    def put_AFMode(self, mode):
-        self.__lib.Ogmacam_put_AFRoi(self.__h, ctypes.c_uint(mode))
+    def put_AFMode(self, mode, bFixedWD, uiNear, uiFar):
+        self.__lib.Ogmacam_put_AFMode(self.__h, ctypes.c_uint(mode), ctypes.c_int(bFixedWD), ctypes.c_uint(uiNear), ctypes.c_uint(uiFar))
 
     def put_AFRoi(self, xOffset, yOffset, xWidth, yHeight):
         self.__lib.Ogmacam_put_AFRoi(self.__h, ctypes.c_uint(xOffset), ctypes.c_uint(yOffset), ctypes.c_uint(xWidth), ctypes.c_uint(yHeight))
@@ -2187,7 +2274,7 @@ class Ogmacam:
     @classmethod
     def PixelFormatName(cls, pixelFormat):
         cls.__initlib()
-        return cls.__lib.Ogmacam_get_PixelFormatName(pixelFormat)
+        return cls.__lib.Ogmacam_get_PixelFormatName(pixelFormat).decode('ascii')
 
     @classmethod
     def Replug(cls, camId):
@@ -2250,7 +2337,7 @@ class Ogmacam:
     @classmethod
     def __initlib(cls):
         if cls.__lib is None:
-            try: # Firstly try to load the library in the directory where this file is located
+            try: # First, try to load the library in the directory where this file is located
                 dir = os.path.dirname(os.path.realpath(__file__))
                 if sys.platform == 'win32':
                     cls.__lib = ctypes.windll.LoadLibrary(os.path.join(dir, 'ogmacam.dll'))
@@ -2782,7 +2869,7 @@ class Ogmacam:
             cls.__lib.Ogmacam_get_AFState.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
             cls.__lib.Ogmacam_put_AFMode.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_AFMode.errcheck = cls.__errcheck
-            cls.__lib.Ogmacam_put_AFMode.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+            cls.__lib.Ogmacam_put_AFMode.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_uint, ctypes.c_uint]
             cls.__lib.Ogmacam_put_AFRoi.restype = ctypes.c_int
             cls.__lib.Ogmacam_put_AFRoi.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_put_AFRoi.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
@@ -2827,13 +2914,15 @@ class Ogmacam:
             cls.__lib.Ogmacam_GetHistogramV2.argtypes = [ctypes.c_void_p, cls.__HISTOGRAM_CALLBACK, ctypes.py_object]
             cls.__lib.Ogmacam_GigeEnable.restype = ctypes.c_int
             cls.__lib.Ogmacam_GigeEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p]
+            cls.__lib.Ogmacam_GigeEnableV2.restype = ctypes.c_int
+            cls.__lib.Ogmacam_GigeEnableV2.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p, ctypes.c_char_p]
             cls.__lib.Ogmacam_PciEnable.restype = ctypes.c_int
             cls.__lib.Ogmacam_PciEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p]
             cls.__lib.Ogmacam_CtiEnable.restype = ctypes.c_int
             if sys.platform == 'win32':
-                cls.__lib.Ogmacam_CtiEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p, ctypes.POINTER(c_wchar_p)]
+                cls.__lib.Ogmacam_CtiEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p, ctypes.POINTER(ctypes.c_wchar_p)]
             else:
-                cls.__lib.Ogmacam_CtiEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p, ctypes.POINTER(c_char_p)]
+                cls.__lib.Ogmacam_CtiEnable.argtypes = [cls.__HOTPLUG_CALLBACK, ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
             cls.__lib.Ogmacam_Gain2TempTint.restype = ctypes.c_int
             cls.__lib.Ogmacam_Gain2TempTint.errcheck = cls.__errcheck
             cls.__lib.Ogmacam_Gain2TempTint.argtypes = [ctypes.c_int * 3, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)];

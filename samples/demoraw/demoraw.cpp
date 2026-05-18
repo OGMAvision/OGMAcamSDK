@@ -86,7 +86,7 @@ int main(int, char**)
     HRESULT hr = Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_RAW, -1); /* use raw image data */
     printf("put option raw: hr = 0x%08x\n", hr);
 
-    Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, 0); /* enable bitdepth */    
+    Ogmacam_put_Option(g_hcam, OGMACAM_OPTION_BITDEPTH, 0); /* enable bitdepth */
 
     int nMaxWidth = 0, nMaxHeight = 0;
     hr = Ogmacam_get_Resolution(g_hcam, 0, &nMaxWidth, &nMaxHeight);

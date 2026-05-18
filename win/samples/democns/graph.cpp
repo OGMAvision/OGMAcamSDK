@@ -563,7 +563,7 @@ void CGraph::ZoomY(int yCoord, bool zoomIn)
 		return;
 	double scaleFactor = zoomIn ? 0.8 : 1.20;
 	int newmin = static_cast<int>(yCoord - (yCoord - m_yminCur) * scaleFactor);
-	int newmax = static_cast<int>(yCoord + (m_ymaxCur - yCoord) * scaleFactor);	
+	int newmax = static_cast<int>(yCoord + (m_ymaxCur - yCoord) * scaleFactor);
 	if (newmin < m_ymin)
 		newmin = m_ymin;
 	if (newmax > m_ymax)
